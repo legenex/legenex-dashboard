@@ -58,7 +58,7 @@ export default function SettingsSuppliers() {
     }
   }, [appSettingsArr]);
 
-  const endpointUrl = `${savedBaseUrl}/v1/leads`;
+  const endpointUrl = `${savedBaseUrl}/functions/leads`;
 
   const saveBaseUrl = async () => {
     if (appSettings.id) {

@@ -91,8 +91,9 @@ function buildPayloadFromTemplate(template, enrichedData) {
 }
 
 Deno.serve(async (req) => {
-  // Use service role — no user session required; auth is via API key check below
+  // createClientFromRequest gives us .asServiceRole for all DB ops — no user session needed
   const base44 = createClientFromRequest(req);
+  const db = base44.asServiceRole;
   const method = req.method;
 
   // CORS preflight
@@ -112,12 +113,13 @@ Deno.serve(async (req) => {
 
   const startTime = Date.now();
   let leadId = null;
+  let supplierAttribution = 'Unknown';
 
   try {
     const body = await req.json();
     const payload = body.payload || body;
 
-    // Accept key from multiple header/field names (X-API-KEY, X_KEY, Basic Auth, payload)
+    // Accept key from multiple header/field names
     let supplierKeyRaw =
       req.headers.get('X-API-KEY') ||
       req.headers.get('X_KEY') ||
@@ -140,18 +142,18 @@ Deno.serve(async (req) => {
     delete leadPayload['X-API-KEY'];
     delete leadPayload['X_KEY'];
     delete leadPayload._supplier_key;
-    // Always ignore incoming phone_verified from supplier (we compute it from HLR)
+    // Always compute phone_verified from HLR — ignore supplier-provided value
     delete leadPayload.phone_verified;
 
-    // 1. AUTH — validate API key using service role
+    // 1. AUTH — validate API key via service role
     let apiKeyRecord = null;
     if (supplierKeyRaw) {
-      const keys = await base44.asServiceRole.entities.ApiKey.filter({ key: supplierKeyRaw });
+      const keys = await db.entities.ApiKey.filter({ key: supplierKeyRaw });
       if (keys.length > 0 && keys[0].active) apiKeyRecord = keys[0];
     }
 
     if (!apiKeyRecord) {
-      await base44.asServiceRole.entities.ErrorLog.create({
+      await db.entities.ErrorLog.create({
         stage: 'auth', severity: 'error',
         message: 'Invalid or missing API key',
         detail: JSON.stringify({ key_provided: supplierKeyRaw ? 'yes' : 'no' }),
@@ -160,24 +162,25 @@ Deno.serve(async (req) => {
       return Response.json({ Response: 'Error', message: 'Invalid or missing API key' }, { status: 401 });
     }
 
-    const supplierAttribution = apiKeyRecord.type === 'master'
+    supplierAttribution = apiKeyRecord.type === 'master'
       ? 'Master'
       : (apiKeyRecord.supplier_name || 'Unknown');
 
-    await base44.asServiceRole.entities.ApiKey.update(apiKeyRecord.id, {
+    // Update key usage stats (non-blocking, don't await)
+    db.entities.ApiKey.update(apiKeyRecord.id, {
       last_used_at: new Date().toISOString(),
       request_count: (apiKeyRecord.request_count || 0) + 1,
-    });
+    }).catch(() => {});
 
     // 2. INJECT TIMESTAMP
     const now = new Date();
-    const appSettingsArr = await base44.asServiceRole.entities.AppSettings.list();
+    const appSettingsArr = await db.entities.AppSettings.list();
     const appSettings = appSettingsArr[0] || {};
     const tsFmt = appSettings.timestamp_format || 'MM/DD/YYYY HH:MM:SS';
     leadPayload.timestamp = formatTimestamp(now, tsFmt);
 
-    // 3. CREATE LEAD
-    const lead = await base44.asServiceRole.entities.Lead.create({
+    // 3. CREATE LEAD IMMEDIATELY — must happen before any downstream calls
+    const lead = await db.entities.Lead.create({
       supplier_name: supplierAttribution,
       supplier_key_id: apiKeyRecord.id,
       raw_payload: JSON.stringify(leadPayload),
@@ -187,9 +190,9 @@ Deno.serve(async (req) => {
 
     // Load config in parallel
     const [hlrSettingsArr, connectors, calcs] = await Promise.all([
-      base44.asServiceRole.entities.HlrSettings.list(),
-      base44.asServiceRole.entities.LeadByteConnector.filter({ enabled: true, is_default: true }),
-      base44.asServiceRole.entities.CustomCalculation.list(),
+      db.entities.HlrSettings.list(),
+      db.entities.LeadByteConnector.filter({ enabled: true, is_default: true }),
+      db.entities.CustomCalculation.list(),
     ]);
     const hlrSettings = hlrSettingsArr[0] || null;
     const leadByteConnector = connectors[0] || null;
@@ -210,7 +213,7 @@ Deno.serve(async (req) => {
     if (!leadPayload.supplier_brand && leadPayload.brand) leadPayload.supplier_brand = leadPayload.brand;
     if (!leadPayload.ad_label && leadPayload.utm_ad_label) leadPayload.ad_label = leadPayload.utm_ad_label;
 
-    await base44.asServiceRole.entities.Lead.update(leadId, {
+    await db.entities.Lead.update(leadId, {
       mapped_fields: JSON.stringify(leadPayload),
       first_name: firstName,
       last_name: lastName,
@@ -253,7 +256,7 @@ Deno.serve(async (req) => {
         if (!hlrResp.ok) throw new Error(`HLR returned HTTP ${hlrResp.status}`);
         hlrResult = await hlrResp.json();
 
-        await base44.asServiceRole.entities.Lead.update(leadId, {
+        await db.entities.Lead.update(leadId, {
           hlr_request: JSON.stringify(hlrRequestBody),
           hlr_response: JSON.stringify(hlrResult),
           hlr_status: hlrResult.lh_hlr_response || '',
@@ -261,23 +264,25 @@ Deno.serve(async (req) => {
         });
       } catch (err) {
         const hlrError = err.message || 'HLR lookup failed';
-        await base44.asServiceRole.entities.Lead.update(leadId, {
+        await db.entities.Lead.update(leadId, {
           hlr_error: hlrError,
           hlr_request: JSON.stringify(hlrRequestBody),
         });
-        await base44.asServiceRole.entities.ErrorLog.create({
+        await db.entities.ErrorLog.create({
           lead_id: leadId, stage: 'hlr', severity: 'error',
-          message: hlrError, detail: JSON.stringify({ fail_mode: failMode }),
+          message: hlrError,
+          detail: JSON.stringify({ fail_mode: failMode, stack: err.stack }),
           supplier_name: supplierAttribution,
         });
         if (failMode === 'fail_closed') {
-          await base44.asServiceRole.entities.Lead.update(leadId, {
+          const resp = { Response: 'Error', message: 'HLR lookup failed' };
+          await db.entities.Lead.update(leadId, {
             final_status: 'Error', error_stage: 'hlr',
             processed_at: new Date().toISOString(),
             process_time_ms: Date.now() - startTime,
-            response_returned: JSON.stringify({ Response: 'Error', message: 'HLR lookup failed' }),
+            response_returned: JSON.stringify(resp),
           });
-          return Response.json({ Response: 'Error', message: 'HLR lookup failed' }, { status: 200 });
+          return Response.json(resp, { status: 200 });
         }
       }
     }
@@ -292,25 +297,28 @@ Deno.serve(async (req) => {
       enrichedData.country_code = hlrResult.country_code || '';
     }
 
-    // 7. BUILD LEADBYTE PAYLOAD
+    // 7. CHECK LEADBYTE CONNECTOR
     if (!leadByteConnector) {
-      await base44.asServiceRole.entities.Lead.update(leadId, {
-        final_status: 'Error', error_stage: 'leadbyte',
-        processed_at: new Date().toISOString(),
-        process_time_ms: Date.now() - startTime,
-        response_returned: JSON.stringify({ Response: 'Error', message: 'No active LeadByte connector configured' }),
-      });
-      await base44.asServiceRole.entities.ErrorLog.create({
-        lead_id: leadId, stage: 'leadbyte', severity: 'critical',
-        message: 'No active LeadByte connector configured',
-        supplier_name: supplierAttribution,
-      });
-      return Response.json({ Response: 'Error', message: 'No active LeadByte connector configured' }, { status: 200 });
+      const resp = { Response: 'Error', message: 'No active LeadByte connector configured' };
+      await Promise.all([
+        db.entities.Lead.update(leadId, {
+          final_status: 'Error', error_stage: 'leadbyte',
+          processed_at: new Date().toISOString(),
+          process_time_ms: Date.now() - startTime,
+          response_returned: JSON.stringify(resp),
+        }),
+        db.entities.ErrorLog.create({
+          lead_id: leadId, stage: 'leadbyte', severity: 'critical',
+          message: 'No active LeadByte connector configured',
+          supplier_name: supplierAttribution,
+        }),
+      ]);
+      return Response.json(resp, { status: 200 });
     }
 
     const leadBytePayload = buildPayloadFromTemplate(leadByteConnector.payload_template, enrichedData);
 
-    await base44.asServiceRole.entities.Lead.update(leadId, {
+    await db.entities.Lead.update(leadId, {
       leadbyte_request: JSON.stringify(leadBytePayload),
     });
 
@@ -348,7 +356,7 @@ Deno.serve(async (req) => {
     let lbResult;
     try { lbResult = JSON.parse(lbText); } catch { lbResult = { raw: lbText }; }
 
-    await base44.asServiceRole.entities.Lead.update(leadId, {
+    await db.entities.Lead.update(leadId, {
       leadbyte_response: JSON.stringify(lbResult),
     });
 
@@ -360,7 +368,7 @@ Deno.serve(async (req) => {
       const record = lbResult.records[0];
       const recordStatus = record.status;
       const recordResponse = record.response || {};
-      await base44.asServiceRole.entities.Lead.update(leadId, {
+      await db.entities.Lead.update(leadId, {
         leadbyte_queue_id: record.queueId || '',
         leadbyte_record_status: recordStatus || '',
         leadbyte_lead_id: recordResponse.leadId || null,
@@ -374,14 +382,14 @@ Deno.serve(async (req) => {
       } else {
         finalStatus = 'Error';
         supplierResponse = { Response: 'Error', message: `LeadByte record status: ${recordStatus}` };
-        await base44.asServiceRole.entities.ErrorLog.create({
+        await db.entities.ErrorLog.create({
           lead_id: leadId, stage: 'leadbyte', severity: 'error',
           message: `Unexpected LeadByte record status: ${recordStatus}`,
           detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
         });
       }
     } else {
-      await base44.asServiceRole.entities.ErrorLog.create({
+      await db.entities.ErrorLog.create({
         lead_id: leadId, stage: 'leadbyte', severity: 'error',
         message: lbResult.message || 'LeadByte returned non-success',
         detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
@@ -389,7 +397,7 @@ Deno.serve(async (req) => {
     }
 
     // 10. FINALIZE
-    await base44.asServiceRole.entities.Lead.update(leadId, {
+    await db.entities.Lead.update(leadId, {
       final_status: finalStatus,
       processed_at: new Date().toISOString(),
       process_time_ms: Date.now() - startTime,
@@ -397,8 +405,7 @@ Deno.serve(async (req) => {
     });
 
     // Fire outbound webhooks async (non-blocking)
-    try {
-      const webhooks = await base44.asServiceRole.entities.Webhook.filter({ enabled: true });
+    db.entities.Webhook.filter({ enabled: true }).then(webhooks => {
       const eventName = `lead.${finalStatus.toLowerCase()}`;
       webhooks.forEach(wh => {
         const events = typeof wh.events === 'string' ? JSON.parse(wh.events) : (wh.events || []);
@@ -411,30 +418,32 @@ Deno.serve(async (req) => {
           }).catch(() => {});
         }
       });
-    } catch {}
+    }).catch(() => {});
 
     return Response.json(supplierResponse, { status: 200 });
 
   } catch (err) {
-    console.error('leads uncaught error:', err);
+    console.error('leads uncaught error:', err.message, err.stack);
+
+    // Always persist the lead error and log — these must never fail silently
+    const errResp = { Response: 'Error', message: 'Internal processing error' };
     if (leadId) {
-      try {
-        await base44.asServiceRole.entities.Lead.update(leadId, {
-          final_status: 'Error', error_stage: 'system',
-          processed_at: new Date().toISOString(),
-          process_time_ms: Date.now() - startTime,
-          response_returned: JSON.stringify({ Response: 'Error', message: 'Internal processing error' }),
-        });
-      } catch {}
+      await db.entities.Lead.update(leadId, {
+        final_status: 'Error', error_stage: 'system',
+        processed_at: new Date().toISOString(),
+        process_time_ms: Date.now() - startTime,
+        response_returned: JSON.stringify(errResp),
+      }).catch(e => console.error('Failed to update lead on error:', e.message));
     }
-    try {
-      await base44.asServiceRole.entities.ErrorLog.create({
-        lead_id: leadId, stage: 'system', severity: 'critical',
-        message: err.message || 'Unknown error',
-        detail: JSON.stringify({ stack: err.stack }),
-        supplier_name: 'Unknown',
-      });
-    } catch {}
-    return Response.json({ Response: 'Error', message: 'Internal processing error' }, { status: 200 });
+    await db.entities.ErrorLog.create({
+      lead_id: leadId,
+      stage: 'system',
+      severity: 'critical',
+      message: err.message || 'Unknown error',
+      detail: JSON.stringify({ stack: err.stack }),
+      supplier_name: supplierAttribution,
+    }).catch(e => console.error('Failed to write ErrorLog:', e.message));
+
+    return Response.json(errResp, { status: 200 });
   }
 });
