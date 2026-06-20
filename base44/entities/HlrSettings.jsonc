@@ -27,15 +27,24 @@
     },
     "request_field_map": {
       "type": "string",
-      "description": "JSON object mapping inbound fields to HLR request fields"
+      "description": "JSON: {\"mobile\":\"phone\",\"first_name\":\"firstname\",\"last_name\":\"lastname\"}"
     },
     "passthrough_fields": {
       "type": "string",
-      "description": "JSON array of HLR response fields to pass through to LeadByte"
+      "description": "JSON array of HLR response fields to pass through"
     },
     "min_summary_score": {
       "type": "number",
       "default": 0
+    },
+    "phone_verified_source": {
+      "type": "string",
+      "enum": [
+        "lh_hlr_response",
+        "summary_score",
+        "boolean"
+      ],
+      "default": "lh_hlr_response"
     }
   },
   "required": [

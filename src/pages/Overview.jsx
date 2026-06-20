@@ -7,7 +7,8 @@ import StatCard from '@/components/overview/StatCard';
 import HealthStrip from '@/components/overview/HealthStrip';
 import StatusPill from '@/components/shared/StatusPill';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Percent, AlertTriangle, Clock } from 'lucide-react';
+import { Percent, AlertTriangle, Clock, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, subDays, startOfDay, startOfWeek, startOfMonth, isAfter } from 'date-fns';
 
 const PIE_COLORS = ['#22C55E', '#F59E0B', '#EF4444'];
@@ -27,6 +28,14 @@ export default function Overview() {
     queryKey: ['lb-connectors'],
     queryFn: () => base44.entities.LeadByteConnector.filter({ enabled: true }),
   });
+
+  const { data: appSettingsArr = [] } = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: () => base44.entities.AppSettings.list(),
+  });
+
+  const publicBaseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
+  const endpointUrl = `${publicBaseUrl}/v1/leads`;
 
   const { data: errors = [] } = useQuery({
     queryKey: ['errors-today'],
@@ -92,6 +101,18 @@ export default function Overview() {
   return (
     <div>
       <PageHeader title="Overview" subtitle="Real-time pipeline health and lead metrics" />
+
+      {/* Endpoint Card */}
+      <div className="bg-card border border-primary/20 rounded-[10px] p-4 flex items-center gap-4 mb-4">
+        <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Supplier Endpoint</div>
+        <code className="flex-1 font-mono text-[13px] text-primary truncate">{endpointUrl}</code>
+        <button
+          onClick={() => { navigator.clipboard.writeText(endpointUrl); toast.success('Endpoint URL copied'); }}
+          className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border hover:border-primary/40"
+        >
+          <Copy className="w-3.5 h-3.5" /> Copy
+        </button>
+      </div>
 
       <HealthStrip
         hlrProvider={hlrArr[0]?.provider_name}

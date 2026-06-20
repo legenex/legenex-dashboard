@@ -8,9 +8,29 @@
     "target_url": {
       "type": "string"
     },
+    "http_method": {
+      "type": "string",
+      "enum": [
+        "POST",
+        "GET"
+      ],
+      "default": "POST"
+    },
+    "content_type": {
+      "type": "string",
+      "enum": [
+        "application/json",
+        "application/x-www-form-urlencoded"
+      ],
+      "default": "application/json"
+    },
     "headers": {
       "type": "string",
-      "description": "JSON object of headers including Content-Type and X_KEY"
+      "description": "JSON array of {key, value} header rows"
+    },
+    "payload_template": {
+      "type": "string",
+      "description": "JSON template string with {{token}} placeholders"
     },
     "enabled": {
       "type": "boolean",
@@ -19,10 +39,6 @@
     "is_default": {
       "type": "boolean",
       "default": false
-    },
-    "field_mapping": {
-      "type": "string",
-      "description": "JSON object of field mapping overrides"
     }
   },
   "required": [

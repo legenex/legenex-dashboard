@@ -5,6 +5,10 @@
     "supplier_name": {
       "type": "string"
     },
+    "supplier_id": {
+      "type": "string",
+      "description": "Reference to Supplier record"
+    },
     "key": {
       "type": "string"
     },
