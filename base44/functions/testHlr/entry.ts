@@ -16,10 +16,12 @@ Deno.serve(async (req) => {
     ? JSON.parse(hlr.request_field_map || '{}')
     : (hlr.request_field_map || {});
 
+  // request_field_map keys = HLR field names, values = inbound field names
+  // We always send the HLR field names directly (the map is for processLead's inbound→HLR renaming)
   const hlrBody = {
-    [reqFieldMap.mobile || 'mobile']: phone,
-    [reqFieldMap.first_name || 'first_name']: firstname,
-    [reqFieldMap.last_name || 'last_name']: lastname,
+    mobile: phone,
+    first_name: firstname,
+    last_name: lastname,
   };
 
   try {
