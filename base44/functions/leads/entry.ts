@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
       leadbyte_request: JSON.stringify(leadBytePayload),
     });
 
-    // 8. FORWARD TO LEADBYTE
+    // 8. FORWARD TO LEADBYTE — always capture request + response even on HTTP error
     const headerRowsParsed = typeof leadByteConnector.headers === 'string'
       ? JSON.parse(leadByteConnector.headers || '[]')
       : (leadByteConnector.headers || []);
@@ -346,52 +346,91 @@ Deno.serve(async (req) => {
       lbBodyStr = typeof leadBytePayload === 'string' ? leadBytePayload : JSON.stringify(leadBytePayload);
     }
 
-    const lbResp = await fetch(leadByteConnector.target_url, {
-      method: leadByteConnector.http_method || 'POST',
-      headers: lbHeaders,
-      body: lbBodyStr,
-    });
+    let lbResult = null;
+    let lbHttpError = null;
 
-    const lbText = await lbResp.text();
-    let lbResult;
-    try { lbResult = JSON.parse(lbText); } catch { lbResult = { raw: lbText }; }
+    try {
+      const lbResp = await fetch(leadByteConnector.target_url, {
+        method: leadByteConnector.http_method || 'POST',
+        headers: lbHeaders,
+        body: lbBodyStr,
+      });
+      const lbText = await lbResp.text();
+      try { lbResult = JSON.parse(lbText); } catch { lbResult = { raw: lbText }; }
+      if (!lbResp.ok) lbHttpError = `LeadByte HTTP ${lbResp.status}`;
+    } catch (fetchErr) {
+      lbResult = { error: fetchErr.message };
+      lbHttpError = fetchErr.message;
+    }
 
+    // Always store raw LB response and extract records[0].status
+    const lbRecord0 = lbResult?.records?.[0] || null;
+    const lbRecord0Status = lbRecord0?.status || '';
     await db.entities.Lead.update(leadId, {
       leadbyte_response: JSON.stringify(lbResult),
+      leadbyte_record_status: lbRecord0Status,
+      leadbyte_queue_id: lbRecord0?.queueId || '',
+      leadbyte_lead_id: lbRecord0?.response?.leadId || null,
+      leadbyte_rejection_id: lbRecord0?.response?.rejectionId ? String(lbRecord0.response.rejectionId) : '',
+      leadbyte_process_time: lbRecord0?.response?.processTime || null,
     });
 
-    // 9. MAP DECISION
-    let finalStatus = 'Error';
-    let supplierResponse = { Response: 'Error', message: 'Unexpected LeadByte response' };
-
-    if (lbResult.status === 'Success' && lbResult.records && lbResult.records.length > 0) {
-      const record = lbResult.records[0];
-      const recordStatus = record.status;
-      const recordResponse = record.response || {};
-      await db.entities.Lead.update(leadId, {
-        leadbyte_queue_id: record.queueId || '',
-        leadbyte_record_status: recordStatus || '',
-        leadbyte_lead_id: recordResponse.leadId || null,
-        leadbyte_rejection_id: recordResponse.rejectionId ? String(recordResponse.rejectionId) : '',
-        leadbyte_process_time: recordResponse.processTime || null,
-      });
-      if (recordStatus === 'Approved') {
-        finalStatus = 'Sold'; supplierResponse = { Response: 'Sold' };
-      } else if (recordStatus === 'Rejected') {
-        finalStatus = 'Unsold'; supplierResponse = { Response: 'Unsold' };
-      } else {
-        finalStatus = 'Error';
-        supplierResponse = { Response: 'Error', message: `LeadByte record status: ${recordStatus}` };
-        await db.entities.ErrorLog.create({
-          lead_id: leadId, stage: 'leadbyte', severity: 'error',
-          message: `Unexpected LeadByte record status: ${recordStatus}`,
-          detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
-        });
-      }
-    } else {
+    if (lbHttpError) {
       await db.entities.ErrorLog.create({
         lead_id: leadId, stage: 'leadbyte', severity: 'error',
-        message: lbResult.message || 'LeadByte returned non-success',
+        message: lbHttpError, detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
+      });
+    }
+
+    // 9. OPERATOR-BASED RESPONSE MAPPING
+    // Resolve a dot-path like "records[0].status" against the LB response object
+    function resolvePath(obj, path) {
+      if (!obj || !path) return undefined;
+      const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.');
+      let cur = obj;
+      for (const p of parts) {
+        if (cur == null) return undefined;
+        cur = cur[p];
+      }
+      return cur;
+    }
+
+    function matchRule(rule, lbObj) {
+      if (rule.is_fallback) return true;
+      const fieldVal = String(resolvePath(lbObj, rule.field_path || 'records[0].status') ?? '');
+      const ruleVal = rule.lb_status || '';
+      const op = rule.operator || 'contains';
+      const fv = fieldVal.toLowerCase();
+      const rv = ruleVal.toLowerCase();
+      switch (op) {
+        case 'equals': return fv === rv;
+        case 'not_equals': return fv !== rv;
+        case 'contains': return fv.includes(rv);
+        case 'not_contains': return !fv.includes(rv);
+        case 'starts_with': return fv.startsWith(rv);
+        case 'ends_with': return fv.endsWith(rv);
+        case 'is_empty': return fieldVal === '' || fieldVal === 'undefined';
+        case 'is_not_empty': return fieldVal !== '' && fieldVal !== 'undefined';
+        default: return fv === rv;
+      }
+    }
+
+    const responseMappings = await db.entities.ResponseMapping.list('sort_order', 50);
+    const nonFallbacks = responseMappings.filter(r => !r.is_fallback).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const fallback = responseMappings.find(r => r.is_fallback);
+
+    let finalStatus = 'Error';
+    let supplierResponse = { Response: 'Error', message: lbHttpError || 'No matching response rule' };
+
+    const matched = nonFallbacks.find(r => matchRule(r, lbResult || {})) || fallback;
+    if (matched) {
+      finalStatus = matched.final_status || 'Error';
+      supplierResponse = { Response: matched.response_label };
+    } else if (!lbHttpError) {
+      // No rules configured — log it
+      await db.entities.ErrorLog.create({
+        lead_id: leadId, stage: 'leadbyte', severity: 'error',
+        message: 'No response mapping rule matched',
         detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
       });
     }

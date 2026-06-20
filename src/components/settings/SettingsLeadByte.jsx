@@ -13,6 +13,7 @@ import JsonViewer from '@/components/shared/JsonViewer';
 import { Plus, Save, Play, Loader2, Trash2 } from 'lucide-react';
 import { testLeadByte } from '@/functions/testLeadByte';
 import { toast } from 'sonner';
+import TestLeadSender from '@/components/settings/TestLeadSender.jsx';
 
 const DEFAULT_TEMPLATE = `{
   "campid": "LEGAL-MVA-USA",
@@ -82,8 +83,18 @@ const DEFAULT_TEMPLATE = `{
 }`;
 
 const HLR_TOKENS = ['phone_verified', 'hlr_status', 'hlr_score', 'country_code'];
-
 const FINAL_STATUSES = ['Sold', 'Unsold', 'Error'];
+const OPERATORS = [
+  { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'not equals' },
+  { value: 'contains', label: 'contains' },
+  { value: 'not_contains', label: 'does not contain' },
+  { value: 'starts_with', label: 'starts with' },
+  { value: 'ends_with', label: 'ends with' },
+  { value: 'is_empty', label: 'is empty' },
+  { value: 'is_not_empty', label: 'is not empty' },
+];
+const VALUE_LESS_OPS = ['is_empty', 'is_not_empty'];
 
 function parseHeaderRows(val) {
   if (!val) return [{ key: 'Content-Type', value: 'application/json' }];
@@ -98,16 +109,19 @@ function parseHeaderRows(val) {
   return Object.entries(val).map(([key, value]) => ({ key, value }));
 }
 
+const statusColor = { Sold: 'text-green-400', Unsold: 'text-yellow-400', Error: 'text-red-400' };
+
 export default function SettingsLeadByte() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(null);
   const [headerRows, setHeaderRows] = useState([]);
   const [testResult, setTestResult] = useState(null);
   const [testingId, setTestingId] = useState(null);
-  const [activeTab, setActiveTab] = useState('connector'); // 'connector' | 'responses'
+  // Default to 'connectors' so list view always shows content
+  const [activeTab, setActiveTab] = useState('connectors');
+  const [connectorSubTab, setConnectorSubTab] = useState('connector');
 
-  // Response mapping state
-  const [editingMapping, setEditingMapping] = useState(null); // { id?, lb_status, response_label, final_status, sort_order, is_fallback }
+  const [editingMapping, setEditingMapping] = useState(null);
   const [savingMapping, setSavingMapping] = useState(false);
 
   const { data: connectors = [] } = useQuery({
@@ -129,7 +143,7 @@ export default function SettingsLeadByte() {
     setEditing({ ...conn });
     setHeaderRows(parseHeaderRows(conn.headers));
     setTestResult(null);
-    setActiveTab('connector');
+    setConnectorSubTab('connector');
   };
 
   const openCreate = () => {
@@ -140,7 +154,7 @@ export default function SettingsLeadByte() {
     });
     setHeaderRows([{ key: 'X_KEY', value: '' }, { key: 'Content-Type', value: 'application/json' }]);
     setTestResult(null);
-    setActiveTab('connector');
+    setConnectorSubTab('connector');
   };
 
   const saveConnector = async () => {
@@ -163,7 +177,6 @@ export default function SettingsLeadByte() {
         firstname: 'Test', lastname: 'Lead', phone: '0000000000',
         email: 'test@legenex.com', sid: 'test', address: '123 Test St',
         city: 'Testville', state: 'TX', zip: '00000', ip_address: '127.0.0.1',
-        trustedform_cert: '', jornaya_leadid: '', landing_page: 'https://test.com', user_agent: 'test',
       };
       const connToTest = editing ? { ...editing, headers: JSON.stringify(headerRows) } : conn;
       let connId = connToTest.id;
@@ -188,7 +201,9 @@ export default function SettingsLeadByte() {
     setSavingMapping(true);
     try {
       const data = {
-        lb_status: editingMapping.lb_status,
+        field_path: editingMapping.field_path || 'records[0].status',
+        operator: editingMapping.operator || 'contains',
+        lb_status: editingMapping.lb_status || '',
         response_label: editingMapping.response_label,
         final_status: editingMapping.final_status,
         sort_order: editingMapping.sort_order || 0,
@@ -199,7 +214,7 @@ export default function SettingsLeadByte() {
       } else {
         await base44.entities.ResponseMapping.create(data);
       }
-      toast.success('Response mapping saved');
+      toast.success('Mapping saved');
       setEditingMapping(null);
       refetchMappings();
     } catch (e) {
@@ -214,14 +229,23 @@ export default function SettingsLeadByte() {
     toast.success('Deleted');
   };
 
+  const seedDefaultMappings = async () => {
+    const defaults = [
+      { field_path: 'records[0].status', operator: 'contains', lb_status: 'Approved', response_label: 'Sold', final_status: 'Sold', sort_order: 0, is_fallback: false },
+      { field_path: 'records[0].status', operator: 'contains', lb_status: 'Rejected', response_label: 'Unsold', final_status: 'Unsold', sort_order: 1, is_fallback: false },
+      { field_path: 'records[0].status', operator: 'is_not_empty', lb_status: '', response_label: 'Error', final_status: 'Error', sort_order: 99, is_fallback: true },
+    ];
+    for (const d of defaults) await base44.entities.ResponseMapping.create(d);
+    refetchMappings();
+    toast.success('Default mappings seeded');
+  };
+
   const fieldTokens = customFields.map(f => f.field_name);
 
-  const statusColor = { Sold: 'text-green-400', Unsold: 'text-yellow-400', Error: 'text-red-400' };
-
+  // ── Connector edit view ──────────────────────────────────────────────────
   if (editing) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: tabs + form */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-[15px] font-semibold text-foreground">{editing.id ? 'Edit Connector' : 'New Connector'}</h3>
@@ -231,21 +255,17 @@ export default function SettingsLeadByte() {
             </div>
           </div>
 
-          {/* Sub-tabs */}
           <div className="flex gap-1 border-b border-border">
-            {['connector', 'responses'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+            {[{ k: 'connector', l: 'Connector Config' }, { k: 'responses', l: 'Response Builder' }].map(({ k, l }) => (
+              <button key={k} onClick={() => setConnectorSubTab(k)}
                 className={`px-4 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px
-                  ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-              >
-                {tab === 'connector' ? 'Connector Config' : 'Response Builder'}
+                  ${connectorSubTab === k ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                {l}
               </button>
             ))}
           </div>
 
-          {activeTab === 'connector' && (
+          {connectorSubTab === 'connector' && (
             <>
               <Card className="bg-card border-border">
                 <CardContent className="p-4 space-y-4">
@@ -277,7 +297,6 @@ export default function SettingsLeadByte() {
                 </CardContent>
               </Card>
 
-              {/* Headers — taller, full editable rows */}
               <Card className="bg-card border-border">
                 <CardHeader className="pb-2"><CardTitle className="text-[13px]">Headers</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
@@ -286,43 +305,23 @@ export default function SettingsLeadByte() {
                   </div>
                   {headerRows.map((row, i) => (
                     <div key={i} className="grid grid-cols-[1fr_1fr_36px] gap-2 items-start">
-                      <Input
-                        value={row.key}
-                        onChange={e => updateHeaderRow(i, 'key', e.target.value)}
-                        placeholder="e.g. X-API-KEY"
-                        className="bg-background font-mono text-[12px] h-10"
-                      />
-                      <Input
-                        value={row.value}
-                        onChange={e => updateHeaderRow(i, 'value', e.target.value)}
-                        placeholder="Value"
-                        className="bg-background font-mono text-[12px] h-10"
-                      />
-                      <Button variant="ghost" size="sm" onClick={() => removeHeaderRow(i)} className="h-10 w-9 p-0 text-destructive hover:text-destructive">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      <Input value={row.key} onChange={e => updateHeaderRow(i, 'key', e.target.value)} placeholder="e.g. X-API-KEY" className="bg-background font-mono text-[12px] h-10" />
+                      <Input value={row.value} onChange={e => updateHeaderRow(i, 'value', e.target.value)} placeholder="Value" className="bg-background font-mono text-[12px] h-10" />
+                      <Button variant="ghost" size="sm" onClick={() => removeHeaderRow(i)} className="h-10 w-9 p-0 text-destructive hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
                     </div>
                   ))}
-                  <Button size="sm" variant="outline" onClick={addHeaderRow} className="gap-1.5 mt-1">
-                    <Plus className="w-3.5 h-3.5" /> Add Header
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={addHeaderRow} className="gap-1.5 mt-1"><Plus className="w-3.5 h-3.5" /> Add Header</Button>
                 </CardContent>
               </Card>
 
-              {/* Payload Builder */}
               <Card className="bg-card border-border">
                 <CardHeader className="pb-2"><CardTitle className="text-[13px]">Payload Builder</CardTitle></CardHeader>
                 <CardContent>
-                  <p className="text-[11px] text-muted-foreground mb-2">Use <code className="bg-muted px-1 rounded text-primary">{'{{token}}'}</code> placeholders. campid should be a hardcoded value.</p>
-                  <Textarea
-                    value={editing.payload_template || DEFAULT_TEMPLATE}
-                    onChange={e => setEditing(p => ({ ...p, payload_template: e.target.value }))}
-                    className="bg-background font-mono text-[12px] min-h-[400px] leading-relaxed"
-                  />
+                  <p className="text-[11px] text-muted-foreground mb-2">Use <code className="bg-muted px-1 rounded text-primary">{'{{token}}'}</code> placeholders.</p>
+                  <Textarea value={editing.payload_template || DEFAULT_TEMPLATE} onChange={e => setEditing(p => ({ ...p, payload_template: e.target.value }))} className="bg-background font-mono text-[12px] min-h-[400px] leading-relaxed" />
                 </CardContent>
               </Card>
 
-              {/* Test */}
               <div className="flex items-center gap-3">
                 <Button variant="outline" onClick={() => sendTestLead(editing)} disabled={testingId === (editing.id || 'new')} className="gap-1.5">
                   {testingId === (editing.id || 'new') ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
@@ -333,105 +332,10 @@ export default function SettingsLeadByte() {
             </>
           )}
 
-          {activeTab === 'responses' && (
-            <div className="space-y-4">
-              <div className="text-[13px] text-muted-foreground leading-relaxed bg-card border border-border rounded-lg p-4">
-                <p className="font-medium text-foreground mb-1">How Response Mapping Works</p>
-                <p>When LeadByte returns a result, the pipeline checks <code className="bg-muted px-1 rounded text-primary text-[11px]">records[0].status</code> against this table. The first matching row determines the <strong>final status</strong> (Sold / Unsold / Error) and the <strong>response label</strong> returned to your supplier. Add a fallback row with status <code className="bg-muted px-1 rounded text-primary text-[11px]">*</code> to catch anything unmatched.</p>
-              </div>
-
-              {/* Mapping table */}
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LB Status</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Supplier Response</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Final Status</th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Fallback</th>
-                      <th className="px-4 py-2.5 w-20" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {responseMappings.length === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No response mappings yet. Add one below.</td></tr>
-                    )}
-                    {responseMappings.map(m => (
-                      <tr key={m.id} className="hover:bg-accent/30 transition-colors">
-                        <td className="px-4 py-3 font-mono text-[12px] text-primary">{m.lb_status}</td>
-                        <td className="px-4 py-3 text-foreground">{m.response_label}</td>
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${statusColor[m.final_status] || ''}`}>{m.final_status}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {m.is_fallback && <Badge className="bg-primary/10 text-primary text-[10px]">Fallback</Badge>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingMapping({ ...m })}>
-                              <Save className="w-3 h-3" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMapping(m.id)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Add / Edit mapping form */}
-              {editingMapping ? (
-                <Card className="bg-card border-border">
-                  <CardHeader className="pb-2"><CardTitle className="text-[13px]">{editingMapping.id ? 'Edit Mapping' : 'New Mapping'}</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-[12px]">LB Status <span className="text-muted-foreground">(or * for fallback)</span></Label>
-                        <Input value={editingMapping.lb_status} onChange={e => setEditingMapping(p => ({ ...p, lb_status: e.target.value }))} placeholder="e.g. Approved" className="mt-1 bg-background font-mono text-[12px]" />
-                      </div>
-                      <div>
-                        <Label className="text-[12px]">Supplier Response Label</Label>
-                        <Input value={editingMapping.response_label} onChange={e => setEditingMapping(p => ({ ...p, response_label: e.target.value }))} placeholder="e.g. Sold" className="mt-1 bg-background" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 items-end">
-                      <div>
-                        <Label className="text-[12px]">Final Status</Label>
-                        <Select value={editingMapping.final_status} onValueChange={v => setEditingMapping(p => ({ ...p, final_status: v }))}>
-                          <SelectTrigger className="mt-1 bg-background"><SelectValue /></SelectTrigger>
-                          <SelectContent>{FINAL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-[12px]">Sort Order</Label>
-                        <Input type="number" value={editingMapping.sort_order || 0} onChange={e => setEditingMapping(p => ({ ...p, sort_order: Number(e.target.value) }))} className="mt-1 bg-background" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={!!editingMapping.is_fallback} onCheckedChange={v => setEditingMapping(p => ({ ...p, is_fallback: v }))} />
-                      <Label className="text-[12px]">This is the fallback row (matches anything unmatched)</Label>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="ghost" onClick={() => setEditingMapping(null)}>Cancel</Button>
-                      <Button size="sm" onClick={saveMapping} disabled={savingMapping || !editingMapping.lb_status || !editingMapping.response_label}>
-                        {savingMapping ? 'Saving…' : 'Save Mapping'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingMapping({ lb_status: '', response_label: '', final_status: 'Sold', sort_order: responseMappings.length, is_fallback: false })}>
-                  <Plus className="w-3.5 h-3.5" /> Add Mapping
-                </Button>
-              )}
-            </div>
-          )}
+          {connectorSubTab === 'responses' && <ResponseBuilderPanel mappings={responseMappings} onSave={saveMapping} onDelete={deleteMapping} onSeed={seedDefaultMappings} editingMapping={editingMapping} setEditingMapping={setEditingMapping} savingMapping={savingMapping} />}
         </div>
 
-        {/* Right: token reference */}
+        {/* Token reference */}
         <div>
           <Card className="bg-card border-border sticky top-4">
             <CardHeader className="pb-2"><CardTitle className="text-[13px]">Token Reference</CardTitle></CardHeader>
@@ -441,12 +345,10 @@ export default function SettingsLeadByte() {
                 <div className="space-y-1">
                   {fieldTokens.length === 0 && <div className="text-[11px] text-muted-foreground">No custom fields defined</div>}
                   {fieldTokens.map(t => (
-                    <div key={t} className="flex items-center gap-2">
-                      <code className="text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20"
-                        onClick={() => { navigator.clipboard.writeText('{{' + t + '}}'); toast.success('Copied'); }}>
-                        {'{{' + t + '}}'}
-                      </code>
-                    </div>
+                    <code key={t} className="block text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20"
+                      onClick={() => { navigator.clipboard.writeText('{{' + t + '}}'); toast.success('Copied'); }}>
+                      {'{{' + t + '}}'}
+                    </code>
                   ))}
                 </div>
               </div>
@@ -454,13 +356,10 @@ export default function SettingsLeadByte() {
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">HLR Tokens</div>
                 <div className="space-y-1">
                   {HLR_TOKENS.map(t => (
-                    <div key={t} className="flex items-center gap-2">
-                      <code className="text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20"
-                        onClick={() => { navigator.clipboard.writeText('{{' + t + '}}'); toast.success('Copied'); }}>
-                        {'{{' + t + '}}'}
-                      </code>
-                      {t === 'phone_verified' && <Badge className="bg-primary/10 text-primary text-[9px]">HLR-filled</Badge>}
-                    </div>
+                    <code key={t} className="block text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20"
+                      onClick={() => { navigator.clipboard.writeText('{{' + t + '}}'); toast.success('Copied'); }}>
+                      {'{{' + t + '}}'}
+                    </code>
                   ))}
                 </div>
               </div>
@@ -471,19 +370,15 @@ export default function SettingsLeadByte() {
     );
   }
 
-  // List view — also show Response Builder tab
+  // ── List view ────────────────────────────────────────────────────────────
   return (
     <div>
-      {/* Top-level tabs */}
       <div className="flex gap-1 border-b border-border mb-5">
-        {['connectors', 'responses'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+        {[{ k: 'connectors', l: 'Connectors' }, { k: 'responses', l: 'Response Builder' }, { k: 'testlead', l: 'Test Lead' }].map(({ k, l }) => (
+          <button key={k} onClick={() => setActiveTab(k)}
             className={`px-4 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px
-              ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          >
-            {tab === 'connectors' ? 'Connectors' : 'Response Builder'}
+              ${activeTab === k ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+            {l}
           </button>
         ))}
       </div>
@@ -525,91 +420,139 @@ export default function SettingsLeadByte() {
       )}
 
       {activeTab === 'responses' && (
-        <div className="space-y-4">
-          <div className="text-[13px] text-muted-foreground leading-relaxed bg-card border border-border rounded-lg p-4">
-            <p className="font-medium text-foreground mb-1">How Response Mapping Works</p>
-            <p>When LeadByte returns a result, the pipeline checks <code className="bg-muted px-1 rounded text-primary text-[11px]">records[0].status</code> against this table. The first matching row determines the <strong>final status</strong> (Sold / Unsold / Error) and the <strong>response label</strong> returned to your supplier. Add a fallback row with LB Status <code className="bg-muted px-1 rounded text-primary text-[11px]">*</code> to catch anything unmatched.</p>
-          </div>
+        <ResponseBuilderPanel
+          mappings={responseMappings}
+          onSave={saveMapping}
+          onDelete={deleteMapping}
+          onSeed={seedDefaultMappings}
+          editingMapping={editingMapping}
+          setEditingMapping={setEditingMapping}
+          savingMapping={savingMapping}
+        />
+      )}
 
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LB Status</th>
-                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Supplier Response</th>
-                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Final Status</th>
-                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Fallback</th>
-                  <th className="px-4 py-2.5 w-20" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {responseMappings.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No response mappings. Add one below.</td></tr>
-                )}
-                {responseMappings.map(m => (
-                  <tr key={m.id} className="hover:bg-accent/30 transition-colors">
-                    <td className="px-4 py-3 font-mono text-[12px] text-primary">{m.lb_status}</td>
-                    <td className="px-4 py-3 text-foreground">{m.response_label}</td>
-                    <td className="px-4 py-3">
-                      <span className={`font-medium ${statusColor[m.final_status] || ''}`}>{m.final_status}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {m.is_fallback && <Badge className="bg-primary/10 text-primary text-[10px]">Fallback</Badge>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setEditingMapping({ ...m })}>Edit</Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMapping(m.id)}><Trash2 className="w-3 h-3" /></Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {activeTab === 'testlead' && <TestLeadSender />}
+    </div>
+  );
+}
 
-          {editingMapping ? (
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2"><CardTitle className="text-[13px]">{editingMapping.id ? 'Edit Mapping' : 'New Mapping'}</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-[12px]">LB Status <span className="text-muted-foreground">(or * for fallback)</span></Label>
-                    <Input value={editingMapping.lb_status} onChange={e => setEditingMapping(p => ({ ...p, lb_status: e.target.value }))} placeholder="e.g. Approved" className="mt-1 bg-background font-mono text-[12px]" />
+// ── Response Builder panel (shared between list + connector edit view) ─────
+function ResponseBuilderPanel({ mappings, onSave, onDelete, onSeed, editingMapping, setEditingMapping, savingMapping }) {
+  const newMapping = () => setEditingMapping({
+    field_path: 'records[0].status', operator: 'contains', lb_status: '',
+    response_label: '', final_status: 'Sold', sort_order: mappings.length, is_fallback: false,
+  });
+
+  const operatorLabel = (op) => OPERATORS.find(o => o.value === op)?.label || op;
+  const needsValue = (op) => !VALUE_LESS_OPS.includes(op);
+
+  return (
+    <div className="space-y-4">
+      <div className="text-[13px] text-muted-foreground leading-relaxed bg-card border border-border rounded-lg p-4">
+        <p className="font-medium text-foreground mb-1">Response Builder — Operator Rules</p>
+        <p>Rules are evaluated in sort order. The <strong>first matching rule</strong> wins. The fallback rule matches anything not caught above. The matched rule's Response Label is returned to the supplier as <code className="bg-muted px-1 rounded text-primary text-[11px]">{`{ "Response": "..." }`}</code>.</p>
+      </div>
+
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="border-b border-border bg-muted/40">
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-6">#</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Field Path</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Operator</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Value</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Response Label</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+              <th className="px-3 py-2.5 w-20" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {mappings.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground text-[13px]">
+                No rules yet.{' '}
+                <button onClick={onSeed} className="text-primary underline">Seed defaults</button>
+              </td></tr>
+            )}
+            {mappings.map((m, idx) => (
+              <tr key={m.id} className={`hover:bg-accent/30 transition-colors ${m.is_fallback ? 'bg-muted/20' : ''}`}>
+                <td className="px-3 py-3 text-muted-foreground text-[11px]">{m.sort_order ?? idx}</td>
+                <td className="px-3 py-3 font-mono text-[11px] text-primary">{m.field_path || 'records[0].status'}</td>
+                <td className="px-3 py-3 text-[12px] text-foreground">{operatorLabel(m.operator || 'contains')}</td>
+                <td className="px-3 py-3 font-mono text-[12px] text-muted-foreground">
+                  {m.is_fallback ? <Badge className="bg-primary/10 text-primary text-[10px]">Fallback</Badge> : (m.lb_status || '—')}
+                </td>
+                <td className="px-3 py-3 text-foreground font-medium">{m.response_label}</td>
+                <td className="px-3 py-3"><span className={`font-medium ${statusColor[m.final_status] || ''}`}>{m.final_status}</span></td>
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setEditingMapping({ ...m })}>Edit</Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => onDelete(m.id)}><Trash2 className="w-3 h-3" /></Button>
                   </div>
-                  <div>
-                    <Label className="text-[12px]">Supplier Response Label</Label>
-                    <Input value={editingMapping.response_label} onChange={e => setEditingMapping(p => ({ ...p, response_label: e.target.value }))} placeholder="e.g. Sold" className="mt-1 bg-background" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 items-end">
-                  <div>
-                    <Label className="text-[12px]">Final Status</Label>
-                    <Select value={editingMapping.final_status} onValueChange={v => setEditingMapping(p => ({ ...p, final_status: v }))}>
-                      <SelectTrigger className="mt-1 bg-background"><SelectValue /></SelectTrigger>
-                      <SelectContent>{FINAL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-[12px]">Sort Order</Label>
-                    <Input type="number" value={editingMapping.sort_order || 0} onChange={e => setEditingMapping(p => ({ ...p, sort_order: Number(e.target.value) }))} className="mt-1 bg-background" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={!!editingMapping.is_fallback} onCheckedChange={v => setEditingMapping(p => ({ ...p, is_fallback: v }))} />
-                  <Label className="text-[12px]">This is the fallback row (matches anything unmatched)</Label>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Button size="sm" variant="ghost" onClick={() => setEditingMapping(null)}>Cancel</Button>
-                  <Button size="sm" onClick={saveMapping} disabled={savingMapping || !editingMapping.lb_status || !editingMapping.response_label}>
-                    {savingMapping ? 'Saving…' : 'Save Mapping'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingMapping({ lb_status: '', response_label: '', final_status: 'Sold', sort_order: responseMappings.length, is_fallback: false })}>
-              <Plus className="w-3.5 h-3.5" /> Add Mapping
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editingMapping ? (
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2"><CardTitle className="text-[13px]">{editingMapping.id ? 'Edit Rule' : 'New Rule'}</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-[12px]">Field Path</Label>
+                <Input value={editingMapping.field_path || 'records[0].status'} onChange={e => setEditingMapping(p => ({ ...p, field_path: e.target.value }))} placeholder="records[0].status" className="mt-1 bg-background font-mono text-[12px]" />
+              </div>
+              <div>
+                <Label className="text-[12px]">Operator</Label>
+                <Select value={editingMapping.operator || 'contains'} onValueChange={v => setEditingMapping(p => ({ ...p, operator: v }))}>
+                  <SelectTrigger className="mt-1 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>{OPERATORS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[12px]">Value {VALUE_LESS_OPS.includes(editingMapping.operator) && <span className="text-muted-foreground">(not needed)</span>}</Label>
+                <Input value={editingMapping.lb_status || ''} onChange={e => setEditingMapping(p => ({ ...p, lb_status: e.target.value }))} disabled={VALUE_LESS_OPS.includes(editingMapping.operator)} placeholder="e.g. Approved" className="mt-1 bg-background font-mono text-[12px] disabled:opacity-50" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-[12px]">Response Label</Label>
+                <Input value={editingMapping.response_label || ''} onChange={e => setEditingMapping(p => ({ ...p, response_label: e.target.value }))} placeholder="e.g. Sold" className="mt-1 bg-background" />
+              </div>
+              <div>
+                <Label className="text-[12px]">Final Status</Label>
+                <Select value={editingMapping.final_status || 'Sold'} onValueChange={v => setEditingMapping(p => ({ ...p, final_status: v }))}>
+                  <SelectTrigger className="mt-1 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>{FINAL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[12px]">Sort Order</Label>
+                <Input type="number" value={editingMapping.sort_order ?? 0} onChange={e => setEditingMapping(p => ({ ...p, sort_order: Number(e.target.value) }))} className="mt-1 bg-background" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={!!editingMapping.is_fallback} onCheckedChange={v => setEditingMapping(p => ({ ...p, is_fallback: v }))} />
+              <Label className="text-[12px]">Fallback (matches anything not caught above)</Label>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" variant="ghost" onClick={() => setEditingMapping(null)}>Cancel</Button>
+              <Button size="sm" onClick={onSave} disabled={savingMapping || !editingMapping.response_label}>
+                {savingMapping ? 'Saving…' : 'Save Rule'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={newMapping}>
+            <Plus className="w-3.5 h-3.5" /> Add Rule
+          </Button>
+          {mappings.length === 0 && (
+            <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground" onClick={onSeed}>
+              Seed default rules
             </Button>
           )}
         </div>
