@@ -1,0 +1,45 @@
+{
+  "name": "HlrSettings",
+  "type": "object",
+  "properties": {
+    "provider_name": {
+      "type": "string"
+    },
+    "endpoint_url": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "timeout_ms": {
+      "type": "number",
+      "default": 8000
+    },
+    "fail_mode": {
+      "type": "string",
+      "enum": [
+        "fail_open",
+        "fail_closed",
+        "forward_blank"
+      ],
+      "default": "fail_open"
+    },
+    "request_field_map": {
+      "type": "string",
+      "description": "JSON object mapping inbound fields to HLR request fields"
+    },
+    "passthrough_fields": {
+      "type": "string",
+      "description": "JSON array of HLR response fields to pass through to LeadByte"
+    },
+    "min_summary_score": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "provider_name",
+    "endpoint_url"
+  ]
+}

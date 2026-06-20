@@ -1,0 +1,112 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "supplier_name": {
+      "type": "string",
+      "description": "Name of the supplier who sent this lead"
+    },
+    "supplier_key_id": {
+      "type": "string",
+      "description": "Reference to ApiKey record"
+    },
+    "raw_payload": {
+      "type": "string",
+      "description": "JSON string of the original inbound payload"
+    },
+    "mapped_fields": {
+      "type": "string",
+      "description": "JSON string of normalised fields"
+    },
+    "first_name": {
+      "type": "string"
+    },
+    "last_name": {
+      "type": "string"
+    },
+    "mobile": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "hlr_request": {
+      "type": "string",
+      "description": "JSON string of HLR request body"
+    },
+    "hlr_response": {
+      "type": "string",
+      "description": "JSON string of HLR response"
+    },
+    "hlr_status": {
+      "type": "string",
+      "description": "HLR lookup result status e.g. Exact Match"
+    },
+    "hlr_summary_score": {
+      "type": "number",
+      "description": "HLR summary score 0-100"
+    },
+    "hlr_error": {
+      "type": "string",
+      "description": "HLR error message if lookup failed"
+    },
+    "leadbyte_request": {
+      "type": "string",
+      "description": "JSON string of payload sent to LeadByte"
+    },
+    "leadbyte_response": {
+      "type": "string",
+      "description": "JSON string of LeadByte response"
+    },
+    "leadbyte_queue_id": {
+      "type": "string"
+    },
+    "leadbyte_record_status": {
+      "type": "string",
+      "description": "e.g. Approved, Rejected"
+    },
+    "leadbyte_lead_id": {
+      "type": "number"
+    },
+    "leadbyte_rejection_id": {
+      "type": "string"
+    },
+    "leadbyte_process_time": {
+      "type": "number",
+      "description": "LeadByte processing time in seconds"
+    },
+    "final_status": {
+      "type": "string",
+      "enum": [
+        "Processing",
+        "Sold",
+        "Unsold",
+        "Error"
+      ],
+      "default": "Processing"
+    },
+    "error_stage": {
+      "type": "string",
+      "description": "Stage where error occurred if any"
+    },
+    "response_returned": {
+      "type": "string",
+      "description": "JSON string of response sent back to supplier"
+    },
+    "processed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "process_time_ms": {
+      "type": "number"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "supplier_name",
+    "final_status"
+  ]
+}

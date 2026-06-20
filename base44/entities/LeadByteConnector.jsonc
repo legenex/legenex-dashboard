@@ -1,0 +1,32 @@
+{
+  "name": "LeadByteConnector",
+  "type": "object",
+  "properties": {
+    "api_name": {
+      "type": "string"
+    },
+    "target_url": {
+      "type": "string"
+    },
+    "headers": {
+      "type": "string",
+      "description": "JSON object of headers including Content-Type and X_KEY"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    },
+    "field_mapping": {
+      "type": "string",
+      "description": "JSON object of field mapping overrides"
+    }
+  },
+  "required": [
+    "api_name",
+    "target_url"
+  ]
+}

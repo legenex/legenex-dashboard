@@ -1,0 +1,48 @@
+{
+  "name": "CustomField",
+  "type": "object",
+  "properties": {
+    "field_name": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "field_type": {
+      "type": "string",
+      "enum": [
+        "string",
+        "number",
+        "boolean",
+        "date"
+      ],
+      "default": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "inbound",
+        "hlr",
+        "leadbyte"
+      ],
+      "default": "inbound"
+    },
+    "sample_value": {
+      "type": "string"
+    },
+    "include_in_leadbyte": {
+      "type": "boolean",
+      "default": false
+    },
+    "leadbyte_field_name": {
+      "type": "string"
+    },
+    "auto_created": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "field_name"
+  ]
+}

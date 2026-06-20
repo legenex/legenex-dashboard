@@ -1,0 +1,36 @@
+{
+  "name": "ApiKey",
+  "type": "object",
+  "properties": {
+    "supplier_name": {
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "key_prefix": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "last_used_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "request_count": {
+      "type": "number",
+      "default": 0
+    },
+    "allowed_ips": {
+      "type": "string",
+      "description": "JSON array of allowed IP addresses, optional"
+    }
+  },
+  "required": [
+    "supplier_name",
+    "key",
+    "key_prefix"
+  ]
+}

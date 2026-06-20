@@ -1,0 +1,24 @@
+{
+  "name": "AppSettings",
+  "type": "object",
+  "properties": {
+    "brand_name": {
+      "type": "string",
+      "default": "Legenex"
+    },
+    "brand_tagline": {
+      "type": "string",
+      "default": "Lead Gateway"
+    },
+    "default_fail_mode": {
+      "type": "string",
+      "enum": [
+        "fail_open",
+        "fail_closed",
+        "forward_blank"
+      ],
+      "default": "fail_open"
+    }
+  },
+  "required": []
+}
