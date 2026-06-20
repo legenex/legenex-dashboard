@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, AlertTriangle, Bell, ShieldCheck, Settings, Zap } from 'lucide-react';
+import { LayoutDashboard, FileText, AlertTriangle, Bell, ShieldCheck, Settings, Zap, Calculator } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/errors', label: 'Error Logs', icon: AlertTriangle },
   { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/verification', label: 'Verification', icon: ShieldCheck },
+  { path: '/calculations', label: 'Custom Calculations', icon: Calculator },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

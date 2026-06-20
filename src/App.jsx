@@ -20,6 +20,7 @@ import ErrorLogs from '@/pages/ErrorLogs';
 import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
+import CustomCalculations from '@/pages/CustomCalculations';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +56,7 @@ const AuthenticatedApp = () => {
           <Route path="/errors" element={<ErrorLogs />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/verification" element={<Verification />} />
+          <Route path="/calculations" element={<CustomCalculations />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
