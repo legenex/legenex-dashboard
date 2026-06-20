@@ -65,7 +65,7 @@ export default function SettingsApiKeys() {
   });
 
   const baseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
-  const endpointUrl = `${baseUrl}/v1/leads`;
+  const endpointUrl = `${baseUrl}/functions/leads`;
 
   const openCreate = () => {
     setForm({ name: '', type: 'supplier', supplier_id: '' });

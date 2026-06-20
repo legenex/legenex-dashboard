@@ -45,7 +45,7 @@ export default function Overview() {
   });
 
   const publicBaseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
-  const endpointUrl = `${publicBaseUrl}/v1/leads`;
+  const endpointUrl = `${publicBaseUrl}/functions/leads`;
 
   const { data: errors = [] } = useQuery({
     queryKey: ['errors-today'],
