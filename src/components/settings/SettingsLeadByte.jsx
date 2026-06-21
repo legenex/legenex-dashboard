@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import JsonViewer from '@/components/shared/JsonViewer';
-import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { testLeadByteConnector } from '@/functions/testLeadByteConnector';
+import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DEFAULT_TEMPLATE = `{
@@ -170,7 +171,6 @@ export default function SettingsLeadByte() {
   const [headerRows, setHeaderRows] = useState([]);
   const [testResult, setTestResult] = useState(null);
   const [sendingTest, setSendingTest] = useState(false);
-  const [selectedApiKey, setSelectedApiKey] = useState('');
   const [testPayloadStr, setTestPayloadStr] = useState(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
   const [testLeadExpanded, setTestLeadExpanded] = useState(false);
   // Default to 'connectors' so list view always shows content
@@ -190,11 +190,6 @@ export default function SettingsLeadByte() {
     queryFn: () => base44.entities.CustomField.list(),
   });
 
-  const { data: apiKeys = [] } = useQuery({
-    queryKey: ['api-keys-active'],
-    queryFn: () => base44.entities.ApiKey.filter({ active: true }),
-  });
-
   const { data: responseMappings = [], refetch: refetchMappings } = useQuery({
     queryKey: ['response-mappings'],
     queryFn: () => base44.entities.ResponseMapping.list('sort_order', 50),
@@ -205,7 +200,6 @@ export default function SettingsLeadByte() {
     setHeaderRows(parseHeaderRows(conn.headers));
     setTestResult(null);
     setTestPayloadStr(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
-    setSelectedApiKey('');
     setTestLeadExpanded(false);
     setConnectorSubTab('connector');
   };
@@ -220,7 +214,6 @@ export default function SettingsLeadByte() {
     setHeaderRows([{ key: 'X_KEY', value: '' }, { key: 'Content-Type', value: 'application/json' }]);
     setTestResult(null);
     setTestPayloadStr(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
-    setSelectedApiKey('');
     setConnectorSubTab('connector');
   };
 
@@ -237,61 +230,23 @@ export default function SettingsLeadByte() {
   };
 
   const sendTestLead = async () => {
-    if (!selectedApiKey) {
-      toast.error('Please select an API key');
-      return;
-    }
     setSendingTest(true);
     setTestResult(null);
+    let parsed;
     try {
-      let parsed;
-      try {
-        parsed = JSON.parse(testPayloadStr);
-      } catch (e) {
-        toast.error('Invalid JSON in payload');
-        setSendingTest(false);
-        return;
-      }
-
-      const endpoint = 'https://api.legenex.com/functions/leads';
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': selectedApiKey,
-        },
-        body: JSON.stringify(parsed),
-      });
-
-      const data = await resp.json();
-      
-      // Fetch the created lead if successful
-      let createdLead = null;
-      if (resp.ok && data.lead_id) {
-        try {
-          const leads = await base44.entities.Lead.filter({ id: data.lead_id });
-          createdLead = leads[0] || null;
-        } catch {}
-      }
-
-      setTestResult({
-        status: resp.status,
-        ok: resp.ok,
-        response: data,
-        lead_request: createdLead?.leadbyte_request ? JSON.parse(createdLead.leadbyte_request) : null,
-        lead_response: createdLead?.leadbyte_response ? JSON.parse(createdLead.leadbyte_response) : null,
-        created_lead_id: data.lead_id || createdLead?.id,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (resp.ok) {
-        toast.success('Test lead sent successfully');
-      } else {
-        toast.error(`Failed: ${data.error || resp.statusText}`);
-      }
-    } catch (err) {
-      setTestResult({ error: err.message, timestamp: new Date().toISOString() });
-      toast.error('Network error');
+      parsed = JSON.parse(testPayloadStr);
+    } catch {
+      toast.error('Invalid JSON in payload');
+      setSendingTest(false);
+      return;
+    }
+    const resp = await testLeadByteConnector({ connector_id: editing.id, test_payload: parsed });
+    const data = resp.data;
+    setTestResult(data);
+    if (data?.error) {
+      toast.error(data.error);
+    } else {
+      toast.success('Test sent to LeadByte');
     }
     setSendingTest(false);
   };
@@ -451,43 +406,14 @@ export default function SettingsLeadByte() {
                   <button className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-accent/30 transition-colors rounded-lg">
                     <div className="flex items-center gap-2">
                       {testLeadExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                      <span className="text-[13px] font-medium text-foreground">Test Lead (End-to-End)</span>
+                      <span className="text-[13px] font-medium text-foreground">Send Test to LeadByte</span>
                     </div>
-                    <Badge variant="outline" className="text-[10px]">Live endpoint</Badge>
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="px-4 pb-4 pt-2 space-y-4">
-                  <div className="bg-muted/30 rounded-lg p-3 space-y-3">
-                    <div>
-                      <Label className="text-[11px] font-semibold text-muted-foreground">Live Endpoint URL</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Input readOnly value="https://api.legenex.com/functions/leads" className="bg-background font-mono text-[11px] h-9" />
-                        <Button size="sm" variant="outline" className="h-9 w-9 p-0" onClick={() => { navigator.clipboard.writeText('https://api.legenex.com/functions/leads'); toast.success('Copied'); }}>
-                          <Copy className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-[11px] font-semibold text-muted-foreground">API Key</Label>
-                      <Select value={selectedApiKey} onValueChange={setSelectedApiKey}>
-                        <SelectTrigger className="mt-1 bg-background h-9"><SelectValue placeholder="Select an API key" /></SelectTrigger>
-                        <SelectContent>
-                          {apiKeys.length === 0 && <SelectItem disabled value="">No active keys</SelectItem>}
-                          {apiKeys.map(key => (
-                            <SelectItem key={key.id} value={key.key}>
-                              {key.name} ({key.supplier_name || 'Master'} — {key.key_prefix}...)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedApiKey && (
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Selected key will be sent as <code className="bg-muted px-1 rounded text-primary">X-API-KEY</code> header
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Posts directly to <code className="bg-muted px-1 rounded text-primary font-mono">{editing.target_url}</code> using this connector's headers and forwarding mode (<strong>{editing.forwarding_mode || 'pass-through'}</strong>). No HLR is run and no gateway lead is created.
+                  </p>
 
                   <div>
                     <Label className="text-[11px] font-semibold text-muted-foreground">Test Payload (editable)</Label>
@@ -503,28 +429,27 @@ export default function SettingsLeadByte() {
                     </div>
                   </div>
 
-                  <Button onClick={sendTestLead} disabled={sendingTest || !selectedApiKey} className="gap-1.5">
+                  <Button onClick={sendTestLead} disabled={sendingTest || !editing.id} className="gap-1.5">
                     {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                    Send Test Lead
+                    Send Test to LeadByte
                   </Button>
+                  {!editing.id && <p className="text-[11px] text-muted-foreground">Save the connector first to enable testing.</p>}
 
                   {testResult && (
                     <div className="space-y-3 pt-2 border-t border-border">
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-semibold text-foreground">Result:</span>
-                        <Badge className={testResult.ok ? 'bg-status-sold text-green-400' : 'bg-status-error text-red-400'}>
-                          {testResult.ok ? 'Success' : testResult.error ? 'Error' : 'Failed'}
-                        </Badge>
-                        {testResult.created_lead_id && (
-                          <a href={`/leads?id=${testResult.created_lead_id}`} className="text-[11px] text-primary flex items-center gap-1 hover:underline">
-                            View Lead <ExternalLink className="w-3 h-3" />
-                          </a>
+                        <span className="text-[12px] font-semibold text-foreground">Result</span>
+                        {testResult.http_status && (
+                          <Badge className={testResult.http_status < 300 ? 'bg-status-sold text-green-400' : 'bg-status-error text-red-400'}>
+                            HTTP {testResult.http_status}
+                          </Badge>
                         )}
+                        {testResult.error && <Badge className="bg-status-error text-red-400">Error</Badge>}
                       </div>
                       <div className="grid gap-3">
-                        {testResult.response && <JsonViewer data={testResult.response} title="Response" />}
-                        {testResult.lead_request && <JsonViewer data={testResult.lead_request} title="LeadByte Request" />}
-                        {testResult.lead_response && <JsonViewer data={testResult.lead_response} title="LeadByte Response" />}
+                        {testResult.request_body && <JsonViewer data={testResult.request_body} title="Request Sent to LeadByte" />}
+                        {testResult.lb_response && <JsonViewer data={testResult.lb_response} title="LeadByte Response" />}
+                        {testResult.error && <JsonViewer data={{ error: testResult.error }} title="Error" />}
                       </div>
                     </div>
                   )}
