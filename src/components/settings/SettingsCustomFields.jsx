@@ -347,7 +347,7 @@ export default function SettingsCustomFields() {
         <DialogContent className="bg-popover border-border max-w-[420px]">
           <DialogHeader><DialogTitle>{editingId ? 'Edit Field' : 'New Field'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-[12px]">Token / field_name *</Label><Input value={form.field_name} onChange={e => setForm(p => ({ ...p, field_name: e.target.value }))} placeholder="e.g. phone" className="mt-1 bg-background font-mono text-[12px]" disabled={!!editingId} /></div>
+            <div><Label className="text-[12px]">Token / field_name *</Label><Input value={form.field_name} onChange={e => setForm(p => ({ ...p, field_name: e.target.value }))} placeholder="e.g. phone" className="mt-1 bg-background font-mono text-[12px]" /></div>
             <div><Label className="text-[12px]">Label</Label><Input value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} className="mt-1 bg-background" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div>
