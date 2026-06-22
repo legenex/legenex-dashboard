@@ -6,6 +6,7 @@ import SettingsApiKeys from '@/components/settings/SettingsApiKeys';
 import SettingsCustomFields from '@/components/settings/SettingsCustomFields';
 import SettingsLeadByte from '@/components/settings/SettingsLeadByte';
 import SettingsApiConnectors from '@/components/settings/SettingsApiConnectors';
+import SettingsIgnoreList from '@/components/settings/SettingsIgnoreList';
 import SettingsUsers from '@/components/settings/SettingsUsers';
 
 export default function Settings() {
@@ -32,6 +33,10 @@ export default function Settings() {
             <div>
               <div className="text-[14px] font-semibold text-foreground mb-3">Event APIs</div>
               <SettingsApiConnectors />
+            </div>
+            <div>
+              <div className="text-[14px] font-semibold text-foreground mb-3">Adaptive Fields</div>
+              <SettingsIgnoreList />
             </div>
           </div>
         </TabsContent>

@@ -532,6 +532,68 @@ Deno.serve(async (req) => {
       first_name: firstName, last_name: lastName, mobile: mobile, email: email,
     });
 
+    // ── ADAPTIVE FIELDS: auto-create new inbound fields ────────────────
+    if (appSettings.adaptive_fields_enabled !== false) {
+      const DEFAULT_IGNORE = ['key', 'api_key', 'apikey', 'x_key', 'x-api-key', 'authorization', 'auth', 'bearer', 'token', 'secret', 'password', 'sig', 'signature'];
+      const ignoreList = parseJsonArray(appSettings.adaptive_fields_ignore_list);
+      const effectiveIgnore = ignoreList.length > 0 ? ignoreList : DEFAULT_IGNORE;
+      const ignoreSet = new Set(effectiveIgnore.map(s => String(s).trim().toLowerCase()));
+      const existingFieldNames = new Set(customFields.map(f => f.field_name.toLowerCase()));
+
+      const newFields = [];
+      for (const [rawKey, rawValue] of Object.entries(leadPayload)) {
+        const normKey = String(rawKey).trim().toLowerCase();
+        if (ignoreSet.has(normKey)) continue;
+        if (existingFieldNames.has(normKey)) continue;
+
+        let fieldType = 'string';
+        if (typeof rawValue === 'boolean') fieldType = 'boolean';
+        else if (typeof rawValue === 'number') fieldType = 'number';
+        else if (typeof rawValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(rawValue)) fieldType = 'date';
+
+        const sampleValue = String(rawValue ?? '').slice(0, 200);
+        const humanLabel = normKey.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        newFields.push({
+          field_name: rawKey,
+          label: humanLabel,
+          field_type: fieldType,
+          source: 'inbound',
+          sample_value: sampleValue,
+          auto_created: true,
+          include_in_leadbyte: true,
+          leadbyte_field_name: rawKey,
+          sort_order: customFields.length + newFields.length,
+        });
+        existingFieldNames.add(normKey);
+      }
+
+      if (newFields.length > 0) {
+        try {
+          await db.entities.CustomField.bulkCreate(newFields);
+
+          // Template mode: append new fields to payload_template
+          if (leadByteConnector && leadByteConnector.forwarding_mode === 'template' && leadByteConnector.payload_template) {
+            try {
+              const parsed = JSON.parse(leadByteConnector.payload_template);
+              let modified = false;
+              for (const nf of newFields) {
+                if (!(nf.field_name in parsed)) {
+                  parsed[nf.field_name] = '{{' + nf.field_name + '}}';
+                  modified = true;
+                }
+              }
+              if (modified) {
+                const newTemplate = JSON.stringify(parsed, null, 2);
+                await db.entities.LeadByteConnector.update(leadByteConnector.id, { payload_template: newTemplate });
+                leadByteConnector.payload_template = newTemplate;
+              }
+            } catch {}
+          }
+        } catch {}
+      }
+    }
+
     // ── b. FIRE ON RECEIVED (fire-and-forget) ────────────────────────────
     const capiEventNameMap = { on_received: 'Lead', on_sold: 'SubmittedApplication', on_unsold: 'Lead', on_dq: 'Lead', on_queued: 'Lead' };
     // Override with connector-specific event names for CAPI
