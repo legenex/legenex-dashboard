@@ -49,6 +49,43 @@ const DEFAULT_TEST_PAYLOAD = {
   country: 'USA',
 };
 
+const DEFAULT_CAPI_TEMPLATE = JSON.stringify({
+  data: [{
+    event_name: "Lead",
+    event_time: "{_c_eventtime}",
+    action_source: "website",
+    event_id: "{event_id}",
+    event_source_url: "{_c_eventurl}",
+    user_data: {
+      client_user_agent: "{_device_userAgent}",
+      client_ip_address: "{ip_address}",
+      fbc: "{_tracking__fbc}",
+      fbp: "{_tracking__fbp}",
+      em: "{email|sha256}",
+      ph: "{mobile_raw|phone_us|sha256}",
+      fn: "{first_name|lowercase|sha256}",
+      ln: "{last_name|lowercase|sha256}",
+      ct: "{_geoip_city|sha256}",
+      st: "{_geoip_regionName|sha256}",
+      zp: "{zip|sha256}",
+      country: "{_geoip_countryName|sha256}",
+      external_id: "{lead_id|sha256}"
+    },
+    custom_data: {
+      content_name: "Check A Case Lead",
+      content_category: "Lead Generation",
+      vertical: "Legal",
+      brand: "Check A Case",
+      funnel_name: "Check A Case Survey",
+      qualification_status: "Qualified Lead",
+      event_category: "Lead",
+      lead_event_type: "Lead",
+      value: "{conv_value}",
+      currency: "USD"
+    }
+  }]
+}, null, 2);
+
 export default function SettingsApiConnectors() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(null);
@@ -83,11 +120,12 @@ export default function SettingsApiConnectors() {
       fb_pixel_id: '', fb_access_token: '', fb_test_event_code: '', fb_api_version: 'v21.0',
       lead_event_name: 'Lead', sold_event_name: 'SubmittedApplication', action_source: 'website',
       target_url: '', http_method: 'POST', content_type: 'application/json',
-      headers: '[]', payload_template: '{}', triggers: '["on_received"]',
+      headers: '[]', payload_template: DEFAULT_CAPI_TEMPLATE, triggers: '["on_received"]',
     });
     setHeaderRows([]);
     setShowToken(false);
     setTestResult(null);
+    setTestPayloadStr(DEFAULT_CAPI_TEMPLATE);
   };
 
   const openEdit = (conn) => {
@@ -95,6 +133,14 @@ export default function SettingsApiConnectors() {
     setHeaderRows(parseJsonArray(conn.headers));
     setShowToken(false);
     setTestResult(null);
+    if (conn.kind === 'facebook_capi') {
+      const tmpl = (conn.payload_template && conn.payload_template.trim() && conn.payload_template.trim() !== '{}')
+        ? conn.payload_template
+        : DEFAULT_CAPI_TEMPLATE;
+      setTestPayloadStr(tmpl);
+    } else {
+      setTestPayloadStr(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
+    }
   };
 
   const saveConnector = async () => {
@@ -293,8 +339,8 @@ export default function SettingsApiConnectors() {
 
               {/* Send Test Event */}
               <div className="pt-2 border-t border-border space-y-3">
-                <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Send Test Event</div>
-                <Textarea value={testPayloadStr} onChange={e => setTestPayloadStr(e.target.value)} className="bg-background font-mono text-[11px] min-h-[180px] leading-relaxed" />
+                <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">CAPI Payload Template (test resolves tokens with sample data)</div>
+                <Textarea value={testPayloadStr} onChange={e => setTestPayloadStr(e.target.value)} className="bg-background font-mono text-[11px] min-h-[340px] leading-relaxed" />
                 <Button onClick={sendTestEvent} disabled={sendingTest || !editing.id} className="gap-1.5">
                   {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                   Send Test Event {editing.fb_test_event_code ? '(uses test code)' : ''}

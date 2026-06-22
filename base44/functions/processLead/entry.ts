@@ -149,31 +149,143 @@ async function buildCapiUserData(d) {
   return ud;
 }
 
-// Send a single Facebook CAPI event and return a result object.
+// Default Facebook CAPI payload template with pipe-transform token syntax.
+const DEFAULT_CAPI_TEMPLATE = JSON.stringify({
+  data: [{
+    event_name: "Lead",
+    event_time: "{_c_eventtime}",
+    action_source: "website",
+    event_id: "{event_id}",
+    event_source_url: "{_c_eventurl}",
+    user_data: {
+      client_user_agent: "{_device_userAgent}",
+      client_ip_address: "{ip_address}",
+      fbc: "{_tracking__fbc}",
+      fbp: "{_tracking__fbp}",
+      em: "{email|sha256}",
+      ph: "{mobile_raw|phone_us|sha256}",
+      fn: "{first_name|lowercase|sha256}",
+      ln: "{last_name|lowercase|sha256}",
+      ct: "{_geoip_city|sha256}",
+      st: "{_geoip_regionName|sha256}",
+      zp: "{zip|sha256}",
+      country: "{_geoip_countryName|sha256}",
+      external_id: "{lead_id|sha256}"
+    },
+    custom_data: {
+      content_name: "Check A Case Lead",
+      content_category: "Lead Generation",
+      vertical: "Legal",
+      brand: "Check A Case",
+      funnel_name: "Check A Case Survey",
+      qualification_status: "Qualified Lead",
+      event_category: "Lead",
+      lead_event_type: "Lead",
+      value: "{conv_value}",
+      currency: "USD"
+    }
+  }]
+}, null, 2);
+
+// Normalize a US phone to 1XXXXXXXXXX: strip non-digits, remove leading 1, prepend 1 + 10 digits.
+function phoneUs(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  if (digits.length === 10) return '1' + digits;
+  return digits;
+}
+
+// Escape a string for safe insertion into a JSON string value position.
+function escapeJsonString(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+}
+
+// Resolve a CAPI template token to its raw string value.
+function resolveCapiToken(token, d, leadId) {
+  switch (token) {
+    case '_c_eventtime': return String(Math.floor(Date.now() / 1000));
+    case '_c_eventurl': return d.optin_url || d.optinurl || '';
+    case '_device_userAgent': return d.user_agent || d.useragent || '';
+    case '_tracking__fbc': return d.fbc || d._tracking__fbc || '';
+    case '_tracking__fbp': return d.fbp || d._tracking__fbp || '';
+    case '_geoip_city': return d.city || d._geoip_city || '';
+    case '_geoip_regionName': return d.state || d._geoip_regionName || '';
+    case '_geoip_countryName': return d.country || d._geoip_countryName || '';
+    case 'mobile_raw': return d.mobile || d.phone1 || d.phone || d.phone_number || '';
+    case 'conv_value': return d.conv_value != null ? String(d.conv_value) : '';
+    case 'event_id': return d.event_id || d.eventId || String(leadId);
+    case 'ip_address': return d.ip_address || d.ipaddress || '';
+    case 'lead_id': return d.lead_id != null ? String(d.lead_id) : '';
+    case 'email': return d.email || '';
+    case 'first_name': return d.first_name || d.firstname || '';
+    case 'last_name': return d.last_name || d.lastname || '';
+    case 'zip': return d.zip || d.zipcode || '';
+    default: return d[token] != null ? String(d[token]) : '';
+  }
+}
+
+// Apply a single pipe transform to a string value.
+async function applyCapiTransform(value, transform) {
+  switch (transform) {
+    case 'sha256': return await sha256Hex(value);
+    case 'lowercase': return String(value).toLowerCase();
+    case 'phone_us': return phoneUs(value);
+    default: return value;
+  }
+}
+
+// Resolve all {token|transform} placeholders in a CAPI template string.
+async function resolveCapiTemplate(templateStr, leadData, leadId) {
+  const pattern = /\{([\w.]+(?:\|[\w]+)*)\}/g;
+  const matches = [];
+  let m;
+  while ((m = pattern.exec(templateStr)) !== null) {
+    matches.push({ expr: m[1], index: m.index, length: m[0].length });
+  }
+  const resolved = await Promise.all(matches.map(async (match) => {
+    const parts = match.expr.split('|').map(s => s.trim());
+    const token = parts[0];
+    const transforms = parts.slice(1);
+    let value = resolveCapiToken(token, leadData || {}, leadId);
+    for (const t of transforms) {
+      value = await applyCapiTransform(value, t);
+    }
+    return escapeJsonString(value);
+  }));
+  let result = templateStr;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const match = matches[i];
+    result = result.slice(0, match.index) + resolved[i] + result.slice(match.index + match.length);
+  }
+  return result;
+}
+
+// Send a single Facebook CAPI event using the connector's payload template.
 async function sendCapiEvent(conn, leadData, leadId, eventName) {
   const apiVer = conn.fb_api_version || 'v21.0';
   const pixel = conn.fb_pixel_id;
   const token = conn.fb_access_token;
   const url = `https://graph.facebook.com/${apiVer}/${pixel}/events?access_token=${token}`;
-  const actionSource = conn.action_source || 'website';
-  const eventId = leadData.event_id || leadData.eventId || String(leadId);
-  const eventSourceUrl = leadData.optin_url || leadData.optinurl || '';
-  const userData = await buildCapiUserData(leadData);
-  const body = {
-    data: [{
-      event_name: eventName,
-      event_time: Math.floor(Date.now() / 1000),
-      action_source: actionSource,
-      event_source_url: eventSourceUrl,
-      event_id: eventId,
-      user_data: userData,
-      custom_data: {
-        brand: leadData.supplier_brand || leadData.brand || '',
-        supplier: leadData.supplier_name || '',
-        lead_status: leadData.lead_status || '',
-      },
-    }],
-  };
+
+  const templateStr = (conn.payload_template && conn.payload_template.trim() && conn.payload_template.trim() !== '{}')
+    ? conn.payload_template
+    : DEFAULT_CAPI_TEMPLATE;
+
+  let body;
+  try {
+    const resolved = await resolveCapiTemplate(templateStr, leadData, leadId);
+    body = JSON.parse(resolved);
+  } catch (err) {
+    return {
+      connector: conn.name, event_name: eventName, pixel,
+      http_status: null, fbtrace_id: '', success: false,
+      error: `Template resolution failed: ${err.message}`,
+    };
+  }
+
+  if (body.data && body.data[0]) {
+    body.data[0].event_name = eventName;
+  }
   if (conn.fb_test_event_code) body.test_event_code = conn.fb_test_event_code;
 
   try {
@@ -186,23 +298,14 @@ async function sendCapiEvent(conn, leadData, leadId, eventName) {
     let fbResult;
     try { fbResult = JSON.parse(text); } catch { fbResult = { raw: text }; }
     return {
-      connector: conn.name,
-      event_name: eventName,
-      pixel,
-      http_status: resp.status,
-      fbtrace_id: fbResult.fbtrace_id || '',
-      success: resp.ok,
-      raw: fbResult,
+      connector: conn.name, event_name: eventName, pixel,
+      http_status: resp.status, fbtrace_id: fbResult.fbtrace_id || '',
+      success: resp.ok, raw: fbResult,
     };
   } catch (err) {
     return {
-      connector: conn.name,
-      event_name: eventName,
-      pixel,
-      http_status: null,
-      fbtrace_id: '',
-      success: false,
-      error: err.message,
+      connector: conn.name, event_name: eventName, pixel,
+      http_status: null, fbtrace_id: '', success: false, error: err.message,
     };
   }
 }
