@@ -35,6 +35,7 @@
         "Sold",
         "Unsold",
         "Queued",
+        "Duplicate",
         "Error"
       ],
       "default": "Sold"

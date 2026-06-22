@@ -6,6 +6,7 @@ const statusStyles = {
   Error: 'bg-status-error status-error',
   Processing: 'bg-status-processing status-processing',
   Queued: 'bg-status-queued status-queued',
+  Duplicate: 'bg-status-duplicate status-duplicate',
 };
 
 export default function StatusPill({ status, size = 'sm' }) {

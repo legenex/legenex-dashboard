@@ -346,7 +346,9 @@ function getPathValue(obj, path) {
 }
 
 function applyOperator(actual, operator, expected) {
-  const act = actual == null ? '' : String(actual);
+  let act = actual == null ? '' : actual;
+  if (typeof act === 'object') act = JSON.stringify(act);
+  else act = String(act);
   const exp = expected || '';
   switch (operator) {
     case 'equals': return act === exp;
@@ -889,20 +891,40 @@ Deno.serve(async (req) => {
           { message: `Unexpected LeadByte status: ${recordStatus}` }).catch(() => {});
       }
     } else {
-      await db.entities.ErrorLog.create({
-        lead_id: leadId, stage: 'leadbyte', severity: 'error',
-        message: lbResult.message || 'LeadByte returned non-success',
-        detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
-      });
-      await evaluateNotifications(db, ['api_error'], { id: leadId }, supplierAttribution,
-        { message: lbResult.message || 'LeadByte returned non-success' }).catch(() => {});
+      // ── f. Top-level non-success: handle errors[] shape ──────────────
+      const topStatus = lbResult.status || '';
+      const errors = lbResult.errors || [];
+      const firstError = errors.length > 0 ? String(errors[0]?.message || errors[0]?.error || errors[0] || '') : '';
+      const lowerErr = firstError.toLowerCase();
+
+      if (/duplicate/i.test(firstError)) {
+        finalStatus = 'Duplicate';
+        supplierResponse = { Response: 'Duplicate' };
+        await db.entities.Lead.update(leadId, { queue_reason: `Duplicate: ${firstError}` });
+      } else if (isQueueableRejection(firstError)) {
+        finalStatus = 'Queued';
+        const queueReason = `LeadByte error (missing/invalid field): ${firstError || topStatus}`;
+        await db.entities.Lead.update(leadId, { queue_reason: queueReason });
+        supplierResponse = { Response: 'Unsold' };
+        fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord, capiEventNameMap);
+        await evaluateNotifications(db, ['lead_queued', 'missing_fields'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
+      } else {
+        finalStatus = 'Error';
+        supplierResponse = { Response: 'Error', message: firstError || lbResult.message || 'LeadByte returned non-success' };
+        await db.entities.ErrorLog.create({
+          lead_id: leadId, stage: 'leadbyte', severity: 'error',
+          message: firstError || lbResult.message || 'LeadByte returned non-success',
+          detail: JSON.stringify(lbResult), supplier_name: supplierAttribution,
+        });
+        await evaluateNotifications(db, ['api_error'], { id: leadId }, supplierAttribution,
+          { message: firstError || lbResult.message || 'LeadByte returned non-success' }).catch(() => {});
+      }
     }
 
     // ── g. RESOLVE SUPPLIER RESPONSE VIA RESPONSEMAPPING ─────────────────
-    if (finalStatus !== 'Queued') {
+    if (finalStatus !== 'Queued' && finalStatus !== 'Duplicate') {
       const mapped = await resolveResponseMapping(db, lbResult, supplierResponse, finalStatus);
       supplierResponse = mapped.response;
-      // Only override status if the mapping found a match (not fallback)
       if (mapped.status && mapped.status !== finalStatus && finalStatus === 'Error') {
         finalStatus = mapped.status;
       }

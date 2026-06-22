@@ -54,7 +54,7 @@ export default function Leads() {
   const suppliers = [...new Set(leads.map(l => l.supplier_name).filter(Boolean))];
 
   const filtered = leads.filter(l => {
-    if (viewMode === 'queue' && l.final_status !== 'Queued') return false;
+    if (viewMode === 'queue' && l.final_status !== 'Queued' && l.final_status !== 'Duplicate') return false;
     if (statusFilter !== 'all' && l.final_status !== statusFilter) return false;
     if (supplierFilter !== 'all' && l.supplier_name !== supplierFilter) return false;
     if (search) {
@@ -168,7 +168,7 @@ export default function Leads() {
 
   return (
     <div>
-      <PageHeader title="Leads" subtitle={viewMode === 'queue' ? 'Queued leads for manual handling' : 'All processed leads with full trace data'}>
+      <PageHeader title="Leads" subtitle={viewMode === 'queue' ? 'Queued and duplicate leads for manual handling' : 'All processed leads with full trace data'}>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-border overflow-hidden">
             <button onClick={() => setViewMode('all')}
@@ -207,6 +207,7 @@ export default function Leads() {
             { value: 'Sold', label: 'Sold' },
             { value: 'Unsold', label: 'Unsold' },
             { value: 'Queued', label: 'Queued' },
+            { value: 'Duplicate', label: 'Duplicate' },
             { value: 'Error', label: 'Error' },
             { value: 'Processing', label: 'Processing' },
           ]}

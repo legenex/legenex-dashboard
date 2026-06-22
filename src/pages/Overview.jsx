@@ -11,7 +11,7 @@ import { Percent, AlertTriangle, Clock, Copy, Inbox, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays, startOfDay, startOfWeek, startOfMonth, isAfter } from 'date-fns';
 
-const PIE_COLORS = ['#22C55E', '#F59E0B', '#EF4444', '#A855F7'];
+const PIE_COLORS = ['#22C55E', '#F59E0B', '#EF4444', '#A855F7', '#06B6D4'];
 
 export default function Overview() {
   const qc = useQueryClient();
@@ -76,6 +76,7 @@ export default function Overview() {
 
   const errorsToday = errors.filter(e => isAfter(new Date(e.created_date), todayStart));
   const queuedLeads = leads.filter(l => l.final_status === 'Queued');
+  const duplicateLeads = leads.filter(l => l.final_status === 'Duplicate');
 
   // CAPI fires today: count capi_log entries from leads created today
   const capiFiresToday = leadsToday.reduce((count, l) => {
@@ -93,6 +94,7 @@ export default function Overview() {
     { name: 'Unsold', value: leads.filter(l => l.final_status === 'Unsold').length },
     { name: 'Error', value: leads.filter(l => l.final_status === 'Error').length },
     { name: 'Queued', value: leads.filter(l => l.final_status === 'Queued').length },
+    { name: 'Duplicate', value: leads.filter(l => l.final_status === 'Duplicate').length },
   ].filter(d => d.value > 0);
 
   // 14-day chart
@@ -112,6 +114,7 @@ export default function Overview() {
       Unsold: dayLeads.filter(l => l.final_status === 'Unsold').length,
       Error: dayLeads.filter(l => l.final_status === 'Error').length,
       Queued: dayLeads.filter(l => l.final_status === 'Queued').length,
+      Duplicate: dayLeads.filter(l => l.final_status === 'Duplicate').length,
     });
   }
 
@@ -152,6 +155,7 @@ export default function Overview() {
         <StatCard label="Sold Rate" value={`${soldRate}%`} icon={Percent} />
         <StatCard label="Errors Today" value={errorsToday.length} icon={AlertTriangle} />
         <StatCard label="Queued" value={queuedLeads.length} icon={Inbox} />
+        <StatCard label="Duplicates" value={duplicateLeads.length} icon={Copy} />
         <StatCard label="CAPI Fires Today" value={capiFiresToday} icon={Zap} />
       </div>
 
@@ -215,7 +219,7 @@ export default function Overview() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    {['Supplier', 'Total', 'Sold', 'Unsold', 'Queued', 'Error', 'Sold Rate', 'Avg Time'].map(h => (
+                    {['Supplier', 'Total', 'Sold', 'Unsold', 'Queued', 'Dup', 'Error', 'Sold Rate', 'Avg Time'].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
@@ -226,6 +230,7 @@ export default function Overview() {
                     const sold = sl.filter(l => l.final_status === 'Sold').length;
                     const unsold = sl.filter(l => l.final_status === 'Unsold').length;
                     const queued = sl.filter(l => l.final_status === 'Queued').length;
+                    const dup = sl.filter(l => l.final_status === 'Duplicate').length;
                     const err = sl.filter(l => l.final_status === 'Error').length;
                     const rate = sl.length > 0 ? Math.round((sold / sl.length) * 100) : 0;
                     const withTime = sl.filter(l => l.process_time_ms);
@@ -237,6 +242,7 @@ export default function Overview() {
                         <td className="px-4 py-3 font-mono text-[12px] status-sold">{sold}</td>
                         <td className="px-4 py-3 font-mono text-[12px] status-unsold">{unsold}</td>
                         <td className="px-4 py-3 font-mono text-[12px] status-queued">{queued}</td>
+                        <td className="px-4 py-3 font-mono text-[12px] status-duplicate">{dup}</td>
                         <td className="px-4 py-3 font-mono text-[12px] status-error">{err}</td>
                         <td className="px-4 py-3 font-mono text-[12px]">{rate}%</td>
                         <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{avgT ? `${avgT}ms` : '—'}</td>
