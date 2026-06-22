@@ -16,6 +16,7 @@ import ResetPassword from '@/pages/ResetPassword';
 import AppLayout from '@/components/layout/AppLayout';
 import Overview from '@/pages/Overview';
 import Leads from '@/pages/Leads';
+import QueueRecovery from '@/pages/QueueRecovery';
 import ErrorLogs from '@/pages/ErrorLogs';
 import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
@@ -53,6 +54,7 @@ const AuthenticatedApp = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Overview />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/queue-recovery" element={<QueueRecovery />} />
           <Route path="/errors" element={<ErrorLogs />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/verification" element={<Verification />} />

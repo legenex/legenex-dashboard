@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, AlertTriangle, Bell, ShieldCheck, Settings, Calculator } from 'lucide-react';
+import { LayoutDashboard, FileText, LifeBuoy, AlertTriangle, Bell, ShieldCheck, Settings, Calculator } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
   { path: '/leads', label: 'Leads', icon: FileText },
+  { path: '/queue-recovery', label: 'Queue Recovery', icon: LifeBuoy },
   { path: '/errors', label: 'Error Logs', icon: AlertTriangle },
   { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/verification', label: 'Verification', icon: ShieldCheck },
