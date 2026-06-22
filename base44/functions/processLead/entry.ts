@@ -533,7 +533,7 @@ Deno.serve(async (req) => {
     });
 
     // ── b. FIRE ON RECEIVED (fire-and-forget) ────────────────────────────
-    const capiEventNameMap = { on_received: 'Lead', on_sold: 'SubmittedApplication', on_unsold: 'Lead', on_queued: 'Lead' };
+    const capiEventNameMap = { on_received: 'Lead', on_sold: 'SubmittedApplication', on_unsold: 'Lead', on_dq: 'Lead', on_queued: 'Lead' };
     // Override with connector-specific event names for CAPI
     const onReceivedConnectors = apiConnectors.filter(c => {
       const t = parseJsonArray(c.triggers);
@@ -811,8 +811,9 @@ Deno.serve(async (req) => {
         } else {
           finalStatus = 'Unsold';
           supplierResponse = { Response: 'Unsold' };
-          // Fire on_unsold connectors
+          // Fire on_unsold + on_dq connectors
           fireConnectors(db, apiConnectors, 'on_unsold', leadPayload, leadId, supplierAttribution, supplierRecord, capiEventNameMap);
+          fireConnectors(db, apiConnectors, 'on_dq', leadPayload, leadId, supplierAttribution, supplierRecord, capiEventNameMap);
         }
       } else {
         finalStatus = 'Error';

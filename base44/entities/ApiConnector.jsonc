@@ -89,7 +89,7 @@
     },
     "triggers": {
       "type": "string",
-      "description": "JSON array of: on_received, on_sold, on_unsold, on_queued"
+      "description": "JSON array of: on_received, on_sold, on_unsold, on_dq, on_queued"
     }
   },
   "required": [

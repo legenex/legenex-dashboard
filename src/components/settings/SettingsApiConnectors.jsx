@@ -19,6 +19,7 @@ const TRIGGER_OPTIONS = [
   { value: 'on_received', label: 'On Received' },
   { value: 'on_sold', label: 'On Sold' },
   { value: 'on_unsold', label: 'On Unsold' },
+  { value: 'on_dq', label: 'On DQ' },
   { value: 'on_queued', label: 'On Queued' },
 ];
 
