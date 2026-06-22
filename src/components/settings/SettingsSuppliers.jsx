@@ -72,6 +72,18 @@ export default function SettingsSuppliers() {
     toast.success('Base URL saved');
   };
 
+  const requireCert = appSettings.require_trustedform_cert !== false;
+  const toggleCertGate = async () => {
+    const newVal = !requireCert;
+    if (appSettings.id) {
+      await base44.entities.AppSettings.update(appSettings.id, { require_trustedform_cert: newVal });
+    } else {
+      await base44.entities.AppSettings.create({ require_trustedform_cert: newVal });
+    }
+    qc.invalidateQueries({ queryKey: ['app-settings'] });
+    toast.success(`TrustedForm cert gate ${newVal ? 'enabled' : 'disabled'}`);
+  };
+
   const getKeyForSupplier = (supplierId) =>
     apiKeys.find(k => k.supplier_id === supplierId || k.supplier_name === suppliers.find(s => s.id === supplierId)?.name);
 
@@ -196,10 +208,17 @@ export default function SettingsSuppliers() {
             <Copy className="w-3.5 h-3.5" />
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-3">
           <Label className="text-[12px] whitespace-nowrap">Base URL</Label>
           <Input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="bg-background font-mono text-[12px]" />
           <Button size="sm" onClick={saveBaseUrl}>{baseUrlSaved ? 'Saved' : 'Save'}</Button>
+        </div>
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
+          <div>
+            <Label className="text-[12px]">Require TrustedForm Cert</Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">When enabled, leads without a valid TrustedForm cert URL are queued before reaching LeadByte.</p>
+          </div>
+          <Switch checked={requireCert} onCheckedChange={toggleCertGate} />
         </div>
       </div>
 

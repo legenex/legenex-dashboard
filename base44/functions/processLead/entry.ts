@@ -718,24 +718,40 @@ Deno.serve(async (req) => {
       enrichedData.country_code = hlrResult.country_code || '';
     }
 
-    // ── d. GATE: TrustedForm + required fields ───────────────────────────
+    // ── d. GATE: TrustedForm cert (hard enforce) ─────────────────────────
+    const requireCert = appSettings.require_trustedform_cert !== false;
     const trustedformUrl = leadPayload.trustedform_url || leadPayload.trustedform_cert || '';
     const tfValid = isValidTrustedForm(trustedformUrl);
     const missingFields = checkRequiredFields(customFields, leadPayload);
 
-    if (!tfValid || missingFields.length > 0) {
-      const reasons = [];
-      if (!tfValid) reasons.push('Invalid or missing TrustedForm certificate');
-      if (missingFields.length > 0) reasons.push(`Missing required fields: ${missingFields.join(', ')}`);
-      const queueReason = reasons.join('; ');
+    // When require_trustedform_cert is true, no lead reaches LeadByte without a valid cert.
+    if (requireCert && !tfValid) {
+      const queueReason = 'Missing or invalid TrustedForm cert';
 
-      // Fire on_queued connectors (fire-and-forget)
       fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord, capiEventNameMap);
+      await evaluateNotifications(db, ['lead_queued'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
 
-      // Evaluate notification rules
+      const mapped = await resolveResponseMapping(db, {}, { Response: 'Queued' }, 'Queued');
+      const queueResponse = mapped.response;
+      await db.entities.Lead.update(leadId, {
+        final_status: 'Queued',
+        queue_reason: queueReason,
+        trustedform_valid: false,
+        processed_at: new Date().toISOString(),
+        process_time_ms: Date.now() - startTime,
+        response_returned: JSON.stringify(queueResponse),
+      });
+      return Response.json(queueResponse, { status: 200 });
+    }
+
+    // ── d2. GATE: Required custom fields ─────────────────────────────────
+    if (missingFields.length > 0) {
+      const queueReason = `Missing required fields: ${missingFields.join(', ')}`;
+      fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord, capiEventNameMap);
       await evaluateNotifications(db, ['lead_queued', 'missing_fields'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
 
-      const queueResponse = { Response: 'Unsold' };
+      const mapped = await resolveResponseMapping(db, {}, { Response: 'Queued' }, 'Queued');
+      const queueResponse = mapped.response;
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
         queue_reason: queueReason,
@@ -747,7 +763,7 @@ Deno.serve(async (req) => {
       return Response.json(queueResponse, { status: 200 });
     }
 
-    await db.entities.Lead.update(leadId, { trustedform_valid: true });
+    await db.entities.Lead.update(leadId, { trustedform_valid: tfValid });
 
     // ── e. FORWARD TO LEADBYTE ───────────────────────────────────────────
     if (!leadByteConnector) {

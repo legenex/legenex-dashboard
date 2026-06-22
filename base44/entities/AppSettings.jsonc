@@ -31,6 +31,11 @@
     "adaptive_fields_ignore_list": {
       "type": "string",
       "description": "JSON array of field names (case-insensitive) that must never be cataloged or forwarded"
+    },
+    "require_trustedform_cert": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, leads without a valid TrustedForm cert URL are queued before reaching LeadByte"
     }
   },
   "required": []
