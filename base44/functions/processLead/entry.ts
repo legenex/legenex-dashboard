@@ -64,15 +64,11 @@ function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource) {
   return enriched;
 }
 
-function buildPayloadFromTemplate(template, enrichedData) {
-  if (!template) return enrichedData;
-  let tmpl;
-  try { tmpl = typeof template === 'string' ? template : JSON.stringify(template); } catch { return enrichedData; }
-  const result = tmpl.replace(/\{\{([\w.]+)\}\}/g, (_, token) => {
-    const val = enrichedData[token];
-    return val !== undefined && val !== null ? String(val) : '';
-  });
-  try { return JSON.parse(result); } catch { return result; }
+async function buildPayloadFromTemplate(template, data) {
+  if (!template) return data;
+  const tmpl = typeof template === 'string' ? template : JSON.stringify(template);
+  const resolved = await resolveTemplate(tmpl, data, null);
+  try { return JSON.parse(resolved); } catch { return resolved; }
 }
 
 // ── CAPI helpers ──────────────────────────────────────────────────────────
@@ -149,28 +145,29 @@ async function buildCapiUserData(d) {
   return ud;
 }
 
-// Default Facebook CAPI payload template with pipe-transform token syntax.
+// Default Facebook CAPI payload template using unified {{token}} syntax.
+// Auto-hash (auto_hash_capi=true) handles SHA-256 of user_data fields automatically.
 const DEFAULT_CAPI_TEMPLATE = JSON.stringify({
   data: [{
     event_name: "Lead",
-    event_time: "{_c_eventtime}",
+    event_time: "{{event_time}}",
     action_source: "website",
-    event_id: "{event_id}",
-    event_source_url: "{_c_eventurl}",
+    event_id: "{{event_id}}",
+    event_source_url: "{{optin_url}}",
     user_data: {
-      client_user_agent: "{_device_userAgent}",
-      client_ip_address: "{ip_address}",
-      fbc: "{_tracking__fbc}",
-      fbp: "{_tracking__fbp}",
-      em: "{email|sha256}",
-      ph: "{mobile_raw|phone_us|sha256}",
-      fn: "{first_name|lowercase|sha256}",
-      ln: "{last_name|lowercase|sha256}",
-      ct: "{_geoip_city|sha256}",
-      st: "{_geoip_regionName|sha256}",
-      zp: "{zip|sha256}",
-      country: "{_geoip_countryName|sha256}",
-      external_id: "{lead_id|sha256}"
+      client_user_agent: "{{user_agent}}",
+      client_ip_address: "{{ip_address}}",
+      fbc: "{{fbc}}",
+      fbp: "{{fbp}}",
+      em: "{{email}}",
+      ph: "{{mobile}}",
+      fn: "{{first_name}}",
+      ln: "{{last_name}}",
+      ct: "{{geoip_city}}",
+      st: "{{geoip_state}}",
+      zp: "{{zip}}",
+      country: "{{geoip_country}}",
+      external_id: "{{lead_id}}"
     },
     custom_data: {
       content_name: "Check A Case Lead",
@@ -181,7 +178,7 @@ const DEFAULT_CAPI_TEMPLATE = JSON.stringify({
       qualification_status: "Qualified Lead",
       event_category: "Lead",
       lead_event_type: "Lead",
-      value: "{conv_value}",
+      value: "{{conv_value}}",
       currency: "USD"
     }
   }]
@@ -200,43 +197,77 @@ function escapeJsonString(s) {
   return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
 }
 
-// Resolve a CAPI template token to its raw string value.
-function resolveCapiToken(token, d, leadId) {
+// Unified token resolver — same engine for LeadByte and CAPI templates.
+// Resolves {{token}} and {{token|transform}} against the lead data object.
+function resolveTokenValue(token, d, leadId) {
   switch (token) {
-    case '_c_eventtime': return String(Math.floor(Date.now() / 1000));
-    case '_c_eventurl': return d.optin_url || d.optinurl || '';
-    case '_device_userAgent': return d.user_agent || d.useragent || '';
-    case '_tracking__fbc': return d.fbc || d._tracking__fbc || '';
-    case '_tracking__fbp': return d.fbp || d._tracking__fbp || '';
-    case '_geoip_city': return d.city || d._geoip_city || '';
-    case '_geoip_regionName': return d.state || d._geoip_regionName || '';
-    case '_geoip_countryName': return d.country || d._geoip_countryName || '';
-    case 'mobile_raw': return d.mobile || d.phone1 || d.phone || d.phone_number || '';
-    case 'conv_value': return d.conv_value != null ? String(d.conv_value) : '';
-    case 'event_id': return d.event_id || d.eventId || String(leadId);
-    case 'ip_address': return d.ip_address || d.ipaddress || '';
-    case 'lead_id': return d.lead_id != null ? String(d.lead_id) : '';
-    case 'email': return d.email || '';
-    case 'first_name': return d.first_name || d.firstname || '';
-    case 'last_name': return d.last_name || d.lastname || '';
-    case 'zip': return d.zip || d.zipcode || '';
-    default: return d[token] != null ? String(d[token]) : '';
+    case '_c_eventtime':
+    case 'event_time':
+      return String(Math.floor(Date.now() / 1000));
+    case '_c_eventurl':
+    case 'optin_url':
+      return d.optin_url || d.optinurl || '';
+    case '_device_userAgent':
+    case 'user_agent':
+      return d.user_agent || d.useragent || '';
+    case '_tracking__fbc':
+    case 'fbc':
+      return d.fbc || d._tracking__fbc || '';
+    case '_tracking__fbp':
+    case 'fbp':
+      return d.fbp || d._tracking__fbp || '';
+    case '_geoip_city':
+    case 'geoip_city':
+    case 'city':
+      return d.geoip_city || d.city || d._geoip_city || '';
+    case '_geoip_regionName':
+    case 'geoip_state':
+    case 'state':
+      return d.geoip_state || d.state || d._geoip_regionName || '';
+    case '_geoip_countryName':
+    case 'geoip_country':
+    case 'country':
+      return d.geoip_country || d.country || d._geoip_countryName || '';
+    case 'mobile_raw':
+    case 'mobile':
+      return d.mobile || d.phone1 || d.phone || d.phone_number || '';
+    case 'conv_value':
+      return d.conv_value != null ? String(d.conv_value) : '';
+    case 'event_id':
+      return d.event_id || d.eventId || (leadId ? String(leadId) : '');
+    case 'ip_address':
+      return d.ip_address || d.ipaddress || '';
+    case 'lead_id':
+      return d.lead_id != null ? String(d.lead_id) : '';
+    case 'email':
+      return d.email || '';
+    case 'first_name':
+      return d.first_name || d.firstname || '';
+    case 'last_name':
+      return d.last_name || d.lastname || '';
+    case 'zip':
+      return d.zip || d.zipcode || '';
+    default:
+      const val = d[token];
+      return val !== undefined && val !== null ? String(val) : '';
   }
 }
 
 // Apply a single pipe transform to a string value.
-async function applyCapiTransform(value, transform) {
+async function applyTransform(value, transform) {
   switch (transform) {
     case 'sha256': return await sha256Hex(value);
     case 'lowercase': return String(value).toLowerCase();
+    case 'uppercase': return String(value).toUpperCase();
+    case 'trim': return String(value).trim();
     case 'phone_us': return phoneUs(value);
     default: return value;
   }
 }
 
-// Resolve all {token|transform} placeholders in a CAPI template string.
-async function resolveCapiTemplate(templateStr, leadData, leadId) {
-  const pattern = /\{([\w.]+(?:\|[\w]+)*)\}/g;
+// Resolve all {{token|transform}} placeholders in a template string.
+async function resolveTemplate(templateStr, data, leadId) {
+  const pattern = /\{\{([\w.]+(?:\|[\w]+)*)\}\}/g;
   const matches = [];
   let m;
   while ((m = pattern.exec(templateStr)) !== null) {
@@ -246,9 +277,9 @@ async function resolveCapiTemplate(templateStr, leadData, leadId) {
     const parts = match.expr.split('|').map(s => s.trim());
     const token = parts[0];
     const transforms = parts.slice(1);
-    let value = resolveCapiToken(token, leadData || {}, leadId);
+    let value = resolveTokenValue(token, data || {}, leadId);
     for (const t of transforms) {
-      value = await applyCapiTransform(value, t);
+      value = await applyTransform(value, t);
     }
     return escapeJsonString(value);
   }));
@@ -258,6 +289,43 @@ async function resolveCapiTemplate(templateStr, leadData, leadId) {
     result = result.slice(0, match.index) + resolved[i] + result.slice(match.index + match.length);
   }
   return result;
+}
+
+// Auto-hash Meta-required user_data fields after normalization.
+// Skips fields whose template token already includes |sha256 (manual override).
+const AUTO_HASH_KEYS = new Set(['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country', 'external_id', 'db', 'ge']);
+
+function normalizeForHashing(key, value) {
+  const v = String(value || '');
+  if (key === 'ph') return phoneUs(v);
+  return v.trim().toLowerCase();
+}
+
+async function applyAutoHash(body, templateStr) {
+  if (!body.data || !Array.isArray(body.data)) return body;
+  const manuallyHashed = new Set();
+  try {
+    const tmplObj = JSON.parse(templateStr);
+    for (let i = 0; i < (tmplObj.data || []).length; i++) {
+      const ud = tmplObj.data[i]?.user_data;
+      if (!ud) continue;
+      for (const key of Object.keys(ud)) {
+        if (String(ud[key] || '').includes('|sha256')) manuallyHashed.add(`${i}.${key}`);
+      }
+    }
+  } catch {}
+  for (let i = 0; i < body.data.length; i++) {
+    const ud = body.data[i]?.user_data;
+    if (!ud) continue;
+    for (const key of Object.keys(ud)) {
+      if (!AUTO_HASH_KEYS.has(key)) continue;
+      if (manuallyHashed.has(`${i}.${key}`)) continue;
+      const val = String(ud[key] || '');
+      if (!val) continue;
+      ud[key] = await sha256Hex(normalizeForHashing(key, val));
+    }
+  }
+  return body;
 }
 
 // Send a single Facebook CAPI event using the connector's payload template.
@@ -273,7 +341,7 @@ async function sendCapiEvent(conn, leadData, leadId, eventName) {
 
   let body;
   try {
-    const resolved = await resolveCapiTemplate(templateStr, leadData, leadId);
+    const resolved = await resolveTemplate(templateStr, leadData, leadId);
     body = JSON.parse(resolved);
   } catch (err) {
     return {
@@ -281,6 +349,10 @@ async function sendCapiEvent(conn, leadData, leadId, eventName) {
       http_status: null, fbtrace_id: '', success: false,
       error: `Template resolution failed: ${err.message}`,
     };
+  }
+
+  if (conn.auto_hash_capi !== false) {
+    body = await applyAutoHash(body, templateStr);
   }
 
   if (body.data && body.data[0]) {
@@ -314,7 +386,7 @@ async function sendCapiEvent(conn, leadData, leadId, eventName) {
 async function sendHttpEvent(conn, leadData, leadId) {
   const ctx = { ...leadData };
   if (ctx.lead_id == null) ctx.lead_id = leadId;
-  const payload = buildPayloadFromTemplate(conn.payload_template, ctx);
+  const payload = await buildPayloadFromTemplate(conn.payload_template, ctx);
   const headerRows = parseJsonArray(conn.headers);
   const hdrs = {};
   for (const r of headerRows) { if (r.key) hdrs[r.key] = r.value; }
@@ -914,7 +986,7 @@ Deno.serve(async (req) => {
       return Response.json({ Response: 'Error', message: 'No active LeadByte connector configured' }, { status: 200 });
     }
 
-    const leadBytePayload = buildPayloadFromTemplate(leadByteConnector.payload_template, enrichedData);
+    const leadBytePayload = await buildPayloadFromTemplate(leadByteConnector.payload_template, enrichedData);
     await db.entities.Lead.update(leadId, { leadbyte_request: JSON.stringify(leadBytePayload) });
 
     const headerRowsParsed = parseJsonArray(leadByteConnector.headers);

@@ -60,6 +60,11 @@
       "type": "string",
       "default": "website"
     },
+    "auto_hash_capi": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, automatically SHA-256 hashes Meta-required user_data fields (em, ph, fn, ln, ct, st, zp, country, external_id, db, ge) after normalizing. Manual |sha256 transforms on individual tokens are respected and not double-hashed."
+    },
     "target_url": {
       "type": "string"
     },
