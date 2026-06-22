@@ -6,9 +6,10 @@ import QueueRecoveryRow from '@/components/leads/QueueRecoveryRow';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, RotateCcw, X, Inbox } from 'lucide-react';
+import { Search, RotateCcw, X, Inbox, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { processLead } from '@/functions/processLead';
+import { recoverTrustedForm } from '@/functions/recoverTrustedForm';
 
 const CERT_REGEX = /^https?:\/\/cert\.trustedform\.com\/[0-9a-fA-F]{40}(\?.*)?$/;
 
@@ -20,6 +21,8 @@ export default function QueueRecovery() {
   const [rerunningIds, setRerunningIds] = useState(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
   const [progress, setProgress] = useState(null);
+  const [autoRecoveringIds, setAutoRecoveringIds] = useState(new Set());
+  const [bulkAutoRunning, setBulkAutoRunning] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['queue-leads'],
@@ -162,6 +165,66 @@ export default function QueueRecovery() {
     setSelectedIds(new Set());
   };
 
+  const handleAutoRecover = async (lead) => {
+    setAutoRecoveringIds(prev => new Set(prev).add(lead.id));
+    try {
+      const resp = await recoverTrustedForm({ lead_id: lead.id });
+      const result = resp.data?.results?.[0];
+      if (result?.success) {
+        // Cert found — now re-run the lead through the pipeline with the recovered cert
+        await assignAndRerun(lead, result.recovered_cert_url);
+        toast.success(`Cert recovered via ${result.cert_source} — lead re-processed`);
+      } else {
+        toast.error(result?.error || 'No cert found');
+      }
+      qc.invalidateQueries({ queryKey: ['queue-leads'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    } catch (err) {
+      toast.error(`Recovery failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setAutoRecoveringIds(prev => { const n = new Set(prev); n.delete(lead.id); return n; });
+    }
+  };
+
+  const handleBulkAutoRecover = async () => {
+    const targets = filtered.filter(l => visibleSelectedIds.has(l.id));
+    if (targets.length === 0) {
+      toast.error('No leads selected');
+      return;
+    }
+    setBulkAutoRunning(true);
+    setProgress({ done: 0, total: targets.length });
+    let okCount = 0, failCount = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const lead = targets[i];
+      setAutoRecoveringIds(prev => new Set(prev).add(lead.id));
+      try {
+        const resp = await recoverTrustedForm({ lead_id: lead.id });
+        const result = resp.data?.results?.[0];
+        if (result?.success) {
+          await assignAndRerun(lead, result.recovered_cert_url);
+          okCount++;
+        } else {
+          failCount++;
+        }
+      } catch {
+        failCount++;
+      }
+      setAutoRecoveringIds(prev => { const n = new Set(prev); n.delete(lead.id); return n; });
+      setProgress({ done: i + 1, total: targets.length });
+    }
+    setBulkAutoRunning(false);
+    setProgress(null);
+    qc.invalidateQueries({ queryKey: ['queue-leads'] });
+    qc.invalidateQueries({ queryKey: ['leads'] });
+    if (failCount === 0) {
+      toast.success(`Auto-recovered ${okCount} lead${okCount === 1 ? '' : 's'}`);
+    } else {
+      toast.error(`Recovered ${okCount}, failed ${failCount}`);
+    }
+    setSelectedIds(new Set());
+  };
+
   return (
     <div>
       <PageHeader
@@ -201,6 +264,16 @@ export default function QueueRecovery() {
             {rerunnableSelected.length} with valid cert
           </div>
           <div className="flex items-center gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkAutoRecover}
+              disabled={bulkAutoRunning || selectedCount === 0}
+              className="gap-1.5"
+            >
+              <Wand2 className={`w-3.5 h-3.5 ${bulkAutoRunning ? 'animate-spin' : ''}`} />
+              {bulkAutoRunning ? 'Recovering…' : 'Auto-Recover Selected'}
+            </Button>
             <Button
               size="sm"
               onClick={handleBulkRerun}
@@ -262,6 +335,8 @@ export default function QueueRecovery() {
                   onCertChange={onCertChange}
                   onRerun={handleRerun}
                   rerunning={rerunningIds.has(lead.id)}
+                  onAutoRecover={handleAutoRecover}
+                  autoRecovering={autoRecoveringIds.has(lead.id)}
                 />
               ))}
             </tbody>

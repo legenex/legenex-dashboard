@@ -2,7 +2,7 @@ import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, AlertCircle } from 'lucide-react';
+import { RotateCcw, AlertCircle, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const CERT_REGEX = /^https?:\/\/cert\.trustedform\.com\/[0-9a-fA-F]{40}(\?.*)?$/;
@@ -15,6 +15,8 @@ export default function QueueRecoveryRow({
   onCertChange,
   onRerun,
   rerunning,
+  onAutoRecover,
+  autoRecovering,
 }) {
   const trimmed = (certValue || '').trim();
   const isValid = trimmed !== '' && CERT_REGEX.test(trimmed);
@@ -59,15 +61,27 @@ export default function QueueRecoveryRow({
         </div>
       </td>
       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-        <Button
-          size="sm"
-          onClick={() => onRerun(lead)}
-          disabled={!isValid || rerunning}
-          className="gap-1.5"
-        >
-          <RotateCcw className={`w-3.5 h-3.5 ${rerunning ? 'animate-spin' : ''}`} />
-          {rerunning ? 'Running…' : 'Assign & Rerun'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onAutoRecover(lead)}
+            disabled={autoRecovering || rerunning}
+            className="gap-1.5 whitespace-nowrap"
+          >
+            <Wand2 className={`w-3.5 h-3.5 ${autoRecovering ? 'animate-spin' : ''}`} />
+            {autoRecovering ? 'Recovering…' : 'Auto-Recover'}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => onRerun(lead)}
+            disabled={!isValid || rerunning || autoRecovering}
+            className="gap-1.5 whitespace-nowrap"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${rerunning ? 'animate-spin' : ''}`} />
+            {rerunning ? 'Running…' : 'Assign & Rerun'}
+          </Button>
+        </div>
       </td>
     </tr>
   );
