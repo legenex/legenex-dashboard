@@ -30,6 +30,18 @@
     "email": {
       "type": "string"
     },
+    "lead_id": {
+      "type": "number",
+      "description": "Unique sequential lead identifier"
+    },
+    "revenue": {
+      "type": "number",
+      "description": "Revenue attributed to this lead"
+    },
+    "conv_value": {
+      "type": "number",
+      "description": "Conversion value attributed to this lead"
+    },
     "hlr_request": {
       "type": "string",
       "description": "JSON string of HLR request body"

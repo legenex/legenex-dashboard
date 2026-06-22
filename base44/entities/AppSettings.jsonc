@@ -36,6 +36,16 @@
       "type": "boolean",
       "default": true,
       "description": "When true, leads without a valid TrustedForm cert URL are queued before reaching LeadByte"
+    },
+    "fb_api_version": {
+      "type": "string",
+      "default": "v25.0",
+      "description": "Facebook Graph API version used for CAPI calls"
+    },
+    "fb_api_version_auto": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, the Facebook Graph API version is auto-selected from the latest available"
     }
   },
   "required": []

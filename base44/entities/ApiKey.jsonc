@@ -46,6 +46,11 @@
     "allowed_ips": {
       "type": "string",
       "description": "JSON array of allowed IP addresses, optional"
+    },
+    "expose_revenue": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, supplier responses may include revenue"
     }
   },
   "required": [
