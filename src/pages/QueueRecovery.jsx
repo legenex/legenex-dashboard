@@ -228,7 +228,7 @@ export default function QueueRecovery() {
   return (
     <div>
       <PageHeader
-        title="Queue Recovery"
+        title="Queued Leads"
         subtitle="Assign TrustedForm certs to queued leads and rerun them through the pipeline"
       />
 

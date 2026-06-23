@@ -1,46 +1,31 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeader from '@/components/shared/PageHeader';
-import SettingsSuppliers from '@/components/settings/SettingsSuppliers';
+import SettingsUsers from '@/components/settings/SettingsUsers';
 import SettingsApiKeys from '@/components/settings/SettingsApiKeys';
 import SettingsCustomFields from '@/components/settings/SettingsCustomFields';
-import SettingsLeadByte from '@/components/settings/SettingsLeadByte';
-import SettingsApiConnectors from '@/components/settings/SettingsApiConnectors';
-import SettingsIgnoreList from '@/components/settings/SettingsIgnoreList';
-import SettingsUsers from '@/components/settings/SettingsUsers';
 
 export default function Settings() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'users';
+
+  const setTab = (v) => {
+    setSearchParams({ tab: v }, { replace: true });
+  };
+
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Suppliers, API keys, field mapping, deliveries, and user management" />
-      <Tabs defaultValue="suppliers">
+      <PageHeader title="Settings" subtitle="Users, API keys, and custom field management" />
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-muted mb-4">
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="apikeys">API Keys</TabsTrigger>
           <TabsTrigger value="fields">Custom Fields</TabsTrigger>
-          <TabsTrigger value="apis">Deliveries</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
         </TabsList>
-        <TabsContent value="suppliers"><SettingsSuppliers /></TabsContent>
+        <TabsContent value="users"><SettingsUsers /></TabsContent>
         <TabsContent value="apikeys"><SettingsApiKeys /></TabsContent>
         <TabsContent value="fields"><SettingsCustomFields /></TabsContent>
-        <TabsContent value="apis">
-          <div className="space-y-8">
-            <div>
-              <div className="text-[14px] font-semibold text-foreground mb-3">Lead Destinations</div>
-              <SettingsLeadByte />
-            </div>
-            <div>
-              <div className="text-[14px] font-semibold text-foreground mb-3">Conversion Events</div>
-              <SettingsApiConnectors />
-            </div>
-            <div>
-              <div className="text-[14px] font-semibold text-foreground mb-3">Adaptive Fields</div>
-              <SettingsIgnoreList />
-            </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="users"><SettingsUsers /></TabsContent>
       </Tabs>
     </div>
   );
