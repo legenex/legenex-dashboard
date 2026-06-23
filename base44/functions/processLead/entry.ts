@@ -596,6 +596,8 @@ function applyOperator(actual, operator, expected) {
     case 'ends_with': return act.endsWith(exp);
     case 'is_empty': return act === '';
     case 'is_not_empty': return act !== '';
+    case 'gt': return parseFloat(act) > parseFloat(exp);
+    case 'lt': return parseFloat(act) < parseFloat(exp);
     default: return act.includes(exp);
   }
 }
@@ -969,6 +971,20 @@ Deno.serve(async (req) => {
         supplier_name: supplierAttribution,
       });
       return Response.json({ Response: 'Error', message: 'No active LeadByte connector configured' }, { status: 200 });
+    }
+
+    // Check LeadByte connector filters — skip forwarding if lead doesn't match
+    if (!connectorMatchesFilters(leadByteConnector, enrichedData, supplierAttribution, supplierRecord) ||
+        !connectorMatchesConditions(leadByteConnector, enrichedData)) {
+      const skipResponse = { Response: 'Unsold' };
+      await db.entities.Lead.update(leadId, {
+        final_status: 'Unsold',
+        queue_reason: 'Lead did not match LeadByte connector filters',
+        processed_at: new Date().toISOString(),
+        process_time_ms: Date.now() - startTime,
+        response_returned: JSON.stringify(skipResponse),
+      });
+      return Response.json(skipResponse, { status: 200 });
     }
 
     const leadBytePayload = await buildPayloadFromTemplate(leadByteConnector.payload_template, enrichedData);

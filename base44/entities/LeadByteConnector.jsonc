@@ -52,6 +52,22 @@
     "test_payload_last_used": {
       "type": "string",
       "description": "JSON string of the last test payload used in the Send Test to LeadByte section"
+    },
+    "filter_brands": {
+      "type": "string",
+      "description": "JSON array of brand names to match. Empty array = match all"
+    },
+    "filter_suppliers": {
+      "type": "string",
+      "description": "JSON array of supplier names or SIDs to match. Empty array = match all"
+    },
+    "filter_supplier_types": {
+      "type": "string",
+      "description": "JSON array of supplier types (Internal, External, Calls) to match. Empty array = match all"
+    },
+    "filter_conditions": {
+      "type": "string",
+      "description": "JSON array of {field, operator, value} conditions evaluated against enriched lead data (including calculated fields). All must match for the connector to forward. Empty = no conditions. Operators: equals, not_equals, contains, not_contains, starts_with, ends_with, is_empty, is_not_empty, gt, lt"
     }
   },
   "required": [

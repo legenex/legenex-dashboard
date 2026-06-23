@@ -11,8 +11,10 @@ const OPERATOR_OPTIONS = [
   { value: 'not_contains', label: 'not contains' },
   { value: 'starts_with', label: 'starts with' },
   { value: 'ends_with', label: 'ends with' },
-  { value: 'is_empty', label: 'is empty' },
-  { value: 'is_not_empty', label: 'is not empty' },
+  { value: 'is_empty', label: 'is blank' },
+  { value: 'is_not_empty', label: 'is not blank' },
+  { value: 'gt', label: 'greater than' },
+  { value: 'lt', label: 'less than' },
 ];
 
 function parseJsonArray(val) {

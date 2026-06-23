@@ -14,6 +14,7 @@ import JsonViewer from '@/components/shared/JsonViewer';
 import { testLeadByteConnector } from '@/functions/testLeadByteConnector';
 import { ActualPayloadEditor, buildDefaultActualPayload } from '@/components/settings/ActualPayloadEditor';
 import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
+import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -137,6 +138,19 @@ export default function SettingsLeadByte() {
     queryFn: () => base44.entities.CustomField.list(),
   });
 
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: () => base44.entities.Supplier.list(),
+  });
+
+  const brandOptions = [...new Set(suppliers.map(s => s.brand).filter(Boolean))];
+  const supplierOptions = suppliers.map(s => ({ value: s.name, label: s.name }));
+  const supplierTypeOptions = [
+    { value: 'Internal', label: 'Internal' },
+    { value: 'External', label: 'External' },
+    { value: 'Calls', label: 'Calls' },
+  ];
+
   const { data: responseMappings = [], refetch: refetchMappings } = useQuery({
     queryKey: ['response-mappings'],
     queryFn: () => base44.entities.ResponseMapping.list('sort_order', 50),
@@ -171,6 +185,7 @@ export default function SettingsLeadByte() {
       content_type: 'application/json', headers: '[]',
       payload_template: buildDefaultActualPayload(customFields), enabled: true, is_default: false,
       forwarding_mode: 'template',
+      filter_brands: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
     });
     setHeaderRows([{ key: 'X_KEY', value: '' }, { key: 'Content-Type', value: 'application/json' }]);
     setTestResult(null);
@@ -216,6 +231,7 @@ export default function SettingsLeadByte() {
   const addHeaderRow = () => setHeaderRows(p => [...p, { key: '', value: '' }]);
   const removeHeaderRow = (i) => setHeaderRows(p => p.filter((_, idx) => idx !== i));
   const updateHeaderRow = (i, field, val) => setHeaderRows(p => p.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+  const setF = (key, val) => setEditing(p => ({ ...p, [key]: val }));
 
   const saveMapping = async () => {
     if (!editingMapping) return;
@@ -340,6 +356,15 @@ export default function SettingsLeadByte() {
                   </div>
                 </CardContent>
               </Card>
+
+              <ConnectorFilterPanel
+                editing={editing}
+                onFieldChange={setF}
+                brandOptions={brandOptions}
+                supplierOptions={supplierOptions}
+                supplierTypeOptions={supplierTypeOptions}
+                customFields={customFields}
+              />
 
               <Card className="bg-card border-border">
                 <CardHeader className="pb-2"><CardTitle className="text-[13px]">Headers</CardTitle></CardHeader>

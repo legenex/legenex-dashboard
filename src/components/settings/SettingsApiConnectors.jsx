@@ -14,6 +14,7 @@ import JsonViewer from '@/components/shared/JsonViewer';
 import { testCapiConnector } from '@/functions/testCapiConnector';
 import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import ConnectorConditionsEditor from '@/components/settings/ConnectorConditionsEditor';
+import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe } from 'lucide-react';
 import { toast } from 'sonner';
@@ -251,69 +252,14 @@ export default function SettingsApiConnectors() {
           </CardContent>
         </Card>
 
-        {/* Filters */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-4 space-y-3">
-            <div className="text-[13px] font-semibold text-foreground">Filters</div>
-            <p className="text-[11px] text-muted-foreground">Empty = match all. A connector fires only when every non-empty filter matches.</p>
-            <div>
-              <Label className="text-[12px]">Brands</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {brandOptions.length === 0 && <span className="text-[11px] text-muted-foreground">No brands configured</span>}
-                {brandOptions.map(b => {
-                  const active = parseJsonArray(editing.filter_brands).includes(b);
-                  return (
-                    <button key={b} onClick={() => toggleArrayValue('filter_brands', b)}
-                      className={`px-2 py-1 rounded-md text-[11px] border transition-colors ${active ? 'bg-primary/20 text-primary border-primary/40' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}>
-                      {b}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <Label className="text-[12px]">Suppliers</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {supplierOptions.length === 0 && <span className="text-[11px] text-muted-foreground">No suppliers configured</span>}
-                {supplierOptions.map(s => {
-                  const active = parseJsonArray(editing.filter_suppliers).includes(s.value);
-                  return (
-                    <button key={s.value} onClick={() => toggleArrayValue('filter_suppliers', s.value)}
-                      className={`px-2 py-1 rounded-md text-[11px] border transition-colors ${active ? 'bg-primary/20 text-primary border-primary/40' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}>
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <Label className="text-[12px]">Supplier Types</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {supplierTypeOptions.map(t => {
-                  const active = parseJsonArray(editing.filter_supplier_types).includes(t.value);
-                  return (
-                    <button key={t.value} onClick={() => toggleArrayValue('filter_supplier_types', t.value)}
-                      className={`px-2 py-1 rounded-md text-[11px] border transition-colors ${active ? 'bg-primary/20 text-primary border-primary/40' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}>
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {/* Field Conditions */}
-            <div className="pt-2 border-t border-border">
-              <Label className="text-[12px]">Field Conditions</Label>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Only fire when all conditions match the enriched lead data (including calculated fields like <code className="text-primary">accident_date_2</code>). Empty = no conditions.</p>
-              <div className="mt-2">
-                <ConnectorConditionsEditor
-                  value={editing.filter_conditions || '[]'}
-                  onChange={v => setF('filter_conditions', v)}
-                  fieldOptions={[...new Set([...customFields.map(f => f.field_name), 'accident_date', 'accident_date_2', 'incident_date_3', 'has_attorney', 'phone_verified', 'hlr_status', 'hlr_score'])]}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <ConnectorFilterPanel
+          editing={editing}
+          onFieldChange={setF}
+          brandOptions={brandOptions}
+          supplierOptions={supplierOptions}
+          supplierTypeOptions={supplierTypeOptions}
+          customFields={customFields}
+        />
 
         {/* Triggers */}
         <Card className="bg-card border-border">
