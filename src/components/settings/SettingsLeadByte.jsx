@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import JsonViewer from '@/components/shared/JsonViewer';
 import { testLeadByteConnector } from '@/functions/testLeadByteConnector';
 import { ActualPayloadEditor, buildDefaultActualPayload } from '@/components/settings/ActualPayloadEditor';
-import TransformsReference from '@/components/settings/TransformsReference';
+import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -434,31 +434,8 @@ export default function SettingsLeadByte() {
         <div>
           <Card className="bg-card border-border sticky top-4">
             <CardHeader className="pb-2"><CardTitle className="text-[13px]">Token Reference</CardTitle></CardHeader>
-            <CardContent className="space-y-3 max-h-[70vh] overflow-y-auto">
-              <TransformsReference />
-              <div>
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Lead Fields</div>
-                <div className="space-y-1">
-                  {fieldTokens.length === 0 && <div className="text-[11px] text-muted-foreground">No custom fields defined</div>}
-                  {fieldTokens.map(t => (
-                    <code key={t} className="block text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20"
-                      onClick={() => { navigator.clipboard.writeText('{{' + t + '}}'); toast.success('Copied'); }}>
-                      {'{{' + t + '}}'}
-                    </code>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">HLR Tokens</div>
-                <div className="space-y-1">
-                  {HLR_TOKENS.map(t => (
-                    <code key={t} className="block text-[11px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20"
-                      onClick={() => { navigator.clipboard.writeText('{{' + t + '}}'); toast.success('Copied'); }}>
-                      {'{{' + t + '}}'}
-                    </code>
-                  ))}
-                </div>
-              </div>
+            <CardContent className="max-h-[70vh] overflow-y-auto">
+              <TokenReferencePanel customFields={customFields} />
             </CardContent>
           </Card>
         </div>

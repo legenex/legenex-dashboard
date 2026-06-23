@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Wand2, Code2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 
 /**
  * Build the default Actual Payload template that reproduces current pass-through output:
@@ -194,10 +195,11 @@ export function ActualPayloadEditor({ value, onChange, customFields = [] }) {
         )}
         {mode === 'json' && (
           <>
-            <Textarea
+            <HighlightedPayloadEditor
               value={jsonStr}
-              onChange={e => emitJson(e.target.value)}
-              className="bg-background font-mono text-[12px] min-h-[360px] leading-relaxed"
+              onChange={emitJson}
+              minHeight={360}
+              textClass="text-[12px]"
             />
             {jsonError && <p className="text-[11px] text-destructive">{jsonError}</p>}
           </>

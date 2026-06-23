@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { toast } from 'sonner';
+
+let lastFocusedTextarea = null;
 
 const TRANSFORMS = [
   { suffix: '|lowercase', desc: 'Convert to lowercase' },
@@ -9,26 +12,44 @@ const TRANSFORMS = [
 ];
 
 export function insertAtCursor(text) {
-  const el = document.activeElement;
-  if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && typeof el.selectionStart === 'number') {
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const value = el.value;
-    const newValue = value.slice(0, start) + text + value.slice(end);
-    const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement : window.HTMLInputElement;
-    const setter = Object.getOwnPropertyDescriptor(proto.prototype, 'value')?.set;
-    if (setter) setter.call(el, newValue);
-    else el.value = newValue;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.setSelectionRange(start + text.length, start + text.length);
+  const activeEl = document.activeElement;
+  let el = null;
+  if (activeEl && activeEl.tagName === 'TEXTAREA' && typeof activeEl.selectionStart === 'number') {
+    el = activeEl;
+  } else if (lastFocusedTextarea && document.body.contains(lastFocusedTextarea)) {
+    el = lastFocusedTextarea;
     el.focus();
-  } else {
+  }
+
+  if (!el) {
     navigator.clipboard.writeText(text);
     toast.success('Copied: ' + text);
+    return;
   }
+
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const value = el.value;
+  const newValue = value.slice(0, start) + text + value.slice(end);
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+  if (setter) setter.call(el, newValue);
+  else el.value = newValue;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.setSelectionRange(start + text.length, start + text.length);
+  el.focus();
 }
 
 export default function TransformsReference() {
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target && e.target.tagName === 'TEXTAREA') {
+        lastFocusedTextarea = e.target;
+      }
+    };
+    document.addEventListener('focusin', handler);
+    return () => document.removeEventListener('focusin', handler);
+  }, []);
+
   return (
     <div>
       <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Transforms</div>

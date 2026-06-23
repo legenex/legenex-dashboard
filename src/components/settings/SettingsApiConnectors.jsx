@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import JsonViewer from '@/components/shared/JsonViewer';
 import { testCapiConnector } from '@/functions/testCapiConnector';
-import TransformsReference from '@/components/settings/TransformsReference';
+import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
+import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -104,6 +105,11 @@ export default function SettingsApiConnectors() {
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
     queryFn: () => base44.entities.Supplier.list(),
+  });
+
+  const { data: customFields = [] } = useQuery({
+    queryKey: ['custom-fields'],
+    queryFn: () => base44.entities.CustomField.list(),
   });
 
   const brandOptions = [...new Set(suppliers.map(s => s.brand).filter(Boolean))];
@@ -346,11 +352,15 @@ export default function SettingsApiConnectors() {
 
               {/* Send Test Event */}
               <div className="pt-2 border-t border-border space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">CAPI Payload Template (test resolves tokens with sample data)</div>
-                  <div className="w-[160px] shrink-0"><TransformsReference /></div>
+                <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">CAPI Payload Template (test resolves tokens with sample data)</div>
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_200px] gap-3">
+                  <HighlightedPayloadEditor value={testPayloadStr} onChange={setTestPayloadStr} minHeight={340} />
+                  <Card className="bg-card border-border max-h-[340px] overflow-y-auto">
+                    <CardContent className="p-3">
+                      <TokenReferencePanel customFields={customFields} />
+                    </CardContent>
+                  </Card>
                 </div>
-                <Textarea value={testPayloadStr} onChange={e => setTestPayloadStr(e.target.value)} className="bg-background font-mono text-[11px] min-h-[340px] leading-relaxed" />
                 <Button onClick={sendTestEvent} disabled={sendingTest || !editing.id} className="gap-1.5">
                   {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                   Send Test Event {editing.fb_test_event_code ? '(uses test code)' : ''}
@@ -406,9 +416,16 @@ export default function SettingsApiConnectors() {
                 <Button size="sm" variant="outline" onClick={addHeaderRow} className="gap-1.5 mt-2"><Plus className="w-3.5 h-3.5" /> Add Header</Button>
               </div>
               {/* Payload Template */}
-              <div>
-                <Label className="text-[12px] mb-1 block">Payload Template (JSON with {'{{token}}'} placeholders)</Label>
-                <Textarea value={editing.payload_template || '{}'} onChange={e => setF('payload_template', e.target.value)} className="bg-background font-mono text-[11px] min-h-[200px] leading-relaxed" />
+              <div className="space-y-2">
+                <Label className="text-[12px] block">Payload Template (JSON with {'{{token}}'} placeholders)</Label>
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_200px] gap-3">
+                  <HighlightedPayloadEditor value={editing.payload_template || '{}'} onChange={v => setF('payload_template', v)} minHeight={200} />
+                  <Card className="bg-card border-border max-h-[200px] overflow-y-auto">
+                    <CardContent className="p-3">
+                      <TokenReferencePanel customFields={customFields} />
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </CardContent>
           </Card>
