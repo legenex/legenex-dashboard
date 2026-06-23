@@ -431,6 +431,18 @@ function connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRe
   return true;
 }
 
+// Check if a connector's field conditions match the enriched lead data.
+// Uses the same applyOperator used for response mapping.
+function connectorMatchesConditions(conn, leadData) {
+  const conditions = parseJsonArray(conn.filter_conditions);
+  if (conditions.length === 0) return true;
+  for (const cond of conditions) {
+    const actual = leadData[cond.field];
+    if (!applyOperator(actual, cond.operator, cond.value || '')) return false;
+  }
+  return true;
+}
+
 // Resolve the event name for a given trigger from the connector's per-trigger fields.
 // on_received: received_event_name || lead_event_name || 'Lead'
 // on_unsold: unsold_event_name || 'Lead'
@@ -456,6 +468,7 @@ function fireConnectors(db, connectors, trigger, leadData, leadId, supplierAttri
     const triggers = parseJsonArray(conn.triggers);
     if (!triggers.includes(trigger)) continue;
     if (!connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRecord)) continue;
+    if (!connectorMatchesConditions(conn, leadData)) continue;
 
     const eventName = getTriggerEventName(conn, trigger);
     // Sold and DQ have no fallback — skip if blank
@@ -1026,7 +1039,7 @@ Deno.serve(async (req) => {
           supplierResponse = { Response: 'Unsold' };
           // Fire on_unsold + on_dq connectors
           fireConnectors(db, apiConnectors, 'on_unsold', leadPayload, leadId, supplierAttribution, supplierRecord);
-          fireConnectors(db, apiConnectors, 'on_dq', leadPayload, leadId, supplierAttribution, supplierRecord);
+          fireConnectors(db, apiConnectors, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
         }
       } else {
         finalStatus = 'Error';

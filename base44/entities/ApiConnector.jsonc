@@ -34,6 +34,10 @@
       "type": "string",
       "description": "JSON array of supplier types (Internal, External, Calls) to match. Empty array = match all"
     },
+    "filter_conditions": {
+      "type": "string",
+      "description": "JSON array of {field, operator, value} conditions evaluated against enriched lead data (including calculated fields). All must match for the connector to fire. Empty = no conditions. Operators: equals, not_equals, contains, not_contains, starts_with, ends_with, is_empty, is_not_empty"
+    },
     "fb_pixel_id": {
       "type": "string"
     },

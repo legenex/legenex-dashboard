@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import JsonViewer from '@/components/shared/JsonViewer';
 import { testCapiConnector } from '@/functions/testCapiConnector';
 import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
+import ConnectorConditionsEditor from '@/components/settings/ConnectorConditionsEditor';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe } from 'lucide-react';
 import { toast } from 'sonner';
@@ -123,7 +124,7 @@ export default function SettingsApiConnectors() {
   const openCreate = () => {
     setEditing({
       name: '', kind: 'facebook_capi', enabled: true, sort_order: 0,
-      filter_brands: '[]', filter_suppliers: '[]', filter_supplier_types: '[]',
+      filter_brands: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
       fb_pixel_id: '', fb_access_token: '', fb_test_event_code: '', fb_api_version: 'v21.0',
       received_event_name: '', sold_event_name: '', unsold_event_name: '', queued_event_name: '', dq_event_name: '',
       action_source: 'website',
@@ -297,6 +298,18 @@ export default function SettingsApiConnectors() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+            {/* Field Conditions */}
+            <div className="pt-2 border-t border-border">
+              <Label className="text-[12px]">Field Conditions</Label>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Only fire when all conditions match the enriched lead data (including calculated fields like <code className="text-primary">accident_date_2</code>). Empty = no conditions.</p>
+              <div className="mt-2">
+                <ConnectorConditionsEditor
+                  value={editing.filter_conditions || '[]'}
+                  onChange={v => setF('filter_conditions', v)}
+                  fieldOptions={[...new Set([...customFields.map(f => f.field_name), 'accident_date', 'accident_date_2', 'incident_date_3', 'has_attorney', 'phone_verified', 'hlr_status', 'hlr_score'])]}
+                />
               </div>
             </div>
           </CardContent>
@@ -480,7 +493,10 @@ export default function SettingsApiConnectors() {
                       {brands.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Brands: {brands.join(', ')}</Badge>}
                       {suppliersFiltered.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Suppliers: {suppliersFiltered.length}</Badge>}
                       {types.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Types: {types.join(', ')}</Badge>}
-                      {brands.length === 0 && suppliersFiltered.length === 0 && types.length === 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">All leads</Badge>}
+                      {parseJsonArray(conn.filter_conditions).map((c, i) => (
+                        <Badge key={i} variant="outline" className="text-[9px] text-primary/70">{c.field} {c.operator} {c.value || ''}</Badge>
+                      ))}
+                      {brands.length === 0 && suppliersFiltered.length === 0 && types.length === 0 && parseJsonArray(conn.filter_conditions).length === 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">All leads</Badge>}
                     </div>
                     {isCapi && <div className="font-mono text-[11px] text-muted-foreground mt-1">Pixel: {conn.fb_pixel_id || 'not set'}</div>}
                     {!isCapi && <div className="font-mono text-[11px] text-muted-foreground mt-1 truncate max-w-[400px]">{conn.target_url || 'not set'}</div>}
