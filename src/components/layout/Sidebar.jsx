@@ -10,7 +10,6 @@ const navGroups = [
   {
     label: 'Leads', icon: FileText, type: 'dropdown', path: '/leads',
     children: [
-      { label: 'All Leads', path: '/leads' },
       { label: 'Sold Leads', path: '/leads/sold' },
       { label: 'Unsold Leads', path: '/leads/unsold' },
       { label: 'Disqualified Leads', path: '/leads/disqualified' },
