@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   }
 
   if (method === 'GET') return Response.json({ status: 'ok' }, { status: 200 });
-  if (method !== 'POST') return Response.json({ Response: 'Error', message: 'Method not allowed' }, { status: 405 });
+  if (method !== 'POST') return Response.json({ Response: 'Error', reason: 'Method not allowed' }, { status: 405 });
 
   try {
     const body = await req.json();
@@ -66,13 +66,13 @@ Deno.serve(async (req) => {
       if (errData) {
         let body = errData;
         if (typeof errData === 'string') {
-          try { body = JSON.parse(errData); } catch { body = { Response: 'Error', message: errData }; }
+          try { body = JSON.parse(errData); } catch { body = { Response: 'Error', reason: errData }; }
         }
         return Response.json(body, { status: invokeErr?.response?.status || 200 });
       }
       throw invokeErr;
     }
   } catch (err) {
-    return Response.json({ Response: 'Error', message: 'Internal processing error' }, { status: 200 });
+    return Response.json({ Response: 'Error', reason: 'Internal processing error' }, { status: 200 });
   }
 });
