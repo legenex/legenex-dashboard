@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -22,8 +23,21 @@ function generateKey() {
 
 const DEFAULT_FORM = {
   name: '', sid: '', supplier_type: '', payout_type: '', payout_value: null, email: '',
-  landing_page_url: '', brand: '', active: true,
+  landing_page_url: '', brand: [], active: true,
 };
+
+function parseBrandArray(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed) return [String(parsed)];
+  } catch {
+    return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
 
 export default function SettingsSuppliers() {
   const qc = useQueryClient();
@@ -109,7 +123,7 @@ export default function SettingsSuppliers() {
       payout_value: supplier.payout_value ?? null,
       email: supplier.email || '',
       landing_page_url: supplier.landing_page_url || '',
-      brand: supplier.brand || '',
+      brand: parseBrandArray(supplier.brand),
       active: supplier.active ?? true,
     });
     setEditingSupplierId(supplier.id);
@@ -118,19 +132,23 @@ export default function SettingsSuppliers() {
   };
 
   const saveSupplier = async () => {
+    const payload = { ...form, brand: Array.isArray(form.brand) ? form.brand.join(', ') : (form.brand || '') };
     let supplierId = editingSupplierId;
     if (editingSupplierId) {
-      await base44.entities.Supplier.update(editingSupplierId, form);
+      await base44.entities.Supplier.update(editingSupplierId, payload);
       const existingKey = getKeyForSupplier(editingSupplierId);
       if (existingKey) {
         await base44.entities.ApiKey.update(existingKey.id, {
           supplier_name: form.name,
           active: form.active,
-        });
+        }).catch(() => {});
       }
       toast.success('Supplier updated');
+      await qc.invalidateQueries({ queryKey: ['suppliers'] });
+      await qc.invalidateQueries({ queryKey: ['api-keys'] });
+      setSupplierModal(false);
     } else {
-      const supplier = await base44.entities.Supplier.create(form);
+      const supplier = await base44.entities.Supplier.create(payload);
       supplierId = supplier.id;
       const key = generateKey();
       setNewKeyFull(key);
@@ -145,10 +163,9 @@ export default function SettingsSuppliers() {
         request_count: 0,
       });
       toast.success('Supplier created — copy the key now!');
+      await qc.invalidateQueries({ queryKey: ['suppliers'] });
+      await qc.invalidateQueries({ queryKey: ['api-keys'] });
     }
-    qc.invalidateQueries({ queryKey: ['suppliers'] });
-    qc.invalidateQueries({ queryKey: ['api-keys'] });
-    if (editingSupplierId) setSupplierModal(false);
   };
 
   const regenerateKey = async (supplier) => {
@@ -273,7 +290,7 @@ export default function SettingsSuppliers() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{s.sid || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.brand || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{parseBrandArray(s.brand).join(', ') || '—'}</td>
                   <td className="px-4 py-3"><Badge variant="outline" className={`text-[10px] ${s.supplier_type === 'Internal' ? 'status-sold bg-status-sold' : s.supplier_type === 'Calls' ? 'status-queued bg-status-queued' : 'text-muted-foreground'}`}>{s.supplier_type || '—'}</Badge></td>
                   <td className="px-4 py-3"><Badge variant="outline" className="text-[10px]">{s.payout_type}</Badge></td>
                   <td className="px-4 py-3">
@@ -387,12 +404,13 @@ export default function SettingsSuppliers() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-[12px]">Brand</Label>
-                    <SearchableSelect
+                    <Label className="text-[12px]">Brand(s)</Label>
+                    <MultiSelect
                       value={form.brand}
                       onValueChange={v => setForm(p => ({ ...p, brand: v }))}
                       className="mt-1 bg-background"
-                      options={[{ value: '', label: '— None —' }, ...brands.map(b => ({ value: b.brand_name, label: b.brand_name }))]}
+                      placeholder="Select brands…"
+                      options={brands.map(b => ({ value: b.brand_name, label: b.brand_name }))}
                     />
                   </div>
                   <div><Label className="text-[12px]">Email</Label><Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="mt-1 bg-background" /></div>
