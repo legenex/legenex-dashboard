@@ -8,7 +8,7 @@ import {
 const navGroups = [
   { label: 'Overview', icon: LayoutDashboard, path: '/', type: 'single' },
   {
-    label: 'Leads', icon: FileText, type: 'dropdown', path: '/leads/all',
+    label: 'Leads', icon: FileText, type: 'dropdown', path: '/leads',
     children: [
       { label: 'All Leads', path: '/leads/all' },
       { label: 'Sold Leads', path: '/leads/sold' },
