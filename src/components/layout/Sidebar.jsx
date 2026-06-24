@@ -1,92 +1,57 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, FileText, LifeBuoy, AlertTriangle, Bell, ShieldCheck,
-  Settings, Calculator, ChevronDown, ChevronRight, Share2, Wrench,
+  LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 
 const navGroups = [
+  { label: 'Overview', icon: LayoutDashboard, path: '/', type: 'single' },
   {
-    label: 'Overview',
-    icon: LayoutDashboard,
-    path: '/',
-    type: 'single',
-  },
-  {
-    label: 'Leads',
-    icon: FileText,
-    path: '/leads',
-    type: 'dropdown',
+    label: 'Leads', icon: FileText, type: 'dropdown',
     children: [
-      { label: 'Rejections', path: '/leads/rejections' },
-      { label: 'Queued Leads', path: '/queue-recovery' },
-      { label: 'Error Logs', path: '/errors' },
+      { label: 'All Leads', path: '/leads/all' },
+      { label: 'Sold Leads', path: '/leads/sold' },
+      { label: 'Unsold Leads', path: '/leads/unsold' },
+      { label: 'Disqualified Leads', path: '/leads/disqualified' },
+      { label: 'Rejected Leads', path: '/leads/rejected' },
+      { label: 'Queued Leads', path: '/leads/queued' },
     ],
   },
   {
-    label: 'Lead Distribution',
-    icon: Share2,
-    path: '/lead-distribution',
-    type: 'dropdown',
-    tabChildren: true,
+    label: 'Lead Distribution', icon: Share2, type: 'dropdown',
     children: [
-      { label: 'Campaigns', path: '/lead-distribution', tab: 'campaigns' },
-      { label: 'Buyers', path: '/lead-distribution', tab: 'buyers' },
-      { label: 'Suppliers', path: '/lead-distribution', tab: 'suppliers' },
-      { label: 'Deliveries', path: '/lead-distribution', tab: 'deliveries' },
-      { label: 'Conversion Events', path: '/lead-distribution', tab: 'events' },
+      { label: 'Campaigns', path: '/campaigns' },
+      { label: 'Buyers', path: '/buyers' },
+      { label: 'Suppliers', path: '/suppliers' },
+      { label: 'Deliveries', path: '/deliveries' },
+      { label: 'Conversion Events', path: '/conversion-events' },
     ],
   },
   {
-    label: 'Tools',
-    icon: Wrench,
-    type: 'dropdown',
+    label: 'Tools', icon: Wrench, type: 'dropdown',
     children: [
       { label: 'Notifications', path: '/notifications' },
       { label: 'Custom Calculations', path: '/calculations' },
       { label: 'Verification', path: '/verification' },
     ],
   },
-  {
-    label: 'Settings',
-    icon: Settings,
-    path: '/settings',
-    type: 'dropdown',
-    tabChildren: true,
-    children: [
-      { label: 'Users', path: '/settings', tab: 'users' },
-      { label: 'API Keys', path: '/settings', tab: 'apikeys' },
-      { label: 'Custom Fields', path: '/settings', tab: 'fields' },
-    ],
-  },
+  { label: 'Settings', icon: SettingsIcon, path: '/settings', type: 'single' },
 ];
 
-function isPathActive(location, path, exact = false) {
-  if (exact || path === '/') return location.pathname === path;
-  return location.pathname === path || location.pathname.startsWith(path + '/');
+function isPathActive(location, path) {
+  if (path === '/') return location.pathname === '/';
+  return location.pathname === path;
 }
 
-function isChildActive(location, child) {
-  if (child.tab) {
-    const params = new URLSearchParams(location.search);
-    return location.pathname === child.path && params.get('tab') === child.tab;
-  }
-  if (child.path === '/') return location.pathname === '/';
-  return location.pathname === child.path;
-}
-
-function shouldGroupExpand(group, location) {
+function shouldExpand(group, location) {
   if (group.type !== 'dropdown') return false;
-  if (group.tabChildren) {
-    return group.children.some(c => isChildActive(location, c));
-  }
-  return group.children.some(c => isChildActive(location, c)) || isPathActive(location, group.path);
+  return group.children.some(c => isPathActive(location, c.path));
 }
 
 export default function Sidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const initialOpen = navGroups.filter(g => shouldGroupExpand(g, location)).map(g => g.label);
+  const initialOpen = navGroups.filter(g => shouldExpand(g, location)).map(g => g.label);
   const [openGroups, setOpenGroups] = useState(initialOpen);
 
   const toggleGroup = (label) => {
@@ -97,18 +62,16 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 bottom-0 w-[248px] bg-sidebar flex flex-col border-r border-sidebar-border z-50"
       style={{ borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}>
 
-      <Link to="/" className="flex items-center px-5 py-6 group">
+      <Link to="/" className="flex items-center px-5 py-6">
         <img src="https://media.base44.com/images/public/6a363ed8bf1b77641238d41d/f9cc21785_LogoWideLightClear.png" alt="Legenex" className="h-10 w-auto max-w-full object-contain" />
       </Link>
 
       <nav className="flex-1 px-3 space-y-0.5 mt-2 overflow-y-auto">
         {navGroups.map(group => {
           const Icon = group.icon;
-          const isOpen = openGroups.includes(group.label);
-          const isExactActive = group.path && isPathActive(location, group.path, group.path === '/');
 
           if (group.type === 'single') {
-            const isActive = isPathActive(location, group.path, true);
+            const isActive = isPathActive(location, group.path);
             return (
               <Link
                 key={group.label}
@@ -123,42 +86,29 @@ export default function Sidebar() {
             );
           }
 
+          const isOpen = openGroups.includes(group.label);
+          const hasActiveChild = group.children.some(c => isPathActive(location, c.path));
+
           return (
             <div key={group.label}>
-              <div
-                onClick={() => {
-                  if (group.path) {
-                    navigate(group.path);
-                  } else {
-                    toggleGroup(group.label);
-                  }
-                }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative cursor-pointer
-                  ${isExactActive || (isOpen && group.children.some(c => isChildActive(location, c)))
-                    ? 'bg-primary/10 text-foreground'
-                    : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
+                  ${hasActiveChild ? 'text-foreground' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
               >
-                {(isExactActive || (isOpen && group.children.some(c => isChildActive(location, c)))) && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
-                )}
-                <Icon className={`w-[18px] h-[18px] ${isExactActive || (isOpen && group.children.some(c => isChildActive(location, c))) ? 'text-primary' : ''}`} />
-                <span className="flex-1">{group.label}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleGroup(group.label); }}
-                  className="p-0.5 hover:text-foreground transition-colors"
-                >
-                  {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                </button>
-              </div>
+                {hasActiveChild && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
+                <Icon className={`w-[18px] h-[18px] ${hasActiveChild ? 'text-primary' : ''}`} />
+                <span className="flex-1 text-left">{group.label}</span>
+                {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              </button>
               {isOpen && (
                 <div className="ml-4 pl-3 border-l border-sidebar-border space-y-0.5 mt-0.5 mb-1">
                   {group.children.map(child => {
-                    const active = isChildActive(location, child);
-                    const to = child.tab ? `${child.path}?tab=${child.tab}` : child.path;
+                    const active = isPathActive(location, child.path);
                     return (
                       <Link
                         key={child.label}
-                        to={to}
+                        to={child.path}
                         className={`flex items-center px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150
                           ${active ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
                       >

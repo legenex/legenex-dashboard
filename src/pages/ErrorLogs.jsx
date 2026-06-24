@@ -19,7 +19,7 @@ const severityColors = {
   critical: 'bg-[rgba(239,68,68,0.3)] status-error font-bold',
 };
 
-export default function ErrorLogs() {
+export default function ErrorLogs({ embedded = false }) {
   const [stageFilter, setStageFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [resolvedFilter, setResolvedFilter] = useState('all');
@@ -65,11 +65,19 @@ export default function ErrorLogs() {
 
   return (
     <div>
-      <PageHeader title="Error Logs" subtitle="Pipeline errors and warnings">
-        <Button size="sm" variant="outline" onClick={bulkResolveAll} className="gap-1.5 text-[12px]">
-          <CheckCircle className="w-3.5 h-3.5" /> Resolve All Visible
-        </Button>
-      </PageHeader>
+      {!embedded ? (
+        <PageHeader title="Error Logs" subtitle="Pipeline errors and warnings">
+          <Button size="sm" variant="outline" onClick={bulkResolveAll} className="gap-1.5 text-[12px]">
+            <CheckCircle className="w-3.5 h-3.5" /> Resolve All Visible
+          </Button>
+        </PageHeader>
+      ) : (
+        <div className="flex justify-end mb-4">
+          <Button size="sm" variant="outline" onClick={bulkResolveAll} className="gap-1.5 text-[12px]">
+            <CheckCircle className="w-3.5 h-3.5" /> Resolve All Visible
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 max-w-xs">

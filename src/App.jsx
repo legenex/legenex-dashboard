@@ -15,13 +15,13 @@ import ResetPassword from '@/pages/ResetPassword';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Overview from '@/pages/Overview';
-import Leads from '@/pages/Leads';
-import LeadsRejections from '@/pages/LeadsRejections';
+import LeadsView from '@/pages/LeadsView';
 import QueueRecovery from '@/pages/QueueRecovery';
-import ErrorLogs from '@/pages/ErrorLogs';
-import LeadDistribution from '@/pages/LeadDistribution';
 import Campaigns from '@/pages/Campaigns';
 import Buyers from '@/pages/Buyers';
+import Suppliers from '@/pages/Suppliers';
+import Deliveries from '@/pages/Deliveries';
+import ConversionEvents from '@/pages/ConversionEvents';
 import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
@@ -57,13 +57,22 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Overview />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/leads/rejections" element={<LeadsRejections />} />
+          <Route path="/leads" element={<Navigate to="/leads/all" replace />} />
+          <Route path="/leads/all" element={<LeadsView view="all" />} />
+          <Route path="/leads/sold" element={<LeadsView view="sold" />} />
+          <Route path="/leads/unsold" element={<LeadsView view="unsold" />} />
+          <Route path="/leads/disqualified" element={<LeadsView view="disqualified" />} />
+          <Route path="/leads/rejected" element={<LeadsView view="rejected" />} />
+          <Route path="/leads/queued" element={<LeadsView view="queued" />} />
+          <Route path="/leads/rejections" element={<Navigate to="/leads/rejected" replace />} />
           <Route path="/queue-recovery" element={<QueueRecovery />} />
-          <Route path="/errors" element={<ErrorLogs />} />
-          <Route path="/lead-distribution" element={<LeadDistribution />} />
+          <Route path="/errors" element={<Navigate to="/settings?tab=errors" replace />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/buyers" element={<Buyers />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/deliveries" element={<Deliveries />} />
+          <Route path="/conversion-events" element={<ConversionEvents />} />
+          <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/verification" element={<Verification />} />
           <Route path="/calculations" element={<CustomCalculations />} />
