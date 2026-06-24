@@ -8,6 +8,7 @@ import HealthStrip from '@/components/overview/HealthStrip';
 import StatusPill from '@/components/shared/StatusPill';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Percent, AlertTriangle, Clock, Copy, Inbox, Zap } from 'lucide-react';
+import RefreshButton from '@/components/shared/RefreshButton';
 import { toast } from 'sonner';
 import { format, subDays, startOfDay, startOfWeek, startOfMonth, isAfter } from 'date-fns';
 
@@ -122,7 +123,9 @@ export default function Overview() {
 
   return (
     <div>
-      <PageHeader title="Overview" subtitle="Real-time pipeline health and lead metrics" />
+      <PageHeader title="Overview" subtitle="Real-time pipeline health and lead metrics">
+        <RefreshButton onClick={() => qc.invalidateQueries()} />
+      </PageHeader>
 
       {/* Endpoint Card */}
       <div className="bg-card border border-primary/20 rounded-[10px] p-4 flex items-center gap-4 mb-4">

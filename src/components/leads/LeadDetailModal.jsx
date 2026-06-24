@@ -29,6 +29,9 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
 
   if (!lead) return null;
 
+  let lbResp = {};
+  try { lbResp = JSON.parse(lead.leadbyte_response || '{}'); } catch {}
+
   const handleCopyPayload = () => {
     navigator.clipboard.writeText(lead.raw_payload || '{}');
     toast.success('Payload copied');
@@ -132,6 +135,9 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
                   ['LeadByte Status', lead.leadbyte_record_status],
                   ['LeadByte Lead ID', lead.leadbyte_lead_id],
                   ['Queue ID', lead.leadbyte_queue_id],
+                  ['Response Code', lbResp.code !== undefined ? lbResp.code : '—'],
+                  ['Response Message', lbResp.message || '—'],
+                  ['Response Errors', Array.isArray(lbResp.errors) && lbResp.errors.length ? lbResp.errors.join('; ') : (lbResp.errors || '—')],
                   ['Process Time', lead.process_time_ms ? `${lead.process_time_ms}ms` : '—'],
                   ['TrustedForm Valid', lead.trustedform_valid === true ? 'Yes' : lead.trustedform_valid === false ? 'No' : '—'],
                   ['Queue Reason', lead.queue_reason || '—'],

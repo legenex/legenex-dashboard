@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '@/components/shared/PageHeader';
 import ErrorStatusPill from '@/components/leads/ErrorStatusPill';
 import LeadDetailModal from '@/components/leads/LeadDetailModal';
 import LeadsFilterBar from '@/components/leads/LeadsFilterBar';
 import { Button } from '@/components/ui/button';
+import RefreshButton from '@/components/shared/RefreshButton';
 import { Download } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfMonth, subDays, subMonths, isAfter } from 'date-fns';
 
@@ -142,6 +143,7 @@ function persistSavedSets(view, sets) {
 }
 
 export default function LeadsTable({ view }) {
+  const qc = useQueryClient();
   const config = VIEW_CONFIGS[view] || VIEW_CONFIGS.all;
 
   const [search, setSearch] = useState('');
@@ -240,6 +242,7 @@ export default function LeadsTable({ view }) {
   return (
     <div>
       <PageHeader title={config.title} subtitle={config.subtitle}>
+        <RefreshButton onClick={() => qc.invalidateQueries()} />
         <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
           <Download className="w-4 h-4" /> Export CSV
         </Button>
