@@ -1087,17 +1087,27 @@ Deno.serve(async (req) => {
         finalStatus = 'Sold';
         supplierResponse = { Response: 'Sold' };
 
-        // Capture revenue from LeadByte response: buyers[0].revenue, else top-level revenue
+        // Capture revenue from LeadByte response: sum across ALL buyers with status "Sold"
         const buyers = recordResponse.buyers || record.buyers || lbResult.buyers || [];
-        if (buyers.length > 0 && buyers[0].revenue != null) {
-          capturedRevenue = Number(buyers[0].revenue);
+        let revenueSum = 0;
+        let foundSoldBuyer = false;
+        for (const b of buyers) {
+          if (b && typeof b.status === 'string' && b.status.toLowerCase() === 'sold') {
+            foundSoldBuyer = true;
+            revenueSum += Number(b.revenue) || 0;
+          }
+        }
+        if (foundSoldBuyer) {
+          capturedRevenue = revenueSum;
         } else if (lbResult.revenue != null) {
           capturedRevenue = Number(lbResult.revenue);
+        } else {
+          capturedRevenue = 0;
         }
         if (capturedRevenue != null && !isNaN(capturedRevenue)) {
           enrichedData.conv_value = capturedRevenue;
           leadPayload.conv_value = capturedRevenue;
-          await db.entities.Lead.update(leadId, { revenue: capturedRevenue });
+          await db.entities.Lead.update(leadId, { revenue: capturedRevenue, conv_value: capturedRevenue });
         }
 
         // Fire on_sold connectors (fire-and-forget)
