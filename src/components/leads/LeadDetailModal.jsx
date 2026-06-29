@@ -95,7 +95,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[700px] w-[calc(100vw-2rem)] bg-popover border-border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[700px] w-[calc(100vw-2rem)] bg-popover border-border max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <DialogTitle className="font-mono text-[14px] text-foreground">{lead.id}</DialogTitle>
