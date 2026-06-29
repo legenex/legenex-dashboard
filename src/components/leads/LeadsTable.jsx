@@ -97,14 +97,14 @@ const COLUMN_DEFS = {
   email: { header: 'Email', accessor: (l) => l.email || '—' },
   mobile: { header: 'Mobile', accessor: (l) => l.mobile || '—', className: 'font-mono text-[12px]' },
   state: { header: 'State', accessor: (l) => getFromMapped(l, ['state', 'st', 'region', 'state_code']) || '—' },
-  revenue: { header: 'Revenue', accessor: (l) => l.revenue ? `$${l.revenue}` : '—', className: 'font-mono text-[12px] status-sold' },
+  revenue: { header: 'Revenue', accessor: (l) => (l.revenue != null && l.revenue !== '' && Number(l.revenue) !== 0) ? `$${Number(l.revenue).toFixed(2)}` : '-', className: 'font-mono text-[12px] status-sold' },
   buyer: { header: 'Buyer', accessor: (l) => getFromMapped(l, ['buyer', 'buyer_id', 'buyer_name']) || '—' },
   finalStatus: { header: 'Final Status', accessor: (l) => l.final_status || '—' },
   processTime: { header: 'Time', accessor: (l) => l.process_time_ms ? `${l.process_time_ms}ms` : '—', className: 'font-mono text-[11px] text-muted-foreground' },
 };
 
 const VIEW_CONFIGS = {
-  all: { title: 'All Leads', subtitle: 'All processed leads with full trace data', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
+  all: { title: 'All Leads', subtitle: 'All processed leads with full trace data', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'revenue', 'processTime'] },
   sold: { title: 'Sold Leads', subtitle: 'Sold leads with revenue and buyer data', columns: ['created', 'revenue', 'supplier', 'source', 'buyer', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
   unsold: { title: 'Unsold Leads', subtitle: 'Leads that were not sold', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
   disqualified: { title: 'Disqualified Leads', subtitle: 'Leads that were disqualified', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },

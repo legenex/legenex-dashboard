@@ -95,6 +95,10 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
           <div className="flex items-center gap-3">
             <DialogTitle className="font-mono text-[14px] text-foreground">{lead.id}</DialogTitle>
             <StatusPill status={lead.final_status} size="lg" />
+            <span className="ml-auto text-[13px]">
+              <span className="text-muted-foreground">Revenue: </span>
+              <span className="font-mono font-semibold status-sold">${Number(lead.revenue || 0).toFixed(2)}</span>
+            </span>
           </div>
           <div className="text-[12px] text-muted-foreground mt-1">
             {lead.supplier_name} — {lead.created_date ? format(new Date(lead.created_date), 'PPpp') : ''}
