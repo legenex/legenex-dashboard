@@ -12,9 +12,13 @@ import { Plus, Copy, RefreshCw, Trash2, ShieldCheck, Terminal } from 'lucide-rea
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-function generateKey() {
+function generateKey(type = 'supplier', supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let key = 'lgnx_sk_';
+  let prefix = 'lgnx_ext_';
+  if (type === 'master') prefix = 'lgnx_mst_';
+  else if (supplierType === 'Internal') prefix = 'lgnx_int_';
+  else if (supplierType === 'Calls') prefix = 'lgnx_cls_';
+  let key = prefix;
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   return key;
 }
@@ -74,8 +78,8 @@ export default function SettingsApiKeys() {
   };
 
   const handleCreate = async () => {
-    const key = generateKey();
     const supplier = form.supplier_id ? suppliers.find(s => s.id === form.supplier_id) : null;
+    const key = generateKey(form.type, supplier?.supplier_type || '');
     await base44.entities.ApiKey.create({
       name: form.name,
       type: form.type,
@@ -91,7 +95,8 @@ export default function SettingsApiKeys() {
   };
 
   const handleRegenerate = async (k) => {
-    const key = generateKey();
+    const supplier = k.supplier_id ? suppliers.find(s => s.id === k.supplier_id) : null;
+    const key = generateKey(k.type, supplier?.supplier_type || '');
     await base44.entities.ApiKey.update(k.id, {
       key,
       key_prefix: key.substring(0, 16),
@@ -115,7 +120,7 @@ export default function SettingsApiKeys() {
   };
 
   const curlExample = `curl -X POST ${endpointUrl} \\
-  -H "X-API-KEY: lgnx_sk_your_key_here" \\
+  -H "X-API-KEY: lgnx_ext_your_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{"first_name":"Jane","last_name":"Doe","mobile":"5550001234","email":"jane@example.com","zip":"90210"}'`;
 

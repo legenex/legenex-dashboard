@@ -14,9 +14,12 @@ import { Plus, Copy, RefreshCw, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-function generateKey() {
+function generateKey(supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let key = 'lgnx_sk_';
+  let prefix = 'lgnx_ext_';
+  if (supplierType === 'Internal') prefix = 'lgnx_int_';
+  else if (supplierType === 'Calls') prefix = 'lgnx_cls_';
+  let key = prefix;
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   return key;
 }
@@ -150,7 +153,7 @@ export default function SettingsSuppliers() {
     } else {
       const supplier = await base44.entities.Supplier.create(payload);
       supplierId = supplier.id;
-      const key = generateKey();
+      const key = generateKey(form.supplier_type);
       setNewKeyFull(key);
       await base44.entities.ApiKey.create({
         name: form.name,
@@ -170,7 +173,7 @@ export default function SettingsSuppliers() {
 
   const regenerateKey = async (supplier) => {
     const existingKey = getKeyForSupplier(supplier.id);
-    const key = generateKey();
+    const key = generateKey(supplier.supplier_type);
     if (existingKey) {
       await base44.entities.ApiKey.update(existingKey.id, {
         key,
