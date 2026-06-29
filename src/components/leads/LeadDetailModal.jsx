@@ -37,6 +37,11 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
     toast.success('Payload copied');
   };
 
+  const handleCopyResponse = () => {
+    navigator.clipboard.writeText(lead.leadbyte_response || '{}');
+    toast.success('Response copied');
+  };
+
   const handleResend = async () => {
     setResending(true);
     try {
@@ -90,7 +95,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[700px] bg-popover border-border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[700px] w-[calc(100vw-2rem)] bg-popover border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <DialogTitle className="font-mono text-[14px] text-foreground">{lead.id}</DialogTitle>
@@ -187,6 +192,9 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
           </Button>
           <Button variant="ghost" size="sm" onClick={handleCopyPayload} className="gap-1.5">
             <Copy className="w-3.5 h-3.5" /> Copy Payload
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleCopyResponse} className="gap-1.5">
+            <Copy className="w-3.5 h-3.5" /> Copy Response
           </Button>
           <Button variant="ghost" size="sm" onClick={handleArchive} className="gap-1.5">
             <Archive className="w-3.5 h-3.5" /> Archive
