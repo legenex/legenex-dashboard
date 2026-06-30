@@ -29,7 +29,7 @@ const navGroups = [
     label: 'Tools', icon: Wrench, type: 'dropdown',
     children: [
       { label: 'Notifications', path: '/notifications' },
-      { label: 'Custom Calculations', path: '/calculations' },
+      { label: 'Calculated Fields', path: '/calculations' },
       { label: 'Verification', path: '/verification' },
     ],
   },
