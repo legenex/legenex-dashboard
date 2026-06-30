@@ -224,7 +224,7 @@ export default function CustomCalculations() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editId ? 'Edit Calculation' : 'New Calculation'}</DialogTitle>
+            <DialogTitle>{editId ? 'Edit Calculated Field' : 'New Calculated Field'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
