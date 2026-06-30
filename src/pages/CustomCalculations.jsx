@@ -185,7 +185,7 @@ export default function CustomCalculations() {
 
   return (
     <div className="p-6">
-      <PageHeader title="Custom Calculations" subtitle="Define computed fields derived from inbound lead data">
+      <PageHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data">
         <Button onClick={openNew} size="sm" className="gap-2">
           <Plus className="w-4 h-4" /> New Calculation
         </Button>
