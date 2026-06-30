@@ -441,6 +441,7 @@ export default function SettingsApiConnectors() {
         {connectors.map(conn => {
           const triggers = parseJsonArray(conn.triggers);
           const brands = parseJsonArray(conn.filter_brands);
+          const verticals = parseJsonArray(conn.filter_verticals);
           const suppliersFiltered = parseJsonArray(conn.filter_suppliers);
           const types = parseJsonArray(conn.filter_supplier_types);
           const isCapi = conn.kind === 'facebook_capi';
@@ -453,6 +454,14 @@ export default function SettingsApiConnectors() {
                       <span className="text-[14px] font-medium text-foreground">{conn.name}</span>
                       {isCapi ? <Zap className="w-3.5 h-3.5 text-primary" /> : <Globe className="w-3.5 h-3.5 text-muted-foreground" />}
                       <Badge variant="outline" className="text-[10px]">{KIND_OPTIONS.find(k => k.value === conn.kind)?.label || conn.kind}</Badge>
+                      {verticals.length > 0 ? (
+                        <Badge className="bg-primary/15 text-primary text-[10px] border border-primary/40 font-semibold inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          {verticals.map(code => verticalList.find(v => v.code === code)?.name || code).join(', ')}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">All Verticals</Badge>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {triggers.map(t => <Badge key={t} className="bg-primary/10 text-primary text-[9px]">{TRIGGER_OPTIONS.find(o => o.value === t)?.label || t}</Badge>)}
