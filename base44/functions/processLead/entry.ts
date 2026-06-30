@@ -463,6 +463,8 @@ function getTriggerEventName(conn, trigger) {
     case 'on_queued': return conn.queued_event_name || 'Lead';
     case 'on_sold': return conn.sold_event_name || '';
     case 'on_dq': return conn.dq_event_name || '';
+    case 'on_rejected': return conn.rejected_event_name || 'Lead';
+    case 'on_duplicates': return conn.duplicates_event_name || 'Lead';
     default: return '';
   }
 }
@@ -682,6 +684,7 @@ function checkRequiredFields(customFields, leadData) {
   const missing = [];
   for (const f of customFields) {
     if (!f.required) continue;
+    if (f.field_type === 'system') continue; // system fields are system-populated, not gated
     const val = leadData[f.field_name];
     if (val === undefined || val === null || String(val).trim() === '') {
       missing.push(f.field_name);
@@ -1224,6 +1227,8 @@ Deno.serve(async (req) => {
           fireDeliveries(db, allDestinations, 'on_unsold', leadPayload, leadId, supplierAttribution, supplierRecord);
           fireConnectors(db, apiConnectors, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
           fireDeliveries(db, allDestinations, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
+          fireConnectors(db, apiConnectors, 'on_rejected', leadPayload, leadId, supplierAttribution, supplierRecord);
+          fireDeliveries(db, allDestinations, 'on_rejected', leadPayload, leadId, supplierAttribution, supplierRecord);
         }
       } else {
         finalStatus = 'Error';
@@ -1247,6 +1252,8 @@ Deno.serve(async (req) => {
         finalStatus = 'Duplicate';
         supplierResponse = { Response: 'Duplicate', reason: firstError };
         await db.entities.Lead.update(leadId, { queue_reason: `Duplicate: ${firstError}` });
+        fireConnectors(db, apiConnectors, 'on_duplicates', leadPayload, leadId, supplierAttribution, supplierRecord);
+        fireDeliveries(db, allDestinations, 'on_duplicates', leadPayload, leadId, supplierAttribution, supplierRecord);
       } else if (isQueueableRejection(firstError)) {
         finalStatus = 'Queued';
         const queueReason = `LeadByte error (missing/invalid field): ${firstError || topStatus}`;

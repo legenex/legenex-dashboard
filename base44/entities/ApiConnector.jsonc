@@ -76,7 +76,7 @@
     },
     "received_event_name": {
       "type": "string",
-      "description": "Event name fired on the Received trigger. Falls back to 'Lead' if blank."
+      "description": "Event name fired on the Qualified trigger (key on_received). Falls back to 'Lead' if blank."
     },
     "sold_event_name": {
       "type": "string",
@@ -94,6 +94,14 @@
     "dq_event_name": {
       "type": "string",
       "description": "Event name fired on the Disqualified trigger. No fallback \u2014 if blank, the DQ event does not fire."
+    },
+    "rejected_event_name": {
+      "type": "string",
+      "description": "Event name fired on the Rejected trigger. Falls back to 'Lead' if blank."
+    },
+    "duplicates_event_name": {
+      "type": "string",
+      "description": "Event name fired on the Duplicates trigger. Falls back to 'Lead' if blank."
     },
     "action_source": {
       "type": "string",
@@ -133,7 +141,7 @@
     },
     "triggers": {
       "type": "string",
-      "description": "JSON array of: on_received, on_sold, on_unsold, on_dq, on_queued"
+      "description": "JSON array of trigger keys derived from the lead_status system field (on_received=Qualified, on_sold, on_unsold, on_dq=Disqualified, on_queued, on_rejected, on_duplicates, plus any custom lead_status values)"
     }
   },
   "required": [

@@ -16,16 +16,9 @@ import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import ConnectorConditionsEditor from '@/components/settings/ConnectorConditionsEditor';
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
+import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy } from 'lucide-react';
 import { toast } from 'sonner';
-
-const TRIGGER_OPTIONS = [
-  { value: 'on_received', label: 'Received' },
-  { value: 'on_sold', label: 'Sold' },
-  { value: 'on_unsold', label: 'Unsold' },
-  { value: 'on_dq', label: 'Disqualified' },
-  { value: 'on_queued', label: 'Queued' },
-];
 
 const KIND_OPTIONS = [
   { value: 'facebook_capi', label: 'Facebook CAPI' },
@@ -205,6 +198,7 @@ export default function SettingsApiConnectors() {
     queryKey: ['custom-fields'],
     queryFn: () => base44.entities.CustomField.list(),
   });
+  const triggerOptions = buildTriggerOptions(customFields);
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
@@ -231,7 +225,7 @@ export default function SettingsApiConnectors() {
       name: '', platform: platform.value, kind: platform.kind, enabled: true, sort_order: 0,
       filter_brands: '[]', filter_verticals: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
       fb_pixel_id: '', fb_access_token: '', fb_test_event_code: '', fb_api_version: 'v21.0',
-      received_event_name: '', sold_event_name: '', unsold_event_name: '', queued_event_name: '', dq_event_name: '',
+      received_event_name: '', sold_event_name: '', unsold_event_name: '', queued_event_name: '', dq_event_name: '', rejected_event_name: '', duplicates_event_name: '',
       action_source: 'website', auto_hash_capi: true,
       target_url: platform.target_url, http_method: 'POST', content_type: 'application/json',
       headers: JSON.stringify(platform.headers), payload_template: platform.payload_template,
@@ -390,9 +384,9 @@ export default function SettingsApiConnectors() {
         <Card className="bg-card border-border">
           <CardContent className="p-4 space-y-3">
             <div className="text-[13px] font-semibold text-foreground">Triggers</div>
-            <p className="text-[11px] text-muted-foreground">When should this connector fire?</p>
+            <p className="text-[11px] text-muted-foreground">When should this connector fire? Trigger options come from the Lead Status system field.</p>
             <div className="flex flex-wrap gap-2">
-              {TRIGGER_OPTIONS.map(t => {
+              {triggerOptions.map(t => {
                 const active = parseJsonArray(editing.triggers).includes(t.value);
                 return (
                   <button key={t.value} onClick={() => toggleArrayValue('triggers', t.value)}
@@ -416,6 +410,8 @@ export default function SettingsApiConnectors() {
               <div><Label className="text-[12px]">Unsold Event Name</Label><Input value={editing.unsold_event_name || ''} onChange={e => setF('unsold_event_name', e.target.value)} placeholder="Lead" className="mt-1 bg-background font-mono text-[12px]" /></div>
               <div><Label className="text-[12px]">Queued Event Name</Label><Input value={editing.queued_event_name || ''} onChange={e => setF('queued_event_name', e.target.value)} placeholder="Lead" className="mt-1 bg-background font-mono text-[12px]" /></div>
               <div><Label className="text-[12px]">Disqualified Event Name</Label><Input value={editing.dq_event_name || ''} onChange={e => setF('dq_event_name', e.target.value)} placeholder="DQLead / DQ_Lead" className="mt-1 bg-background font-mono text-[12px]" /></div>
+              <div><Label className="text-[12px]">Rejected Event Name</Label><Input value={editing.rejected_event_name || ''} onChange={e => setF('rejected_event_name', e.target.value)} placeholder="Lead" className="mt-1 bg-background font-mono text-[12px]" /></div>
+              <div><Label className="text-[12px]">Duplicates Event Name</Label><Input value={editing.duplicates_event_name || ''} onChange={e => setF('duplicates_event_name', e.target.value)} placeholder="Lead" className="mt-1 bg-background font-mono text-[12px]" /></div>
             </div>
           </CardContent>
         </Card>
@@ -603,7 +599,7 @@ export default function SettingsApiConnectors() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {triggers.map(t => <Badge key={t} className="bg-primary/10 text-primary text-[9px]">{TRIGGER_OPTIONS.find(o => o.value === t)?.label || t}</Badge>)}
+                      {triggers.map(t => <Badge key={t} className="bg-primary/10 text-primary text-[9px]">{statusLabelFor(t)}</Badge>)}
                       {brands.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Brands: {brands.join(', ')}</Badge>}
                       {suppliersFiltered.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Suppliers: {suppliersFiltered.length}</Badge>}
                       {types.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Types: {types.join(', ')}</Badge>}

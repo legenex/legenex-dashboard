@@ -32,6 +32,10 @@
     "sample_value": {
       "type": "string"
     },
+    "options": {
+      "type": "string",
+      "description": "JSON array of dropdown values (for system/dropdown fields e.g. lead_status). Drives the trigger options shown on Destinations and Conversion Events."
+    },
     "include_in_leadbyte": {
       "type": "boolean",
       "default": false
@@ -50,7 +54,7 @@
     "required": {
       "type": "boolean",
       "default": false,
-      "description": "If true, missing this field queues the lead at the gate"
+      "description": "If true, missing this field queues the lead at the gate. System fields are never gated (they are system-populated)."
     }
   },
   "required": [

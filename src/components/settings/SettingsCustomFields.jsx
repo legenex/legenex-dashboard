@@ -18,6 +18,7 @@ const BLANK_FIELD = {
   field_name: '', label: '', field_type: 'string',
   source: 'inbound', include_in_leadbyte: true,
   leadbyte_field_name: '', system_populated: false, required: false,
+  options: [],
 };
 
 function guessType(value) {
@@ -76,6 +77,9 @@ export default function SettingsCustomFields() {
   const openCreate = () => { setForm(BLANK_FIELD); setEditingId(null); setEditModal(true); };
 
   const openEdit = (f) => {
+    let opts = [];
+    if (Array.isArray(f.options)) opts = f.options;
+    else if (typeof f.options === 'string') { try { const p = JSON.parse(f.options); if (Array.isArray(p)) opts = p; } catch {} }
     setForm({
       field_name: f.field_name || '', label: f.label || '',
       field_type: f.field_type || 'string', source: f.source || 'inbound',
@@ -83,6 +87,7 @@ export default function SettingsCustomFields() {
       leadbyte_field_name: f.leadbyte_field_name || '',
       system_populated: f.system_populated ?? false,
       required: f.required ?? false,
+      options: opts,
     });
     setEditingId(f.id);
     setEditModal(true);
@@ -95,6 +100,7 @@ export default function SettingsCustomFields() {
       include_in_leadbyte: f.include_in_leadbyte ?? true,
       leadbyte_field_name: f.leadbyte_field_name ? f.leadbyte_field_name + '_copy' : '',
       system_populated: false, required: f.required ?? false,
+      options: [],
     });
     setEditingId(null);
     setEditModal(true);
@@ -104,6 +110,10 @@ export default function SettingsCustomFields() {
     const data = { ...form };
     if (!data.leadbyte_field_name) data.leadbyte_field_name = data.field_name;
     if (!data.label) data.label = data.field_name;
+    // Only system/dropdown fields carry options; serialize to JSON string for storage.
+    data.options = Array.isArray(form.options) && form.options.length > 0
+      ? JSON.stringify(form.options.filter(o => String(o).trim() !== ''))
+      : '';
     if (editingId) {
       await base44.entities.CustomField.update(editingId, data);
       toast.success('Field updated');
@@ -359,7 +369,10 @@ export default function SettingsCustomFields() {
                   value={form.field_type}
                   onValueChange={v => setForm(p => ({ ...p, field_type: v }))}
                   className="mt-1 bg-background"
-                  options={['string', 'number', 'boolean', 'date', 'Calculated'].map(t => ({ value: t, label: t }))}
+                  options={[
+                    ...(form.field_type === 'system' ? [{ value: 'system', label: 'system' }] : []),
+                    ...['string', 'number', 'boolean', 'date', 'Calculated'].map(t => ({ value: t, label: t })),
+                  ]}
                 />
               </div>
               <div><Label className="text-[12px]">LB Key</Label><Input value={form.leadbyte_field_name} onChange={e => setForm(p => ({ ...p, leadbyte_field_name: e.target.value }))} placeholder="defaults to field_name" className="mt-1 bg-background font-mono text-[12px]" /></div>
@@ -369,6 +382,31 @@ export default function SettingsCustomFields() {
               <div className="flex items-center gap-2"><Switch checked={form.system_populated} onCheckedChange={v => setForm(p => ({ ...p, system_populated: v }))} /><Label className="text-[12px]">HLR-filled</Label></div>
               <div className="flex items-center gap-2"><Switch checked={form.required} onCheckedChange={v => setForm(p => ({ ...p, required: v }))} /><Label className="text-[12px]">Required (gate)</Label></div>
             </div>
+            {form.field_type === 'system' && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <Label className="text-[12px]">Dropdown Values <span className="text-muted-foreground text-[11px]">(also used as Triggers on Destinations & Conversion Events)</span></Label>
+                {Array.isArray(form.options) && form.options.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={opt}
+                      onChange={e => setForm(p => {
+                        const next = [...p.options];
+                        next[i] = e.target.value;
+                        return { ...p, options: next };
+                      })}
+                      placeholder="e.g. Qualified"
+                      className="bg-background font-mono text-[12px]"
+                    />
+                    <Button size="icon" variant="ghost" className="h-8 w-8 p-0 text-destructive shrink-0" onClick={() => setForm(p => ({ ...p, options: p.options.filter((_, idx) => idx !== i) }))}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button size="sm" variant="outline" onClick={() => setForm(p => ({ ...p, options: [...(p.options || []), ''] }))} className="gap-1.5">
+                  <Plus className="w-3.5 h-3.5" /> Add Value
+                </Button>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditModal(false)}>Cancel</Button>

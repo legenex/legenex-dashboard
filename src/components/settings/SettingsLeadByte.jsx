@@ -16,6 +16,7 @@ import { buildDefaultActualPayload } from '@/components/settings/ActualPayloadEd
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
+import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -148,14 +149,6 @@ const FIELD_PATH_OPTIONS = [
   { value: 'lead_id', label: 'lead_id' },
 ];
 
-const TRIGGER_OPTIONS = [
-  { value: 'on_received', label: 'Received' },
-  { value: 'on_sold', label: 'Sold' },
-  { value: 'on_unsold', label: 'Unsold' },
-  { value: 'on_dq', label: 'Disqualified' },
-  { value: 'on_queued', label: 'Queued' },
-];
-
 const KIND_OPTIONS = [
   { value: 'leadbyte', label: 'Leadbyte' },
   { value: 'bigquery', label: 'BigQuery' },
@@ -191,6 +184,8 @@ const TRIGGER_COLORS = {
   on_unsold: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
   on_dq: 'bg-rose-500/15 text-rose-300 border border-rose-500/30',
   on_queued: 'bg-purple-500/15 text-purple-300 border border-purple-500/30',
+  on_rejected: 'bg-red-500/15 text-red-300 border border-red-500/30',
+  on_duplicates: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30',
 };
 const META_TAG_COLORS = {
   default: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30',
@@ -426,6 +421,7 @@ export default function SettingsLeadByte() {
   };
 
   const fieldTokens = customFields.map(f => f.field_name);
+  const triggerOptions = buildTriggerOptions(customFields);
 
   // ── Connector edit view ──────────────────────────────────────────────────
   if (editing) {
@@ -506,9 +502,9 @@ export default function SettingsLeadByte() {
               <Card className="bg-card border-border">
                 <CardContent className="p-4 space-y-3">
                   <div className="text-[13px] font-semibold text-foreground">Triggers</div>
-                  <p className="text-[11px] text-muted-foreground">When should this destination fire? Default destinations always forward on received.</p>
+                  <p className="text-[11px] text-muted-foreground">When should this destination fire? Default destinations always forward on Qualified. Trigger options come from the Lead Status system field.</p>
                   <div className="flex flex-wrap gap-2">
-                    {TRIGGER_OPTIONS.map(t => {
+                    {triggerOptions.map(t => {
                       const active = parseJsonArray(editing.triggers).includes(t.value);
                       return (
                         <button key={t.value} onClick={() => toggleArrayValue('triggers', t.value)}
@@ -703,7 +699,7 @@ export default function SettingsLeadByte() {
                       </div>
                       <div className="font-mono text-[11px] text-muted-foreground mt-1 truncate max-w-[400px]">{conn.target_url}</div>
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        {triggers.map(t => <Badge key={t} className={`text-[9px] ${TRIGGER_COLORS[t] || 'bg-muted text-muted-foreground border border-border'}`}>{TRIGGER_OPTIONS.find(o => o.value === t)?.label || t}</Badge>)}
+                        {triggers.map(t => <Badge key={t} className={`text-[9px] ${TRIGGER_COLORS[t] || 'bg-muted text-muted-foreground border border-border'}`}>{statusLabelFor(t)}</Badge>)}
                         {conn.is_default && <Badge className={`text-[9px] ${META_TAG_COLORS.default}`}>Default</Badge>}
                         {brands.length > 0 && <Badge className={`text-[9px] ${META_TAG_COLORS.brands}`}>Brands: {brands.join(', ')}</Badge>}
                         {conditions.length > 0 && <Badge className={`text-[9px] ${META_TAG_COLORS.conditions}`}>{conditions.length} condition(s)</Badge>}
