@@ -406,7 +406,7 @@ export default function SettingsLeadByte() {
             <>
               <Card className="bg-card border-border">
                 <CardContent className="p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div><Label className="text-[12px]">Name</Label><Input value={editing.api_name || ''} onChange={e => setEditing(p => ({ ...p, api_name: e.target.value }))} className="mt-1 bg-background" /></div>
                     <div>
                       <Label className="text-[12px]">Delivery Type</Label>
@@ -415,6 +415,16 @@ export default function SettingsLeadByte() {
                         onValueChange={v => setEditing(p => ({ ...p, kind: v }))}
                         className="mt-1 bg-background"
                         options={KIND_OPTIONS}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[12px]">Vertical</Label>
+                      <SearchableSelect
+                        value={(parseJsonArray(editing.filter_verticals)[0] || '')}
+                        onValueChange={v => setF('filter_verticals', v ? JSON.stringify([v]) : '[]')}
+                        className="mt-1 bg-background"
+                        placeholder="All verticals"
+                        options={[{ value: '', label: 'All verticals' }, ...verticalFilterOptions]}
                       />
                     </div>
                   </div>

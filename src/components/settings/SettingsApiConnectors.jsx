@@ -119,6 +119,12 @@ export default function SettingsApiConnectors() {
     queryFn: () => base44.entities.Brand.list(),
   });
   const brandOptions = brands.map(b => b.brand_name).filter(Boolean);
+
+  const { data: verticalList = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
   const supplierOptions = suppliers.map(s => ({ value: s.name, label: s.name }));
   const supplierTypeOptions = [
     { value: 'Internal', label: 'Internal' },
@@ -129,7 +135,7 @@ export default function SettingsApiConnectors() {
   const openCreate = () => {
     setEditing({
       name: '', kind: 'facebook_capi', enabled: true, sort_order: 0,
-      filter_brands: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
+      filter_brands: '[]', filter_verticals: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
       fb_pixel_id: '', fb_access_token: '', fb_test_event_code: '', fb_api_version: 'v21.0',
       received_event_name: '', sold_event_name: '', unsold_event_name: '', queued_event_name: '', dq_event_name: '',
       action_source: 'website',
@@ -251,6 +257,16 @@ export default function SettingsApiConnectors() {
               <div><Label className="text-[12px]">Sort Order</Label><Input type="number" value={editing.sort_order || 0} onChange={e => setF('sort_order', Number(e.target.value))} className="mt-1 bg-background" /></div>
               <div className="flex items-end pb-2">
                 <div className="flex items-center gap-2"><Switch checked={editing.enabled} onCheckedChange={v => setF('enabled', v)} /><Label className="text-[12px]">Enabled</Label></div>
+              </div>
+              <div>
+                <Label className="text-[12px]">Vertical</Label>
+                <SearchableSelect
+                  value={(parseJsonArray(editing.filter_verticals)[0] || '')}
+                  onValueChange={v => setF('filter_verticals', v ? JSON.stringify([v]) : '[]')}
+                  className="mt-1 bg-background"
+                  placeholder="All verticals"
+                  options={[{ value: '', label: 'All verticals' }, ...verticalOptions]}
+                />
               </div>
             </div>
           </CardContent>

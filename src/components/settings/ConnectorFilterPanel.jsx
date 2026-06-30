@@ -17,12 +17,6 @@ export default function ConnectorFilterPanel({ editing, onFieldChange, brandOpti
     queryFn: () => base44.entities.CustomCalculation.list(),
   });
 
-  const { data: verticals = [] } = useQuery({
-    queryKey: ['verticals'],
-    queryFn: () => base44.entities.Vertical.list(),
-  });
-  const verticalOptions = verticals.map(v => ({ value: v.code, label: v.name }));
-
   const toggleArrayValue = (field, value) => {
     const arr = parseJsonArray(editing[field]);
     const next = arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value];
@@ -58,10 +52,6 @@ export default function ConnectorFilterPanel({ editing, onFieldChange, brandOpti
 
         {/* Quick filter pills — inline flow, wraps naturally */}
         <div className="flex flex-wrap gap-x-6 gap-y-3">
-          <div className="flex items-start gap-2">
-            <span className="text-[11px] font-medium text-muted-foreground mt-1.5 whitespace-nowrap">Verticals</span>
-            <div className="flex flex-wrap gap-1.5">{renderPills('filter_verticals', verticalOptions)}</div>
-          </div>
           <div className="flex items-start gap-2">
             <span className="text-[11px] font-medium text-muted-foreground mt-1.5 whitespace-nowrap">Brands</span>
             <div className="flex flex-wrap gap-1.5">{renderPills('filter_brands', brandOptions)}</div>
