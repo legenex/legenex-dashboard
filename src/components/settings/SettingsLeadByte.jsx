@@ -195,6 +195,7 @@ export default function SettingsLeadByte() {
   // Default to 'connectors' so list view always shows content
   const [activeTab, setActiveTab] = useState('connectors');
   const [connectorSubTab, setConnectorSubTab] = useState('connector');
+  const [verticalFilter, setVerticalFilter] = useState('all');
 
   const [editingMapping, setEditingMapping] = useState(null);
   const [savingMapping, setSavingMapping] = useState(false);
@@ -219,6 +220,12 @@ export default function SettingsLeadByte() {
     queryFn: () => base44.entities.Brand.list(),
   });
   const brandOptions = brands.map(b => b.brand_name).filter(Boolean);
+
+  const { data: verticalList = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const verticalFilterOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
   const supplierOptions = suppliers.map(s => ({ value: s.name, label: s.name }));
   const supplierTypeOptions = [
     { value: 'Internal', label: 'Internal' },
@@ -586,11 +593,24 @@ export default function SettingsLeadByte() {
 
       {activeTab === 'connectors' && (
         <div>
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between items-center mb-4 gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-[12px] whitespace-nowrap">Vertical</Label>
+              <SearchableSelect
+                value={verticalFilter}
+                onValueChange={setVerticalFilter}
+                className="w-[200px] bg-background"
+                options={[{ value: 'all', label: 'All Verticals' }, ...verticalFilterOptions]}
+              />
+            </div>
             <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Destination</Button>
           </div>
           <div className="space-y-4">
-            {[...connectors].sort((a, b) => {
+            {[...connectors].filter(conn => {
+              if (verticalFilter === 'all') return true;
+              const vs = parseJsonArray(conn.filter_verticals);
+              return vs.length === 0 || vs.includes(verticalFilter);
+            }).sort((a, b) => {
               const aLb = (a.kind || 'leadbyte') === 'leadbyte';
               const bLb = (b.kind || 'leadbyte') === 'leadbyte';
               if (aLb && !bLb) return -1;

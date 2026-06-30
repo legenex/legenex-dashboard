@@ -25,7 +25,7 @@ function generateKey(supplierType = '') {
 }
 
 const DEFAULT_FORM = {
-  name: '', sid: '', supplier_type: '', payout_type: '', payout_value: null, email: '',
+  name: '', sid: '', supplier_type: '', vertical: '', payout_type: '', payout_value: null, email: '',
   landing_page_url: '', brand: [], active: true,
 };
 
@@ -71,6 +71,12 @@ export default function SettingsSuppliers() {
     queryKey: ['brands'],
     queryFn: () => base44.entities.Brand.list(),
   });
+
+  const { data: verticalList = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
 
   const appSettings = appSettingsArr[0] || {};
   const savedBaseUrl = appSettings.public_base_url || 'https://api.legenex.com';
@@ -127,6 +133,7 @@ export default function SettingsSuppliers() {
       email: supplier.email || '',
       landing_page_url: supplier.landing_page_url || '',
       brand: parseBrandArray(supplier.brand),
+      vertical: supplier.vertical || '',
       active: supplier.active ?? true,
     });
     setEditingSupplierId(supplier.id);
@@ -143,6 +150,7 @@ export default function SettingsSuppliers() {
       if (existingKey) {
         await base44.entities.ApiKey.update(existingKey.id, {
           supplier_name: form.name,
+          vertical: form.vertical,
           active: form.active,
         }).catch(() => {});
       }
@@ -160,6 +168,7 @@ export default function SettingsSuppliers() {
         type: 'supplier',
         supplier_name: form.name,
         supplier_id: supplierId,
+        vertical: form.vertical,
         key,
         key_prefix: key.substring(0, 16),
         active: form.active,
@@ -404,6 +413,16 @@ export default function SettingsSuppliers() {
                       ]}
                     />
                   </div>
+                </div>
+                <div>
+                  <Label className="text-[12px]">Vertical (optional)</Label>
+                  <SearchableSelect
+                    value={form.vertical}
+                    onValueChange={v => setForm(p => ({ ...p, vertical: v }))}
+                    className="mt-1 bg-background"
+                    placeholder="Any vertical"
+                    options={[{ value: '', label: 'Any vertical' }, ...verticalOptions]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

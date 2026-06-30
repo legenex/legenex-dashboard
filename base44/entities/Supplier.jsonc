@@ -18,6 +18,10 @@
       ],
       "description": "Supplier type used for ApiConnector filter matching"
     },
+    "vertical": {
+      "type": "string",
+      "description": "Optional vertical code this supplier is associated with"
+    },
     "payout_type": {
       "type": "string",
       "enum": [

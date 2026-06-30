@@ -49,7 +49,7 @@ function KeyRevealBox({ fullKey, onClose }) {
 export default function SettingsApiKeys() {
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', type: 'supplier', supplier_id: '' });
+  const [form, setForm] = useState({ name: '', type: 'supplier', supplier_id: '', vertical: '' });
   const [revealKey, setRevealKey] = useState(null); // full key string to show once
   const [regenReveal, setRegenReveal] = useState(null); // { key, id }
 
@@ -63,6 +63,12 @@ export default function SettingsApiKeys() {
     queryFn: () => base44.entities.Supplier.list('-created_date', 200),
   });
 
+  const { data: verticalList = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
+
   const { data: appSettingsArr = [] } = useQuery({
     queryKey: ['app-settings'],
     queryFn: () => base44.entities.AppSettings.list(),
@@ -72,7 +78,7 @@ export default function SettingsApiKeys() {
   const endpointUrl = `${baseUrl}/functions/leads`;
 
   const openCreate = () => {
-    setForm({ name: '', type: 'supplier', supplier_id: '' });
+    setForm({ name: '', type: 'supplier', supplier_id: '', vertical: '' });
     setRevealKey(null);
     setModalOpen(true);
   };
@@ -85,6 +91,7 @@ export default function SettingsApiKeys() {
       type: form.type,
       supplier_id: supplier?.id || '',
       supplier_name: supplier?.name || (form.type === 'master' ? 'Master' : ''),
+      vertical: form.vertical,
       key,
       key_prefix: key.substring(0, 16),
       active: true,
@@ -288,6 +295,16 @@ export default function SettingsApiKeys() {
                     />
                   </div>
                 )}
+                <div>
+                  <Label className="text-[12px]">Vertical (optional)</Label>
+                  <SearchableSelect
+                    value={form.vertical}
+                    onValueChange={v => setForm(p => ({ ...p, vertical: v }))}
+                    className="mt-1 bg-background"
+                    placeholder="Any vertical"
+                    options={[{ value: '', label: 'Any vertical' }, ...verticalOptions]}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>

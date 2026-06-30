@@ -23,6 +23,10 @@
       "type": "string",
       "description": "Reference to Supplier record (optional for master keys)"
     },
+    "vertical": {
+      "type": "string",
+      "description": "Optional vertical code this key is used for"
+    },
     "key": {
       "type": "string",
       "description": "Full key value \u2014 only present at creation; should be hashed in production"
