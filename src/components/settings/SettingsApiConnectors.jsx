@@ -16,7 +16,7 @@ import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import ConnectorConditionsEditor from '@/components/settings/ConnectorConditionsEditor';
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
-import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe } from 'lucide-react';
+import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TRIGGER_OPTIONS = [
@@ -90,6 +90,96 @@ const DEFAULT_CAPI_TEMPLATE = JSON.stringify({
   }]
 }, null, 2);
 
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'qualified', label: 'Qualified' },
+  { value: 'sold', label: 'Sold' },
+  { value: 'disqualified', label: 'Disqualified' },
+  { value: 'other', label: 'Other' },
+];
+
+const PLATFORMS = [
+  {
+    value: 'facebook', label: 'Facebook', kind: 'facebook_capi',
+    target_url: '', headers: [], payload_template: DEFAULT_CAPI_TEMPLATE,
+  },
+  {
+    value: 'tiktok', label: 'TikTok', kind: 'generic_http',
+    target_url: 'https://business-api.tiktok.com/open_api/v1.3/event/track/',
+    headers: [{ key: 'Access-Token', value: '' }, { key: 'Content-Type', value: 'application/json' }],
+    payload_template: JSON.stringify({
+      event: '{{lead_event}}',
+      event_time: '{{event_time}}',
+      event_id: '{{event_id}}',
+      context: { page: { url: '{{optin_url}}' }, ip: '{{ip_address}}', user_agent: '{{user_agent}}' },
+      user_data: { email: '{{email|sha256}}', phone: '{{mobile|sha256}}', external_id: '{{lead_id|sha256}}' },
+      properties: { content_name: 'Lead', value: '{{conv_value}}', currency: 'USD' },
+    }, null, 2),
+  },
+  {
+    value: 'google', label: 'Google', kind: 'generic_http',
+    target_url: 'https://googleads.googleapis.com/v17/customers/{{customer_id}}:uploadClickConversions',
+    headers: [{ key: 'Authorization', value: 'Bearer ' }, { key: 'developer-token', value: '' }, { key: 'Content-Type', value: 'application/json' }],
+    payload_template: JSON.stringify({
+      conversions: [{
+        orderId: '{{event_id}}',
+        conversionAction: 'leads',
+        conversionDateTime: '{{event_time}}',
+        value: '{{conv_value}}',
+        currencyCode: 'USD',
+        userIdentifiers: [{ hashedEmail: '{{email|sha256}}', hashedPhoneNumber: '{{mobile|sha256}}' }],
+      }],
+      partialFailure: true,
+    }, null, 2),
+  },
+  {
+    value: 'snapchat', label: 'SnapChat', kind: 'generic_http',
+    target_url: 'https://tr.snapchat.com/v3/conversion',
+    headers: [{ key: 'Authorization', value: 'Bearer ' }, { key: 'Content-Type', value: 'application/json' }],
+    payload_template: JSON.stringify({
+      event_type: '{{lead_event}}',
+      event_time: '{{event_time}}',
+      event_conversion_type: 'OFFLINE',
+      click_id: '{{event_id}}',
+      client_ip_address: '{{ip_address}}',
+      user_agent: '{{user_agent}}',
+      hashed_email: '{{email|sha256}}',
+      hashed_phone_number: '{{mobile|sha256}}',
+      value: '{{conv_value}}',
+      currency: 'USD',
+    }, null, 2),
+  },
+  {
+    value: 'taboola', label: 'Taboola', kind: 'generic_http',
+    target_url: 'https://backstage.taboola.com/backstage/api/1.0/resources/campaigns/conversions',
+    headers: [{ key: 'Authorization', value: 'Bearer ' }, { key: 'Content-Type', value: 'application/json' }],
+    payload_template: JSON.stringify({
+      type: 'CONVERSION',
+      value: '{{conv_value}}',
+      currency: 'USD',
+      click_id: '{{event_id}}',
+      timestamp: '{{event_time}}',
+      email: '{{email|sha256}}',
+      phone: '{{mobile|sha256}}',
+    }, null, 2),
+  },
+  {
+    value: 'other', label: 'Other', kind: 'generic_http',
+    target_url: '',
+    headers: [{ key: 'Content-Type', value: 'application/json' }],
+    payload_template: JSON.stringify({
+      event: '{{lead_event}}',
+      event_time: '{{event_time}}',
+      event_id: '{{event_id}}',
+      email: '{{email|sha256}}',
+      phone: '{{mobile|sha256}}',
+      first_name: '{{first_name}}',
+      last_name: '{{last_name}}',
+      value: '{{conv_value}}',
+    }, null, 2),
+  },
+];
+
 export default function SettingsApiConnectors() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(null);
@@ -98,6 +188,8 @@ export default function SettingsApiConnectors() {
   const [testResult, setTestResult] = useState(null);
   const [sendingTest, setSendingTest] = useState(false);
   const [testPayloadStr, setTestPayloadStr] = useState(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
+  const [activePlatform, setActivePlatform] = useState('facebook');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: connectors = [] } = useQuery({
     queryKey: ['api-connectors'],
@@ -133,20 +225,22 @@ export default function SettingsApiConnectors() {
   ];
 
   const openCreate = () => {
+    const platform = PLATFORMS.find(p => p.value === activePlatform) || PLATFORMS[0];
+    const isCapi = platform.kind === 'facebook_capi';
     setEditing({
-      name: '', kind: 'facebook_capi', enabled: true, sort_order: 0,
+      name: '', platform: platform.value, kind: platform.kind, enabled: true, sort_order: 0,
       filter_brands: '[]', filter_verticals: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
       fb_pixel_id: '', fb_access_token: '', fb_test_event_code: '', fb_api_version: 'v21.0',
       received_event_name: '', sold_event_name: '', unsold_event_name: '', queued_event_name: '', dq_event_name: '',
-      action_source: 'website',
-      auto_hash_capi: true,
-      target_url: '', http_method: 'POST', content_type: 'application/json',
-      headers: '[]', payload_template: DEFAULT_CAPI_TEMPLATE, triggers: '["on_received"]',
+      action_source: 'website', auto_hash_capi: true,
+      target_url: platform.target_url, http_method: 'POST', content_type: 'application/json',
+      headers: JSON.stringify(platform.headers), payload_template: platform.payload_template,
+      triggers: '["on_received"]',
     });
-    setHeaderRows([]);
+    setHeaderRows(platform.headers);
     setShowToken(false);
     setTestResult(null);
-    setTestPayloadStr(DEFAULT_CAPI_TEMPLATE);
+    setTestPayloadStr(isCapi ? DEFAULT_CAPI_TEMPLATE : JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
   };
 
   const openEdit = (conn) => {
@@ -189,6 +283,17 @@ export default function SettingsApiConnectors() {
 
   const toggleEnabled = async (conn) => {
     await base44.entities.ApiConnector.update(conn.id, { enabled: !conn.enabled });
+    qc.invalidateQueries({ queryKey: ['api-connectors'] });
+  };
+
+  const duplicateConnector = async (conn) => {
+    const { id, created_date, updated_date, created_by_id, ...rest } = conn;
+    await base44.entities.ApiConnector.create({
+      ...rest,
+      name: `${conn.name} (Copy)`,
+      enabled: false,
+    });
+    toast.success('Connector duplicated (disabled)');
     qc.invalidateQueries({ queryKey: ['api-connectors'] });
   };
 
@@ -431,14 +536,48 @@ export default function SettingsApiConnectors() {
   }
 
   // ── List view ──────────────────────────────────────────────────────────
+  const effectivePlatform = (conn) => conn.platform || (conn.kind === 'facebook_capi' ? 'facebook' : 'other');
+  const matchesStatus = (conn, filter) => {
+    const triggers = parseJsonArray(conn.triggers);
+    if (filter === 'all') return true;
+    if (filter === 'qualified') return triggers.includes('on_received');
+    if (filter === 'sold') return triggers.includes('on_sold');
+    if (filter === 'disqualified') return triggers.includes('on_dq');
+    if (filter === 'other') return triggers.includes('on_unsold') || triggers.includes('on_queued');
+    return true;
+  };
+  const filtered = connectors.filter(conn => effectivePlatform(conn) === activePlatform && matchesStatus(conn, statusFilter));
+
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      {/* Platform tabs */}
+      <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
+        {PLATFORMS.map(p => (
+          <button key={p.value} onClick={() => setActivePlatform(p.value)}
+            className={`px-4 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px whitespace-nowrap
+              ${activePlatform === p.value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Status filter + Add */}
+      <div className="flex justify-between items-center mb-4 gap-3">
+        <div className="flex items-center gap-2">
+          <Label className="text-[12px] whitespace-nowrap">Status</Label>
+          <SearchableSelect
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            className="w-[200px] bg-background"
+            options={STATUS_FILTERS}
+          />
+        </div>
         <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Connector</Button>
       </div>
+
       <div className="space-y-3">
-        {connectors.length === 0 && <div className="text-center py-8 text-muted-foreground text-[13px]">No API connectors configured</div>}
-        {connectors.map(conn => {
+        {filtered.length === 0 && <div className="text-center py-8 text-muted-foreground text-[13px]">No connectors for this platform</div>}
+        {filtered.map(conn => {
           const triggers = parseJsonArray(conn.triggers);
           const brands = parseJsonArray(conn.filter_brands);
           const verticals = parseJsonArray(conn.filter_verticals);
@@ -481,6 +620,7 @@ export default function SettingsApiConnectors() {
                       {conn.enabled ? 'Active' : 'Disabled'}
                     </Badge>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(conn)}>Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => duplicateConnector(conn)} className="gap-1 text-[11px]"><Copy className="w-3 h-3" /> Duplicate</Button>
                     <Button size="sm" variant="ghost" onClick={() => toggleEnabled(conn)} className="text-[11px]">
                       {conn.enabled ? 'Disable' : 'Enable'}
                     </Button>

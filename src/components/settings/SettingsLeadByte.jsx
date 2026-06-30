@@ -333,6 +333,18 @@ export default function SettingsLeadByte() {
     qc.invalidateQueries({ queryKey: ['lb-connectors-all'] });
   };
 
+  const duplicateConnector = async (conn) => {
+    const { id, created_date, updated_date, created_by_id, ...rest } = conn;
+    await base44.entities.LeadByteConnector.create({
+      ...rest,
+      api_name: `${conn.api_name} (Copy)`,
+      enabled: false,
+      is_default: false,
+    });
+    toast.success('Destination duplicated (disabled)');
+    qc.invalidateQueries({ queryKey: ['lb-connectors-all'] });
+  };
+
   const saveMapping = async () => {
     if (!editingMapping) return;
     setSavingMapping(true);
@@ -662,6 +674,7 @@ export default function SettingsLeadByte() {
                         {conn.enabled ? 'Active' : 'Disabled'}
                       </Badge>
                       <Button size="sm" variant="ghost" onClick={() => openEdit(conn)}>Edit</Button>
+                      <Button size="sm" variant="ghost" onClick={() => duplicateConnector(conn)} className="text-[11px]">Duplicate</Button>
                       <Button size="sm" variant="ghost" onClick={() => toggleEnabled(conn)} className="text-[11px]">
                         {conn.enabled ? 'Disable' : 'Enable'}
                       </Button>

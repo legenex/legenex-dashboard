@@ -5,7 +5,7 @@ import SettingsApiConnectors from '@/components/settings/SettingsApiConnectors';
 export default function ConversionEvents() {
   return (
     <div>
-      <PageHeader title="Conversion Events" subtitle="Facebook CAPI and webhook connector configuration" />
+      <PageHeader title="Conversion Events" subtitle="Conversion API connectors — Facebook, TikTok, Google, SnapChat, Taboola & other platforms" />
       <SettingsApiConnectors />
     </div>
   );

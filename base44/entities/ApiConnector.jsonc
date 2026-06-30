@@ -5,6 +5,19 @@
     "name": {
       "type": "string"
     },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "facebook",
+        "tiktok",
+        "google",
+        "snapchat",
+        "taboola",
+        "other"
+      ],
+      "default": "facebook",
+      "description": "Conversion platform this connector belongs to. Tabs in the Conversion Events UI are scoped by this value. Existing records without a platform default to facebook (for facebook_capi) or other."
+    },
     "kind": {
       "type": "string",
       "enum": [
