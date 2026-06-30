@@ -15,7 +15,8 @@
         "number",
         "boolean",
         "date",
-        "Calculated"
+        "Calculated",
+        "system"
       ],
       "default": "string"
     },

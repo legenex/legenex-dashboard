@@ -74,7 +74,7 @@ const AuthenticatedApp = () => {
           <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/verification" element={<Verification />} />
-          <Route path="/calculations" element={<CustomCalculations />} />
+          <Route path="/calculated-fields" element={<CustomCalculations />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>

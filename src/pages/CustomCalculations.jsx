@@ -13,6 +13,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Plus, Pencil, Trash2, Calculator } from 'lucide-react';
+import { toast } from 'sonner';
 import { OutputFieldPicker } from '@/components/calculations/OutputFieldPicker';
 
 const DEFAULT_DATE_BUCKETS = [
@@ -109,24 +110,30 @@ export default function CustomCalculations() {
     },
     onSuccess: async (saved) => {
       // Sync output_token as a Calculated CustomField so it appears in payload builder
-      const existing = customFields.find(f => f.field_name === form.output_token);
-      if (!existing) {
-        await base44.entities.CustomField.create({
-          field_name: form.output_token,
-          label: form.output_label || form.output_token,
-          field_type: 'Calculated',
-          source: 'inbound',
-          include_in_leadbyte: true,
-          leadbyte_field_name: form.output_token,
-          auto_created: true,
-        });
-      } else if (existing.field_type !== 'Calculated') {
-        // Ensure existing field is typed as Calculated when reused as a calculation output
-        await base44.entities.CustomField.update(existing.id, { field_type: 'Calculated' });
-      }
-      qc.invalidateQueries(['custom-calculations']);
-      qc.invalidateQueries(['custom-fields']);
+      try {
+        const existing = customFields.find(f => f.field_name === form.output_token);
+        if (!existing) {
+          await base44.entities.CustomField.create({
+            field_name: form.output_token,
+            label: form.output_label || form.output_token,
+            field_type: 'Calculated',
+            source: 'inbound',
+            include_in_leadbyte: true,
+            leadbyte_field_name: form.output_token,
+            auto_created: true,
+          });
+        } else if (existing.field_type !== 'Calculated') {
+          // Ensure existing field is typed as Calculated when reused as a calculation output
+          await base44.entities.CustomField.update(existing.id, { field_type: 'Calculated' });
+        }
+      } catch (e) { /* field may already exist (e.g. created inline) — ignore */ }
+      qc.invalidateQueries({ queryKey: ['custom-calculations'] });
+      qc.invalidateQueries({ queryKey: ['custom-fields'] });
       setOpen(false);
+      toast.success(editId ? 'Calculated field updated' : 'Calculated field created');
+    },
+    onError: (err) => {
+      toast.error('Failed to save: ' + (err?.message || 'Unknown error'));
     },
   });
 
@@ -269,7 +276,7 @@ export default function CustomCalculations() {
               </div>
               <div className="space-y-1.5">
                 <Label>Output Label</Label>
-                <Input value={form.output_label} onChange={e => setF('output_label', e.target.value)} placeholder={form.output_token || 'Accident Date Bucket'} />
+                <Input value={form.output_label} onChange={e => setF('output_label', e.target.value)} placeholder={form.output_token || 'Calculated Field Label'} />
               </div>
             </div>
 

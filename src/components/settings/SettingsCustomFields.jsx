@@ -223,14 +223,14 @@ export default function SettingsCustomFields() {
     }
   };
 
-  const bulkSetInclude = async (include) => {
+  const bulkSetRequired = async (required) => {
     const ids = [...selectedIds];
     await Promise.all(ids.map(id =>
-      base44.entities.CustomField.update(id, { include_in_leadbyte: include })
+      base44.entities.CustomField.update(id, { required })
     ));
     setSelectedIds(new Set());
     qc.invalidateQueries({ queryKey: ['custom-fields'] });
-    toast.success(`${ids.length} field${ids.length !== 1 ? 's' : ''} ${include ? 'included' : 'excluded'} from LeadByte`);
+    toast.success(`${ids.length} field${ids.length !== 1 ? 's' : ''} ${required ? 'marked required' : 'unmarked'}`);
   };
 
   return (
@@ -257,8 +257,8 @@ export default function SettingsCustomFields() {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-muted border border-border rounded-lg">
           <span className="text-[13px] text-foreground font-medium">{selectedIds.size} selected</span>
-          <Button size="sm" variant="outline" onClick={() => bulkSetInclude(true)} className="gap-1.5 h-7 text-[11px]"><CheckCheck className="w-3 h-3" /> Include All</Button>
-          <Button size="sm" variant="outline" onClick={() => bulkSetInclude(false)} className="gap-1.5 h-7 text-[11px]"><Ban className="w-3 h-3" /> Exclude All</Button>
+          <Button size="sm" variant="outline" onClick={() => bulkSetRequired(true)} className="gap-1.5 h-7 text-[11px]"><CheckCheck className="w-3 h-3" /> Require All</Button>
+          <Button size="sm" variant="outline" onClick={() => bulkSetRequired(false)} className="gap-1.5 h-7 text-[11px]"><Ban className="w-3 h-3" /> Unrequire All</Button>
           <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} className="h-7 text-[11px] ml-auto">Clear</Button>
         </div>
       )}
@@ -271,7 +271,7 @@ export default function SettingsCustomFields() {
                 <Checkbox checked={selectedIds.size > 0 && selectedIds.size === orderedFields.length} onCheckedChange={toggleSelectAll} />
               </th>
               <th className="w-8 px-2" />
-              {['Label', 'Token (field_name)', 'Type', 'Send to LB', 'LB Field', 'Notes', ''].map(h => (
+              {['Label', 'Token (field_name)', 'Type', 'Required', 'LB Key', 'Notes', ''].map(h => (
                 <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -307,8 +307,8 @@ export default function SettingsCustomFields() {
                           <td className="px-4 py-2.5 font-mono text-[12px] text-primary">{'{{' + f.field_name + '}}'}</td>
                           <td className="px-4 py-2.5"><Badge variant="outline" className="text-[10px]">{f.field_type}</Badge></td>
                           <td className="px-4 py-2.5">
-                            <Switch checked={f.include_in_leadbyte} onCheckedChange={async v => {
-                              await base44.entities.CustomField.update(f.id, { include_in_leadbyte: v });
+                            <Switch checked={f.required} onCheckedChange={async v => {
+                              await base44.entities.CustomField.update(f.id, { required: v });
                               qc.invalidateQueries({ queryKey: ['custom-fields'] });
                             }} />
                           </td>
@@ -320,6 +320,7 @@ export default function SettingsCustomFields() {
                                 <span className="text-[10px] text-muted-foreground font-mono max-w-[120px] truncate" title={f.sample_value}>= {f.sample_value}</span>
                               )}
                               {f.system_populated && <Badge className="bg-primary/10 text-primary text-[10px]">HLR-filled</Badge>}
+                              {f.field_type === 'system' && <Badge className="bg-chart-5/15 text-chart-5 text-[10px]">System</Badge>}
                               {f.required && <Badge className="bg-status-queued status-queued text-[10px]">Required</Badge>}
                             </div>
                           </td>
@@ -327,7 +328,9 @@ export default function SettingsCustomFields() {
                             <div className="flex items-center gap-1">
                               <Button size="sm" variant="ghost" onClick={() => openEdit(f)} className="h-7 w-7 p-0"><Edit2 className="w-3 h-3" /></Button>
                               <Button size="sm" variant="ghost" onClick={() => openCopy(f)} className="h-7 w-7 p-0"><Copy className="w-3 h-3" /></Button>
-                              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(f)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                              {f.field_type !== 'system' && (
+                                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(f)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -359,7 +362,7 @@ export default function SettingsCustomFields() {
                   options={['string', 'number', 'boolean', 'date', 'Calculated'].map(t => ({ value: t, label: t }))}
                 />
               </div>
-              <div><Label className="text-[12px]">LB Field Name</Label><Input value={form.leadbyte_field_name} onChange={e => setForm(p => ({ ...p, leadbyte_field_name: e.target.value }))} placeholder="defaults to field_name" className="mt-1 bg-background font-mono text-[12px]" /></div>
+              <div><Label className="text-[12px]">LB Key</Label><Input value={form.leadbyte_field_name} onChange={e => setForm(p => ({ ...p, leadbyte_field_name: e.target.value }))} placeholder="defaults to field_name" className="mt-1 bg-background font-mono text-[12px]" /></div>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2"><Switch checked={form.include_in_leadbyte} onCheckedChange={v => setForm(p => ({ ...p, include_in_leadbyte: v }))} /><Label className="text-[12px]">Send to LeadByte</Label></div>

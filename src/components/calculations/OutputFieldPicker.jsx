@@ -132,7 +132,7 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
                 autoFocus
                 value={newFieldName}
                 onChange={e => setNewFieldName(e.target.value.replace(/\s/g, '_'))}
-                placeholder="e.g. accident_date"
+                placeholder="calculated_field"
                 className="mt-1 bg-background font-mono text-[12px] h-8"
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreate(); } }}
               />
@@ -142,7 +142,7 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
               <Input
                 value={newFieldLabel}
                 onChange={e => setNewFieldLabel(e.target.value)}
-                placeholder="Accident Date Bucket"
+                placeholder="Calculated Field Label"
                 className="mt-1 bg-background h-8"
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreate(); } }}
               />
