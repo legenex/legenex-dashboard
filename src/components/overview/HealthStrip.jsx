@@ -9,6 +9,12 @@ export default function HealthStrip({ hlrProvider, lastLeadTime }) {
         <span className="text-[12px] text-muted-foreground">HLR Provider</span>
         <span className="text-[12px] font-medium text-foreground">{hlrProvider || 'Not configured'}</span>
       </div>
+      <div className="w-px h-5 bg-border" />
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-[#22C55E]" />
+        <span className="text-[12px] text-muted-foreground">Email Validation</span>
+        <span className="text-[12px] font-medium text-foreground">Active</span>
+      </div>
       {lastLeadTime && (
         <>
           <div className="w-px h-5 bg-border" />

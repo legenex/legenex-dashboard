@@ -30,6 +30,14 @@
     "email": {
       "type": "string"
     },
+    "email_valid": {
+      "type": "string",
+      "enum": [
+        "Yes",
+        "No"
+      ],
+      "description": "Email deliverability result from the free validation service (format + DNS MX lookup). Runs on the same lead_routes as the HLR lookup."
+    },
     "lead_id": {
       "type": "number",
       "description": "Unique sequential lead identifier"

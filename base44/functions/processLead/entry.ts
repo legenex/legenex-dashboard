@@ -995,6 +995,27 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── c2. EMAIL VALIDATION (same lead_routes as HLR) ───────────────────
+    const emailRouteAllowed = routeIs.standard || routeIs.direct || routeIs.data;
+    if (emailRouteAllowed && email) {
+      try {
+        const ev = String(email).trim().toLowerCase();
+        const formatOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ev);
+        let mxOk = false;
+        if (formatOk) {
+          const domain = ev.split('@')[1];
+          try {
+            const dns = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`);
+            const ddata = await dns.json();
+            mxOk = Array.isArray(ddata.Answer) && ddata.Answer.some(a => a.type === 15);
+          } catch {}
+        }
+        await db.entities.Lead.update(leadId, { email_valid: (formatOk && mxOk) ? 'Yes' : 'No' });
+      } catch {
+        await db.entities.Lead.update(leadId, { email_valid: 'No' });
+      }
+    }
+
     // ── Run custom calculations ──────────────────────────────────────────
     const phoneVerifiedSource = hlrSettings?.phone_verified_source || 'lh_hlr_response';
     const enrichedData = runCalculations(calcs, leadPayload, hlrResult, phoneVerifiedSource);
