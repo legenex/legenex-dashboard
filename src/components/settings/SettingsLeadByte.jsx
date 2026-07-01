@@ -222,6 +222,7 @@ export default function SettingsLeadByte() {
   const [headerRows, setHeaderRows] = useState([]);
   const [testResult, setTestResult] = useState(null);
   const [sendingTest, setSendingTest] = useState(false);
+  const [savingTestPayload, setSavingTestPayload] = useState(false);
   const [testPayloadStr, setTestPayloadStr] = useState(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
   const [testLeadExpanded, setTestLeadExpanded] = useState(false);
   // Default to 'connectors' so list view always shows content
@@ -580,18 +581,27 @@ export default function SettingsLeadByte() {
                       className="bg-background font-mono text-[11px] min-h-[300px] leading-relaxed mt-1"
                     />
                     <div className="flex items-center gap-2 mt-2">
-                      <Button size="sm" variant="outline" onClick={() => {
-                        const last = editing.test_payload_last_used;
-                        if (last) {
-                          setTestPayloadStr(last);
-                        } else {
-                          setTestPayloadStr(buildTestPayloadFromTemplate(editing.payload_template));
-                        }
-                      }}>
-                        Reset to Last Sent
-                      </Button>
-
-                    </div>
+                       <Button size="sm" variant="outline" onClick={() => {
+                         const last = editing.test_payload_last_used;
+                         if (last) {
+                           setTestPayloadStr(last);
+                         } else {
+                           setTestPayloadStr(buildTestPayloadFromTemplate(editing.payload_template));
+                         }
+                       }}>
+                         Reset to Last Sent
+                       </Button>
+                       <Button size="sm" variant="secondary" disabled={savingTestPayload || !editing.id} onClick={async () => {
+                         try { JSON.parse(testPayloadStr); } catch { toast.error('Invalid JSON — fix before saving'); return; }
+                         setSavingTestPayload(true);
+                         await saveTestPayload(testPayloadStr);
+                         toast.success('Test payload saved');
+                         setSavingTestPayload(false);
+                       }} className="gap-1.5">
+                         {savingTestPayload ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                         Save
+                       </Button>
+                     </div>
                   </div>
 
                   <Button onClick={sendTestLead} disabled={sendingTest || !editing.id} className="gap-1.5">
@@ -612,8 +622,8 @@ export default function SettingsLeadByte() {
                         {testResult.error && <Badge className="bg-status-error text-red-400">Error</Badge>}
                       </div>
                       <div className="grid gap-3">
-                        {testResult.request_body && <JsonViewer data={testResult.request_body} title="Request Sent to LeadByte" />}
-                        {testResult.lb_response && <JsonViewer data={testResult.lb_response} title="LeadByte Response" />}
+                        {testResult.request_body && <JsonViewer data={testResult.request_body} title={`Request Sent to ${(() => { try { return new URL(editing.target_url).host; } catch { return 'Destination'; } })()}`} />}
+                        {testResult.lb_response && <JsonViewer data={testResult.lb_response} title="Response" />}
                         {testResult.error && <JsonViewer data={{ error: testResult.error }} title="Error" />}
                       </div>
                     </div>
