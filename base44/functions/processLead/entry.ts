@@ -477,6 +477,33 @@ async function sendHttpEvent(conn, leadData, leadId, eventName) {
   }
 }
 
+// Send to a delivery destination and capture the payload + full response body.
+// Used by the pre-classified (Disqualified / custom) bypass path, which must
+// await sends (so logs populate) and return the actual endpoint response.
+async function sendDestinationAwait(dest, leadData, leadId, trigger) {
+  const ctx = { ...leadData };
+  if (ctx.lead_id == null) ctx.lead_id = leadId;
+  const payload = await buildPayloadFromTemplate(dest.payload_template, ctx);
+  const headerRows = parseJsonArray(dest.headers);
+  const hdrs = {};
+  for (const r of headerRows) { if (r.key) hdrs[r.key] = r.value; }
+  const ct = dest.content_type || 'application/json';
+  hdrs['Content-Type'] = ct;
+  let bodyStr;
+  if (ct === 'application/x-www-form-urlencoded') {
+    bodyStr = new URLSearchParams(typeof payload === 'object' ? payload : {}).toString();
+  } else {
+    bodyStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  }
+  try {
+    const resp = await fetch(dest.target_url, { method: dest.http_method || 'POST', headers: hdrs, body: bodyStr });
+    const text = await resp.text();
+    return { connector: dest.api_name, trigger, http_status: resp.status, success: resp.ok, error: '', payload: bodyStr, response: text };
+  } catch (err) {
+    return { connector: dest.api_name, trigger, http_status: null, success: false, error: err.message, payload: bodyStr, response: '' };
+  }
+}
+
 // Built-in lead statuses that fire via lifecycle triggers. Any other lead_status
 // value (e.g. "24m Lead") fires via the custom-status trigger point after enrichment.
 const BUILTIN_LEAD_STATUSES = ['Qualified', 'Disqualified', 'Sold', 'Unsold', 'Rejected', 'Duplicates', 'Queued'];
@@ -1090,17 +1117,96 @@ Deno.serve(async (req) => {
     // that didn't sell). Disqualified leads and custom (non-builtin) lead
     // statuses (e.g. "24m Lead") are pre-classified — they skip HLR/phone
     // verification, email validation, TrustedForm, the payload delay, and
-    // LeadByte. They fire their matching trigger (on_dq / on_<custom>) and
-    // return a simple acknowledgment (Sent). The inbound lead_status is
-    // preserved as-is.
+    // LeadByte. They fire their matching trigger (on_dq / on_<custom>),
+    // AWAIT every send so CAPI + delivery logs populate, and return the
+    // actual response from the destination endpoint. The inbound
+    // lead_status is preserved as-is.
     const inboundLeadStatus = String(leadPayload.lead_status || '').trim();
     const isBuiltinStatus = BUILTIN_LEAD_STATUSES.includes(inboundLeadStatus);
     if (inboundLeadStatus && inboundLeadStatus !== 'Qualified' && (inboundLeadStatus === 'Disqualified' || !isBuiltinStatus)) {
       const bypassTrigger = triggerKeyForStatus(inboundLeadStatus);
-      fireConnectors(db, apiConnectors, bypassTrigger, leadPayload, leadId, supplierAttribution, supplierRecord);
-      if (!routeIs.event) fireDeliveries(db, allDestinations, bypassTrigger, leadPayload, leadId, supplierAttribution, supplierRecord);
+
+      // CAPI / webhook connectors — awaited so logs populate before return.
+      for (const conn of apiConnectors) {
+        if (!conn.enabled) continue;
+        const trig = parseJsonArray(conn.triggers);
+        if (trig.length > 0 && !trig.includes(bypassTrigger)) continue;
+        if (trig.length === 0 && bypassTrigger !== 'on_received') continue;
+        if (!connectorMatchesFilters(conn, leadPayload, supplierAttribution, supplierRecord)) continue;
+        if (!connectorMatchesConditions(conn, leadPayload)) continue;
+        const eventName = getTriggerEventName(conn, bypassTrigger);
+        if (!eventName && (bypassTrigger === 'on_sold' || bypassTrigger === 'on_dq')) continue;
+        if (conn.kind === 'facebook_capi') {
+          try {
+            const result = await sendCapiEvent(conn, leadPayload, leadId, eventName, bypassTrigger);
+            await appendCapiLog(db, leadId, result);
+            if (!result.success) {
+              await db.entities.ErrorLog.create({ lead_id: leadId, stage: 'leadbyte', severity: 'warning', message: `CAPI failure: ${conn.name} (${eventName})`, detail: JSON.stringify(result), supplier_name: supplierAttribution }).catch(() => {});
+              await evaluateNotifications(db, ['capi_failure', 'api_error'], { id: leadId }, supplierAttribution, { message: `CAPI failure: ${conn.name} (${eventName}) - ${result.error || result.http_status}` }).catch(() => {});
+            }
+          } catch (err) {
+            await appendCapiLog(db, leadId, { connector: conn.name, event_name: eventName, pixel: conn.fb_pixel_id, http_status: null, fbtrace_id: '', success: false, error: err.message, value: '', payload: null });
+            await db.entities.ErrorLog.create({ lead_id: leadId, stage: 'leadbyte', severity: 'warning', message: `CAPI error: ${conn.name} (${eventName})`, detail: JSON.stringify({ error: err.message }), supplier_name: supplierAttribution }).catch(() => {});
+          }
+        } else {
+          try {
+            const result = await sendHttpEvent(conn, leadPayload, leadId, eventName);
+            if (!result.success) {
+              await db.entities.ErrorLog.create({ lead_id: leadId, stage: 'leadbyte', severity: 'warning', message: `API error: ${conn.name}`, detail: JSON.stringify(result), supplier_name: supplierAttribution }).catch(() => {});
+              await evaluateNotifications(db, ['api_error'], { id: leadId }, supplierAttribution, { message: `API error: ${conn.name} - ${result.error || result.http_status}` }).catch(() => {});
+            }
+          } catch (err) {
+            await db.entities.ErrorLog.create({ lead_id: leadId, stage: 'leadbyte', severity: 'warning', message: `API error: ${conn.name}`, detail: JSON.stringify({ error: err.message }), supplier_name: supplierAttribution }).catch(() => {});
+          }
+        }
+      }
+
+      // Delivery destinations — awaited, capture payload + response body.
+      const deliveryResults = [];
+      if (!routeIs.event) {
+        for (const dest of allDestinations) {
+          if (!dest.enabled) continue;
+          if (dest.is_default) continue;
+          const trig = parseJsonArray(dest.triggers);
+          if (trig.length > 0 && !trig.includes(bypassTrigger)) continue;
+          if (trig.length === 0 && bypassTrigger !== 'on_received') continue;
+          if (!connectorMatchesFilters(dest, leadPayload, supplierAttribution, supplierRecord)) continue;
+          if (!connectorMatchesConditions(dest, leadPayload)) continue;
+          try {
+            const result = await sendDestinationAwait(dest, leadPayload, leadId, bypassTrigger);
+            await appendDeliveryLog(db, leadId, {
+              connector: dest.api_name, trigger: bypassTrigger,
+              http_status: result.http_status, success: !!result.success,
+              error: result.error || '', payload: result.payload, response: result.response,
+              timestamp: new Date().toISOString(),
+            });
+            deliveryResults.push(result);
+            if (!result.success) {
+              await db.entities.ErrorLog.create({ lead_id: leadId, stage: 'leadbyte', severity: 'warning', message: `Delivery failure: ${dest.api_name}`, detail: JSON.stringify(result), supplier_name: supplierAttribution }).catch(() => {});
+              await evaluateNotifications(db, ['api_error'], { id: leadId }, supplierAttribution, { message: `Delivery failure: ${dest.api_name} - ${result.error || result.http_status}` }).catch(() => {});
+            }
+          } catch (err) {
+            await appendDeliveryLog(db, leadId, { connector: dest.api_name, trigger: bypassTrigger, http_status: null, success: false, error: err.message, payload: '', response: '', timestamp: new Date().toISOString() });
+            await db.entities.ErrorLog.create({ lead_id: leadId, stage: 'leadbyte', severity: 'warning', message: `Delivery error: ${dest.api_name}`, detail: JSON.stringify({ error: err.message }), supplier_name: supplierAttribution }).catch(() => {});
+          }
+        }
+      }
+
+      // Build the supplier response from the actual destination response.
+      let bypassResponse;
+      if (deliveryResults.length > 0) {
+        const primary = deliveryResults[0];
+        const respBody = (primary.response || '').trim();
+        let responseLabel = primary.success ? 'Sent' : 'Error';
+        if (respBody) {
+          try { const j = JSON.parse(respBody); responseLabel = j.Response || j.response || j.status || j.message || respBody; }
+          catch { responseLabel = respBody; }
+        }
+        bypassResponse = { Response: responseLabel, reason: `${inboundLeadStatus} lead — delivered to ${primary.connector} (HTTP ${primary.http_status || 'n/a'})` };
+      } else {
+        bypassResponse = { Response: 'Sent', reason: `${inboundLeadStatus} lead — no matching delivery destination` };
+      }
       const finalForBypass = inboundLeadStatus === 'Disqualified' ? 'Disqualified' : 'Sold';
-      const bypassResponse = { Response: 'Sent', reason: `${inboundLeadStatus} lead — bypassed LeadByte, routed to ${bypassTrigger} destinations` };
       await db.entities.Lead.update(leadId, {
         final_status: finalForBypass,
         processed_at: new Date().toISOString(),
