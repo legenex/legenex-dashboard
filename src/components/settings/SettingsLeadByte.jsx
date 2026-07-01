@@ -579,11 +579,20 @@ export default function SettingsLeadByte() {
                     />
                     <div className="flex items-center gap-2 mt-2">
                       <Button size="sm" variant="outline" onClick={() => {
+                        const last = editing.test_payload_last_used;
+                        if (last) {
+                          setTestPayloadStr(last);
+                        } else {
+                          setTestPayloadStr(buildTestPayloadFromTemplate(editing.payload_template));
+                        }
+                      }}>
+                        Reset to Last Sent
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
                         const defaultStr = buildTestPayloadFromTemplate(editing.payload_template);
                         setTestPayloadStr(defaultStr);
-                        saveTestPayload(defaultStr);
                       }}>
-                        Reset from Payload
+                        Reset from Template
                       </Button>
                     </div>
                   </div>
