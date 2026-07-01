@@ -599,15 +599,20 @@ export default function SettingsLeadByte() {
                          setSavingTestPayload(false);
                        }} className="gap-1.5">
                          {savingTestPayload ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                         Save
+                         Save Test Payload
                        </Button>
                      </div>
                   </div>
 
-                  <Button onClick={sendTestLead} disabled={sendingTest || !editing.id} className="gap-1.5">
-                    {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                    Send Test Lead
-                  </Button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button onClick={sendTestLead} disabled={sendingTest || !editing.id} className="gap-1.5">
+                      {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                      Send Test Lead
+                    </Button>
+                    <Button onClick={saveConnector} variant="destructive" className="gap-1.5">
+                      <Save className="w-4 h-4" /> Save
+                    </Button>
+                  </div>
                   {!editing.id && <p className="text-[11px] text-muted-foreground">Save the connector first to enable testing.</p>}
 
                   {testResult && (
