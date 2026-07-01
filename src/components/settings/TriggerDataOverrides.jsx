@@ -21,7 +21,6 @@ const STANDARD_FIELDS = [
   { key: 'event_category', label: 'Event Category', placeholder: 'Lead' },
   { key: 'lead_event_type', label: 'Lead Event Type', placeholder: 'Lead' },
   { key: 'value', label: 'Value', placeholder: '' },
-  { key: 'currency', label: 'Currency', placeholder: 'USD' },
 ];
 
 // Hint shown in the Value field placeholder per trigger (only when empty).

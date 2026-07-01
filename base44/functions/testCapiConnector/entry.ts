@@ -60,6 +60,7 @@ const DEFAULT_TEST_LEAD_DATA = {
   country: 'USA',
   lead_id: 999,
   conv_value: 0,
+  revenue: 25,
   event_id: 'test-event-001',
 };
 
@@ -218,7 +219,7 @@ Deno.serve(async (req) => {
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { connector_id, test_payload, event_name } = body;
+  const { connector_id, test_payload, event_name, trigger } = body;
 
   if (!connector_id) {
     return Response.json({ error: 'connector_id is required' }, { status: 400 });
@@ -230,7 +231,17 @@ Deno.serve(async (req) => {
   if (!conn) return Response.json({ error: 'Connector not found' }, { status: 404 });
   if (conn.kind !== 'facebook_capi') return Response.json({ error: 'Connector is not a Facebook CAPI type' }, { status: 400 });
 
-  const eventName = event_name || conn.received_event_name || conn.lead_event_name || 'Lead';
+  // Derive the event name from the selected trigger when not explicitly provided.
+  const triggerEventMap = {
+    on_received: conn.received_event_name || conn.lead_event_name || 'Lead',
+    on_sold: conn.sold_event_name || 'Qualified_Lead',
+    on_unsold: conn.unsold_event_name || 'Lead',
+    on_queued: conn.queued_event_name || 'Lead',
+    on_dq: conn.dq_event_name || 'DQLead',
+    on_rejected: conn.rejected_event_name || 'Lead',
+    on_duplicates: conn.duplicates_event_name || 'Lead',
+  };
+  const eventName = event_name || (trigger && triggerEventMap[trigger]) || conn.received_event_name || conn.lead_event_name || 'Lead';
   const apiVer = conn.fb_api_version || 'v21.0';
   const pixel = conn.fb_pixel_id;
   const token = conn.fb_access_token;
@@ -268,11 +279,11 @@ Deno.serve(async (req) => {
     requestBody.data[0].event_name = eventName;
   }
 
-  // Apply on_received custom_data overrides so the test reflects per-trigger config.
+  // Apply the selected trigger's custom_data overrides so the test reflects per-trigger config.
   if (conn.trigger_data_overrides && requestBody.data && requestBody.data[0]) {
     try {
       const overrides = JSON.parse(conn.trigger_data_overrides);
-      const ov = overrides.on_received;
+      const ov = overrides[trigger || 'on_received'] || overrides.on_received;
       if (ov && typeof ov === 'object') {
         if (!requestBody.data[0].custom_data) requestBody.data[0].custom_data = {};
         const testCtx = { ...DEFAULT_TEST_LEAD_DATA, lead_event: eventName };

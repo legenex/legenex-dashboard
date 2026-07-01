@@ -185,6 +185,7 @@ export default function SettingsApiConnectors() {
   const [testPayloadStr, setTestPayloadStr] = useState(JSON.stringify(DEFAULT_TEST_PAYLOAD, null, 2));
   const [activePlatform, setActivePlatform] = useState('facebook');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [testTrigger, setTestTrigger] = useState('on_received');
 
   const { data: connectors = [] } = useQuery({
     queryKey: ['api-connectors'],
@@ -299,7 +300,7 @@ export default function SettingsApiConnectors() {
     // Pass the raw template string — the backend resolves tokens then parses JSON.
     // Pre-parsing here fails on unquoted tokens like "value": {{conv_value}}.
     try {
-      const resp = await testCapiConnector({ connector_id: editing.id, test_payload: testPayloadStr });
+      const resp = await testCapiConnector({ connector_id: editing.id, test_payload: testPayloadStr, trigger: testTrigger });
       setTestResult(resp.data);
       if (resp.data?.error) toast.error(resp.data.error);
       else toast.success('Test event sent');
@@ -419,7 +420,7 @@ export default function SettingsApiConnectors() {
           <Card className="bg-card border-border">
             <CardContent className="p-4 space-y-3">
               <div className="text-[13px] font-semibold text-foreground">Per-Trigger Custom Data</div>
-              <p className="text-[11px] text-muted-foreground">Set the custom_data values sent with each trigger's event (Disqualified, Qualified, Sold…). Each box overrides the template's default for that trigger only — leave a field blank to use the template value. Values support {'{{tokens}}'} like {'{{conv_value}}'} or {'{{revenue}}'}.</p>
+              <p className="text-[11px] text-muted-foreground">These values <span className="text-foreground font-medium">override the template's custom_data</span> when that trigger fires — so each trigger (Disqualified, Qualified, Sold…) can send different values. Leave a field blank to fall back to the template. Use the test below (pick a trigger) to preview the resolved payload. Values support {'{{tokens}}'} like {'{{conv_value}}'} or {'{{revenue}}'}.</p>
               <TriggerDataOverrides
                 value={editing.trigger_data_overrides || '{}'}
                 onChange={v => setF('trigger_data_overrides', v)}
@@ -471,10 +472,18 @@ export default function SettingsApiConnectors() {
                     </CardContent>
                   </Card>
                 </div>
-                <Button onClick={sendTestEvent} disabled={sendingTest || !editing.id} className="gap-1.5">
-                  {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                  Send Test Event {editing.fb_test_event_code ? '(uses test code)' : ''}
-                </Button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <SearchableSelect
+                    value={testTrigger}
+                    onValueChange={setTestTrigger}
+                    className="w-[180px] bg-background"
+                    options={triggerOptions.filter(t => parseJsonArray(editing.triggers).includes(t.value))}
+                  />
+                  <Button onClick={sendTestEvent} disabled={sendingTest || !editing.id} className="gap-1.5">
+                    {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    Send Test Event {editing.fb_test_event_code ? '(uses test code)' : ''}
+                  </Button>
+                </div>
                 {!editing.id && <p className="text-[11px] text-muted-foreground ml-2 inline">Save the connector first to enable testing.</p>}
                 {testResult && (
                   <div className="space-y-2">
