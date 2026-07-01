@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { base44 } from '@/api/base44Client';
 import PageHeader from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Plus, Pencil, Trash2, Calculator } from 'lucide-react';
+import { Plus, Pencil, Trash2, Calculator, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { OutputFieldPicker } from '@/components/calculations/OutputFieldPicker';
 import ReferenceKeyPanel from '@/components/calculations/ReferenceKeyPanel';
@@ -126,7 +127,6 @@ export default function CustomCalculations() {
             auto_created: true,
           });
         } else if (existing.field_type !== 'Calculated') {
-          // Ensure existing field is typed as Calculated when reused as a calculation output
           await base44.entities.CustomField.update(existing.id, { field_type: 'Calculated' });
         }
       } catch (e) { /* field may already exist (e.g. created inline) — ignore */ }
@@ -149,6 +149,25 @@ export default function CustomCalculations() {
     mutationFn: ({ id, enabled }) => base44.entities.CustomCalculation.update(id, { enabled }),
     onSuccess: () => qc.invalidateQueries(['custom-calculations']),
   });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (orderedIds) => {
+      const updates = orderedIds.map((id, idx) => ({ id, sort_order: idx }));
+      return base44.entities.CustomCalculation.bulkUpdate(updates);
+    },
+    onError: () => qc.invalidateQueries({ queryKey: ['custom-calculations'] }),
+  });
+
+  function onDragEnd(result) {
+    if (!result.destination || result.destination.index === result.source.index) return;
+    const from = result.source.index;
+    const to = result.destination.index;
+    const ordered = [...calcs];
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    qc.setQueryData(['custom-calculations'], ordered);
+    reorderMutation.mutate(ordered.map(c => c.id));
+  }
 
   function openNew() {
     setEditId(null);
@@ -195,7 +214,7 @@ export default function CustomCalculations() {
 
   return (
     <div className="p-6">
-      <PageHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data">
+      <PageHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data. Drag to reorder.">
         <Button onClick={openNew} size="sm" className="gap-2">
           <Plus className="w-4 h-4" /> New Calculated Field
         </Button>
@@ -209,27 +228,46 @@ export default function CustomCalculations() {
           <p className="text-sm">No calculations yet. Create one to transform inbound fields.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {calcs.map(rec => (
-            <div key={rec.id} className="flex items-center justify-between px-4 py-3 rounded-lg bg-card border border-border">
-              <div className="flex items-center gap-4">
-                <Switch
-                  checked={rec.enabled !== false}
-                  onCheckedChange={(v) => toggleMutation.mutate({ id: rec.id, enabled: v })}
-                />
-                <div>
-                  <div className="text-sm font-medium text-foreground font-mono">{`{{${rec.output_token}}}`}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{rec.output_label || rec.output_token} ← <span className="font-mono">{rec.input_field}</span></div>
-                </div>
-                <Badge variant="outline" className="text-xs">{typeLabels[rec.transform_type] || rec.transform_type}</Badge>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="calcs">
+            {(provided) => (
+              <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                {calcs.map((rec, index) => (
+                  <Draggable key={rec.id} draggableId={rec.id} index={index}>
+                    {(prov) => (
+                      <div
+                        ref={prov.innerRef}
+                        {...prov.draggableProps}
+                        className="flex items-center justify-between px-4 py-3 rounded-lg bg-card border border-border"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div {...prov.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0">
+                            <GripVertical className="w-4 h-4" />
+                          </div>
+                          <Switch
+                            checked={rec.enabled !== false}
+                            onCheckedChange={(v) => toggleMutation.mutate({ id: rec.id, enabled: v })}
+                          />
+                          <div className="text-sm font-medium text-foreground font-mono truncate">
+                            <span className="text-muted-foreground">{rec.input_field}</span>
+                            <span className="mx-1.5 text-muted-foreground/50">→</span>
+                            {`{{${rec.output_token}}}`}
+                          </div>
+                          <Badge variant="outline" className="text-xs shrink-0">{typeLabels[rec.transform_type] || rec.transform_type}</Badge>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(rec)}><Pencil className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(rec.id)}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="icon" variant="ghost" onClick={() => openEdit(rec)}><Pencil className="w-4 h-4" /></Button>
-                <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(rec.id)}><Trash2 className="w-4 h-4" /></Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
         </div>
         <div className="lg:col-span-1">
