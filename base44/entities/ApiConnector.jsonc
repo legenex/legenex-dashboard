@@ -143,6 +143,10 @@
       "type": "string",
       "description": "JSON template string with {{token}} placeholders"
     },
+    "trigger_data_overrides": {
+      "type": "string",
+      "description": "JSON map of trigger_key -> { custom_data field: value } overrides applied on top of the template's custom_data for that trigger. Values support {{token}} placeholders. e.g. {\"on_dq\":{\"qualification_status\":\"Disqualified Lead\"}}"
+    },
     "triggers": {
       "type": "string",
       "description": "JSON array of trigger keys derived from the lead_status system field (on_received=Qualified, on_sold, on_unsold, on_dq=Disqualified, on_queued, on_rejected, on_duplicates, plus any custom lead_status values such as on_24m_lead). Empty array = fire on every lead (intake), gated only by filters."

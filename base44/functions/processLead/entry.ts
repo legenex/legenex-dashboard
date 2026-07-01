@@ -351,7 +351,7 @@ async function applyAutoHash(body, templateStr) {
 }
 
 // Send a single Facebook CAPI event using the connector's payload template.
-async function sendCapiEvent(conn, leadData, leadId, eventName) {
+async function sendCapiEvent(conn, leadData, leadId, eventName, trigger) {
   const apiVer = conn.fb_api_version || 'v21.0';
   const pixel = conn.fb_pixel_id;
   const token = conn.fb_access_token;
@@ -361,9 +361,9 @@ async function sendCapiEvent(conn, leadData, leadId, eventName) {
     ? conn.payload_template
     : DEFAULT_CAPI_TEMPLATE;
 
+  const ctx = { ...leadData, lead_event: eventName };
   let body;
   try {
-    const ctx = { ...leadData, lead_event: eventName };
     const resolved = await resolveTemplate(templateStr, ctx, leadId);
     body = JSON.parse(resolved);
   } catch (err) {
@@ -381,6 +381,25 @@ async function sendCapiEvent(conn, leadData, leadId, eventName) {
   if (body.data && body.data[0]) {
     body.data[0].event_name = eventName;
   }
+
+  // Apply per-trigger custom_data overrides (merge into data[0].custom_data).
+  if (trigger && conn.trigger_data_overrides && body.data && body.data[0]) {
+    try {
+      const overrides = JSON.parse(conn.trigger_data_overrides);
+      const ov = overrides[trigger];
+      if (ov && typeof ov === 'object') {
+        if (!body.data[0].custom_data) body.data[0].custom_data = {};
+        for (const k of Object.keys(ov)) {
+          if (!ov[k]) continue;
+          const resolved = await resolveTemplate(String(ov[k]), ctx, leadId);
+          const trimmed = resolved.trim();
+          try { body.data[0].custom_data[k] = JSON.parse(trimmed); }
+          catch { body.data[0].custom_data[k] = resolved; }
+        }
+      }
+    } catch {}
+  }
+
   if (conn.fb_test_event_code) body.test_event_code = conn.fb_test_event_code;
 
   try {
@@ -552,7 +571,7 @@ function fireConnectors(db, connectors, trigger, leadData, leadId, supplierAttri
     if (!eventName && (trigger === 'on_sold' || trigger === 'on_dq')) continue;
 
     if (conn.kind === 'facebook_capi') {
-      sendCapiEvent(conn, leadData, leadId, eventName)
+      sendCapiEvent(conn, leadData, leadId, eventName, trigger)
         .then(async (result) => {
           await appendCapiLog(db, leadId, result);
           if (!result.success) {

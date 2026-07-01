@@ -267,6 +267,26 @@ Deno.serve(async (req) => {
   if (requestBody.data && requestBody.data[0]) {
     requestBody.data[0].event_name = eventName;
   }
+
+  // Apply on_received custom_data overrides so the test reflects per-trigger config.
+  if (conn.trigger_data_overrides && requestBody.data && requestBody.data[0]) {
+    try {
+      const overrides = JSON.parse(conn.trigger_data_overrides);
+      const ov = overrides.on_received;
+      if (ov && typeof ov === 'object') {
+        if (!requestBody.data[0].custom_data) requestBody.data[0].custom_data = {};
+        const testCtx = { ...DEFAULT_TEST_LEAD_DATA, lead_event: eventName };
+        for (const k of Object.keys(ov)) {
+          if (!ov[k]) continue;
+          const resolved = await resolveTemplate(String(ov[k]), testCtx, 'test-lead-id');
+          const trimmed = resolved.trim();
+          try { requestBody.data[0].custom_data[k] = JSON.parse(trimmed); }
+          catch { requestBody.data[0].custom_data[k] = resolved; }
+        }
+      }
+    } catch {}
+  }
+
   if (conn.fb_test_event_code) requestBody.test_event_code = conn.fb_test_event_code;
 
   try {

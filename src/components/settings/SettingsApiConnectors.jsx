@@ -14,6 +14,7 @@ import JsonViewer from '@/components/shared/JsonViewer';
 import { testCapiConnector } from '@/functions/testCapiConnector';
 import EventLogsTab from '@/components/settings/EventLogsTab';
 import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
+import TriggerDataOverrides from '@/components/settings/TriggerDataOverrides';
 import ConnectorConditionsEditor from '@/components/settings/ConnectorConditionsEditor';
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
@@ -412,6 +413,21 @@ export default function SettingsApiConnectors() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Per-Trigger Custom Data */}
+        {isCapi && (
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 space-y-3">
+              <div className="text-[13px] font-semibold text-foreground">Per-Trigger Custom Data</div>
+              <p className="text-[11px] text-muted-foreground">Override custom_data fields per trigger type so each event (Disqualified, Qualified, Sold…) can carry different values. Values support {'{{tokens}}'} (e.g. {'{{conv_value}}'}). Empty triggers use the template's custom_data as-is.</p>
+              <TriggerDataOverrides
+                value={editing.trigger_data_overrides || '{}'}
+                onChange={v => setF('trigger_data_overrides', v)}
+                selectedTriggers={triggerOptions.filter(t => parseJsonArray(editing.triggers).includes(t.value))}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Facebook CAPI fields */}
         {isCapi && (
