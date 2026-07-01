@@ -588,12 +588,7 @@ export default function SettingsLeadByte() {
                       }}>
                         Reset to Last Sent
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => {
-                        const defaultStr = buildTestPayloadFromTemplate(editing.payload_template);
-                        setTestPayloadStr(defaultStr);
-                      }}>
-                        Reset from Template
-                      </Button>
+
                     </div>
                   </div>
 
