@@ -248,12 +248,15 @@ export default function CustomCalculations() {
                             checked={rec.enabled !== false}
                             onCheckedChange={(v) => toggleMutation.mutate({ id: rec.id, enabled: v })}
                           />
-                          <div className="text-sm font-medium text-foreground font-mono truncate">
-                            <span className="text-muted-foreground">{rec.input_field}</span>
-                            <span className="mx-1.5 text-muted-foreground/50">→</span>
-                            {`{{${rec.output_token}}}`}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium text-foreground font-mono truncate">{`{{${rec.output_token}}}`}</div>
+                              <Badge variant="outline" className="text-xs shrink-0">{typeLabels[rec.transform_type] || rec.transform_type}</Badge>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5 font-mono truncate">
+                              {rec.input_field}<span className="mx-1.5">→</span>{rec.output_token}
+                            </div>
                           </div>
-                          <Badge variant="outline" className="text-xs shrink-0">{typeLabels[rec.transform_type] || rec.transform_type}</Badge>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Button size="icon" variant="ghost" onClick={() => openEdit(rec)}><Pencil className="w-4 h-4" /></Button>
