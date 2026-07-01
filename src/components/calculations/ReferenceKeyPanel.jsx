@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 function parseValues(v) {
@@ -75,9 +75,13 @@ export default function ReferenceKeyPanel() {
           >
             <div className="flex items-center gap-2 py-1.5 cursor-default flex-wrap">
               <span className="text-[12px] font-semibold text-foreground">{it.label}</span>
-              <code className="text-[10px] font-mono text-muted-foreground">{it.field_name}</code>
-              {it.note && <span className="text-[9px] text-muted-foreground">· {it.note}</span>}
-              <span className="text-[9px] text-muted-foreground/60 ml-auto group-hover:hidden">hover</span>
+              <code className="text-[12px] font-mono text-muted-foreground">{it.field_name}</code>
+              {it.note && (
+                <span className="text-[9px] font-medium text-blue-300 bg-blue-500/15 border border-blue-500/30 px-1.5 py-0.5 rounded-full">
+                  {it.note}
+                </span>
+              )}
+              <ChevronDown className="w-3 h-3 text-muted-foreground/60 ml-auto transition-transform group-hover:rotate-180" />
             </div>
             <div className="max-h-0 overflow-hidden group-hover:max-h-48 transition-all duration-150">
               <div className="flex flex-wrap gap-1 pb-2 pt-0.5">
