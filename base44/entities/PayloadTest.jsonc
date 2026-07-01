@@ -1,0 +1,26 @@
+{
+  "name": "PayloadTest",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Friendly name for this saved payload test"
+    },
+    "target_url": {
+      "type": "string",
+      "description": "Buyer endpoint URL to POST the generated payload to"
+    },
+    "payload_template": {
+      "type": "string",
+      "description": "JSON template with [token] placeholders (pasted from LeadByte)"
+    },
+    "test_values": {
+      "type": "string",
+      "description": "JSON object mapping token name -> sample value"
+    }
+  },
+  "required": [
+    "name",
+    "payload_template"
+  ]
+}

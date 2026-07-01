@@ -26,6 +26,7 @@ import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
 import CustomCalculations from '@/pages/CustomCalculations';
+import PayloadTester from '@/pages/PayloadTester';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/verification" element={<Verification />} />
           <Route path="/calculated-fields" element={<CustomCalculations />} />
+          <Route path="/payload-tester" element={<PayloadTester />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>

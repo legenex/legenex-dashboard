@@ -31,6 +31,7 @@ const navGroups = [
       { label: 'Notifications', path: '/notifications' },
       { label: 'Calculated Fields', path: '/calculated-fields' },
       { label: 'Verification', path: '/verification' },
+      { label: 'Payload Tester', path: '/payload-tester' },
     ],
   },
   {
