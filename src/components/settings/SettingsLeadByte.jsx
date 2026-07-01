@@ -186,6 +186,7 @@ const TRIGGER_COLORS = {
   on_queued: 'bg-purple-500/15 text-purple-300 border border-purple-500/30',
   on_rejected: 'bg-red-500/15 text-red-300 border border-red-500/30',
   on_duplicates: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30',
+  on_24m_lead: 'bg-teal-500/15 text-teal-300 border border-teal-500/30',
 };
 const META_TAG_COLORS = {
   default: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30',
@@ -298,7 +299,7 @@ export default function SettingsLeadByte() {
       content_type: 'application/json', headers: '[]',
       payload_template: buildDefaultActualPayload(customFields), enabled: true, is_default: false,
       forwarding_mode: 'template',
-      filter_brands: '[]', filter_verticals: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_conditions: '[]',
+      filter_brands: '[]', filter_verticals: '[]', filter_suppliers: '[]', filter_supplier_types: '[]', filter_routes: '[]', filter_conditions: '[]',
       kind: 'leadbyte', triggers: '["on_received"]',
     });
     setHeaderRows([{ key: 'X_KEY', value: '' }, { key: 'Content-Type', value: 'application/json' }]);

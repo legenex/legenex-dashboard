@@ -51,6 +51,10 @@
       "type": "string",
       "description": "JSON array of supplier types (Internal, External, Calls) to match. Empty array = match all"
     },
+    "filter_routes": {
+      "type": "string",
+      "description": "JSON array of lead_route keys (standard, direct, data, event, queue) to match. Empty array = match all processing routes"
+    },
     "filter_conditions": {
       "type": "string",
       "description": "JSON array of {field, operator, value} conditions evaluated against enriched lead data (including calculated fields). All must match for the connector to fire. Empty = no conditions. Operators: equals, not_equals, contains, not_contains, starts_with, ends_with, is_empty, is_not_empty"
@@ -141,7 +145,7 @@
     },
     "triggers": {
       "type": "string",
-      "description": "JSON array of trigger keys derived from the lead_status system field (on_received=Qualified, on_sold, on_unsold, on_dq=Disqualified, on_queued, on_rejected, on_duplicates, plus any custom lead_status values)"
+      "description": "JSON array of trigger keys derived from the lead_status system field (on_received=Qualified, on_sold, on_unsold, on_dq=Disqualified, on_queued, on_rejected, on_duplicates, plus any custom lead_status values such as on_24m_lead). Empty array = fire on every lead (intake), gated only by filters."
     }
   },
   "required": [

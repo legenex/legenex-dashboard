@@ -16,6 +16,13 @@ export const DEFAULT_LEAD_STATUSES = [
   'Queued',
 ];
 
+// Status triggers that always appear in the trigger picker, regardless of whether
+// the lead_status system field lists them yet.
+export const GUARANTEED_STATUSES = ['24m Lead'];
+
+// Display labels for custom (non-lifecycle) trigger keys, used in list badges.
+export const CUSTOM_TRIGGER_LABELS = { on_24m_lead: '24m Lead' };
+
 // Built-in label -> trigger key (preserves existing on_received / on_dq keys).
 export const STATUS_TO_TRIGGER = {
   Qualified: 'on_received',
@@ -45,6 +52,7 @@ export function triggerKeyFor(statusLabel) {
 }
 
 export function statusLabelFor(triggerKey) {
+  if (CUSTOM_TRIGGER_LABELS[triggerKey]) return CUSTOM_TRIGGER_LABELS[triggerKey];
   if (TRIGGER_TO_STATUS[triggerKey]) return TRIGGER_TO_STATUS[triggerKey];
   if (triggerKey && triggerKey.startsWith('on_')) {
     return triggerKey.slice(3).replace(/_/g, ' ');
@@ -84,6 +92,11 @@ export function buildTriggerOptions(customFields) {
     if (statuses.includes(s)) ordered.push(s);
   }
   for (const s of statuses) {
+    if (!ordered.includes(s)) ordered.push(s);
+  }
+  // Guarantee certain status triggers always appear, even before the lead_status
+  // field is configured with them (e.g. "24m Lead").
+  for (const s of GUARANTEED_STATUSES) {
     if (!ordered.includes(s)) ordered.push(s);
   }
   return ordered.map((s) => ({ value: triggerKeyFor(s), label: s }));

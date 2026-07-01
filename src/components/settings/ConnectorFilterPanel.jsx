@@ -11,6 +11,14 @@ function parseJsonArray(val) {
   try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
+const LEAD_ROUTE_OPTIONS = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'direct', label: 'Direct' },
+  { value: 'data', label: 'Data' },
+  { value: 'event', label: 'Event' },
+  { value: 'queue', label: 'Queue' },
+];
+
 export default function ConnectorFilterPanel({ editing, onFieldChange, brandOptions, supplierOptions, supplierTypeOptions, customFields }) {
   const { data: calcs = [] } = useQuery({
     queryKey: ['custom-calculations'],
@@ -79,6 +87,10 @@ export default function ConnectorFilterPanel({ editing, onFieldChange, brandOpti
           <div className="flex items-start gap-2">
             <span className="text-[11px] font-medium text-muted-foreground mt-1.5 whitespace-nowrap">Types</span>
             <div className="flex flex-wrap gap-1.5">{renderPills('filter_supplier_types', supplierTypeOptions)}</div>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground mt-1.5 whitespace-nowrap">Routes</span>
+            <div className="flex flex-wrap gap-1.5">{renderPills('filter_routes', LEAD_ROUTE_OPTIONS)}</div>
           </div>
         </div>
 

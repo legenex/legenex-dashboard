@@ -412,6 +412,16 @@ async function sendHttpEvent(conn, leadData, leadId, eventName) {
   }
 }
 
+// Built-in lead statuses that fire via lifecycle triggers. Any other lead_status
+// value (e.g. "24m Lead") fires via the custom-status trigger point after enrichment.
+const BUILTIN_LEAD_STATUSES = ['Qualified', 'Disqualified', 'Sold', 'Unsold', 'Rejected', 'Duplicates', 'Queued'];
+function triggerKeyForStatus(statusLabel) {
+  const map = { Qualified: 'on_received', Sold: 'on_sold', Unsold: 'on_unsold', Disqualified: 'on_dq', Queued: 'on_queued', Rejected: 'on_rejected', Duplicates: 'on_duplicates' };
+  if (map[statusLabel]) return map[statusLabel];
+  const slug = String(statusLabel || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return `on_${slug || 'status'}`;
+}
+
 // Check if a connector's filters match the current lead.
 function connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRecord) {
   const verticals = parseJsonArray(conn.filter_verticals);
@@ -434,6 +444,18 @@ function connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRe
   if (types.length > 0) {
     const st = supplierRecord?.supplier_type || '';
     if (!types.includes(st)) return false;
+  }
+  const routes = parseJsonArray(conn.filter_routes);
+  if (routes.length > 0) {
+    const lr = String(leadData.lead_route || 'standard').trim().toLowerCase();
+    const ri = {
+      direct: lr.includes('direct'),
+      data: lr.includes('data'),
+      event: lr.includes('event'),
+      queue: lr.includes('queue'),
+    };
+    ri.standard = !ri.direct && !ri.data && !ri.event && !ri.queue;
+    if (!routes.some(r => ri[r])) return false;
   }
   return true;
 }
@@ -501,7 +523,9 @@ function fireConnectors(db, connectors, trigger, leadData, leadId, supplierAttri
   for (const conn of connectors) {
     if (!conn.enabled) continue;
     const triggers = parseJsonArray(conn.triggers);
-    if (!triggers.includes(trigger)) continue;
+    // No triggers selected = fire on every lead (gated only by filters). Only fire once — at intake (on_received).
+    if (triggers.length > 0 && !triggers.includes(trigger)) continue;
+    if (triggers.length === 0 && trigger !== 'on_received') continue;
     if (!connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRecord)) continue;
     if (!connectorMatchesConditions(conn, leadData)) continue;
 
@@ -563,7 +587,9 @@ function fireDeliveries(db, destinations, trigger, leadData, leadId, supplierAtt
     if (!dest.enabled) continue;
     if (dest.is_default) continue;
     const triggers = parseJsonArray(dest.triggers);
-    if (!triggers.includes(trigger)) continue;
+    // No triggers selected = fire on every lead (gated only by filters). Only fire once — at intake (on_received).
+    if (triggers.length > 0 && !triggers.includes(trigger)) continue;
+    if (triggers.length === 0 && trigger !== 'on_received') continue;
     if (!connectorMatchesFilters(dest, leadData, supplierAttribution, supplierRecord)) continue;
     if (!connectorMatchesConditions(dest, leadData)) continue;
 
@@ -1120,6 +1146,17 @@ Deno.serve(async (req) => {
     }
 
     await db.entities.Lead.update(leadId, { trustedform_valid: tfValid });
+
+    // ── Fire custom lead_status triggers (e.g. "24m Lead") ─────────────
+    // Any lead_status value that isn't a built-in lifecycle status fires its own
+    // trigger here (after enrichment + gates), so destinations keyed to that status
+    // receive the lead. Empty-trigger destinations skip this (they fire at intake).
+    const leadStatusVal = enrichedData.lead_status || '';
+    if (leadStatusVal && !BUILTIN_LEAD_STATUSES.includes(leadStatusVal)) {
+      const customTrigger = triggerKeyForStatus(leadStatusVal);
+      fireConnectors(db, apiConnectors, customTrigger, enrichedData, leadId, supplierAttribution, supplierRecord);
+      if (!routeIs.event) fireDeliveries(db, allDestinations, customTrigger, enrichedData, leadId, supplierAttribution, supplierRecord);
+    }
 
     // ── e. ROUTE: direct / event bypass LeadByte ────────────────────────
     if (!routeIs.standard) {
