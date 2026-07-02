@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Plus, Save, Trash2, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { verticalColor } from '@/lib/tagColors';
 
 const DEFAULT_FORM = { name: '', code: '', description: '', active: true };
 
@@ -81,7 +82,7 @@ export default function SettingsVerticals() {
             {verticals.map(v => (
               <tr key={v.id} className="hover:bg-accent/40 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{v.name}</td>
-                <td className="px-4 py-3"><Badge variant="outline" className="text-[10px] font-mono">{v.code}</Badge></td>
+                <td className="px-4 py-3"><Badge className={`text-[10px] font-mono inline-flex items-center gap-1 ${verticalColor(v.code).badge}`}><span className={`w-1.5 h-1.5 rounded-full ${verticalColor(v.code).dot}`} />{v.code}</Badge></td>
                 <td className="px-4 py-3 text-muted-foreground text-[12px] truncate max-w-[260px]">{v.description || '—'}</td>
                 <td className="px-4 py-3">
                   <Badge variant="outline" className={`text-[9px] ${v.active ? 'status-sold bg-status-sold' : 'text-muted-foreground'}`}>

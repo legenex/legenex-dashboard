@@ -1,6 +1,8 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 function parseMap(v) {
   try {
@@ -9,8 +11,8 @@ function parseMap(v) {
   } catch { return {}; }
 }
 
-// Standard Facebook CAPI custom_data fields for lead events. Shown as compact
-// labeled text boxes per trigger — same style as the Event Names card.
+// Standard Facebook CAPI custom_data fields for lead events. Each trigger gets
+// its own collapsible dropdown so the values stay visible but the list stays compact.
 const STANDARD_FIELDS = [
   { key: 'content_name', label: 'Content Name', placeholder: 'Check A Case Lead' },
   { key: 'content_category', label: 'Content Category', placeholder: 'Lead Generation' },
@@ -26,7 +28,7 @@ const STANDARD_FIELDS = [
 // Hint shown in the Value field placeholder per trigger (only when empty).
 const VALUE_HINT = {
   on_received: '{{conv_value}}',
-  on_sold: '{{revenue}}',
+  on_sold: '{{conv_value}}',
   on_dq: '0.00',
 };
 
@@ -46,32 +48,35 @@ export default function TriggerDataOverrides({ value, onChange, selectedTriggers
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {selectedTriggers.map(({ value: trig, label }) => {
         const trigMap = map[trig] || {};
         const valueHint = VALUE_HINT[trig];
         return (
-          <div key={trig} className="border border-border rounded-lg p-3 bg-background/40">
-            <div className="flex items-center justify-between mb-2">
+          <Collapsible key={trig} defaultOpen className="border border-border rounded-lg bg-background/40">
+            <CollapsibleTrigger className="w-full flex items-center justify-between p-3 hover:bg-accent/40">
               <span className="text-[12px] font-semibold text-primary">{label}</span>
+              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="p-3 pt-0">
               {valueHint && (
-                <span className="text-[10px] text-muted-foreground">value hint: <code className="text-primary">{valueHint}</code></span>
+                <div className="text-[10px] text-muted-foreground mb-2">value hint: <code className="text-primary">{valueHint}</code></div>
               )}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
-              {STANDARD_FIELDS.map(f => (
-                <div key={f.key}>
-                  <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
-                  <Input
-                    value={trigMap[f.key] ?? ''}
-                    onChange={e => setField(trig, f.key, e.target.value)}
-                    placeholder={f.key === 'value' ? (valueHint || f.placeholder) : f.placeholder}
-                    className="bg-background font-mono text-[11px] h-8 mt-0.5"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
+                {STANDARD_FIELDS.map(f => (
+                  <div key={f.key}>
+                    <Label className="text-[10px] text-muted-foreground">{f.label}</Label>
+                    <Input
+                      value={trigMap[f.key] ?? ''}
+                      onChange={e => setField(trig, f.key, e.target.value)}
+                      placeholder={f.key === 'value' ? (valueHint || f.placeholder) : f.placeholder}
+                      className="bg-background font-mono text-[11px] h-8 mt-0.5"
+                    />
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         );
       })}
     </div>

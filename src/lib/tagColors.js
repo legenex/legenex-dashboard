@@ -46,8 +46,10 @@ const BRAND_PALETTE = [
 
 export function brandColor(code) {
   const s = String(code || '');
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  // djb2 hash — spreads short codes (DS, CMC, CAC…) across the palette so
+  // brand codes get visibly distinct colours instead of clustering.
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
   return BRAND_PALETTE[h % BRAND_PALETTE.length];
 }
 

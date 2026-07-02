@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { sortByOrder, nextSortOrder } from '@/lib/reorder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +22,7 @@ import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { verticalColor, triggerTagClass, TAG_NEUTRAL } from '@/lib/tagColors';
-import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy, GripVertical, ChevronDown } from 'lucide-react';
+import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 
 const KIND_OPTIONS = [
@@ -300,6 +299,7 @@ export default function SettingsApiConnectors() {
       ...rest,
       name: `${conn.name} (Copy)`,
       enabled: false,
+      sort_order: nextSortOrder(connectors),
     });
     toast.success('Connector duplicated (disabled)');
     qc.invalidateQueries({ queryKey: ['api-connectors'] });
@@ -415,25 +415,19 @@ export default function SettingsApiConnectors() {
           </CardContent>
         </Card>
 
-        {/* Event Custom Data — collapsible to save space */}
+        {/* Event Custom Data — each trigger is its own collapsible dropdown */}
         {isCapi && (
-          <Collapsible className="bg-card border border-border rounded-[10px]">
-            <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-accent/40">
-              <div className="text-left">
-                <div className="text-[13px] font-semibold text-foreground">Event Custom Data</div>
-                <div className="text-[11px] text-muted-foreground">Per-trigger custom_data values injected into the payload template.</div>
-              </div>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="px-4 pb-4 space-y-3">
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 space-y-3">
+              <div className="text-[13px] font-semibold text-foreground">Event Custom Data</div>
               <p className="text-[11px] text-muted-foreground">Each value here becomes a token in the template below — Content Name is <code className="text-primary">{'{{content_name}}'}</code>, Value is <code className="text-primary">{'{{value}}'}</code>, etc. The template pulls the matching value for whichever trigger fires, so each trigger can send different values. To use a static value instead, replace the token in the template with literal text. Values support {'{{conv_value}}'}, {'{{revenue}}'} and any lead field token.</p>
               <TriggerDataOverrides
                 value={editing.trigger_data_overrides || '{}'}
                 onChange={v => setF('trigger_data_overrides', v)}
                 selectedTriggers={triggerOptions.filter(t => parseJsonArray(editing.triggers).includes(t.value))}
               />
-            </CollapsibleContent>
-          </Collapsible>
+            </CardContent>
+          </Card>
         )}
 
         {/* Facebook CAPI fields */}
