@@ -38,13 +38,16 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
 
   const handleCreate = async () => {
     const name = newFieldName.trim().replace(/\s/g, '_');
-    if (!name) { toast.error('Field name required'); return; }
-    if (fields.some(f => f.field_name === name)) {
-      toast.error('A field with that name already exists');
+    if (!name) { toast.error('Field name required'); setCreating(false); return; }
+    const existing = fields.find(f => f.field_name === name);
+    if (existing) {
+      onValueChange({ field_name: existing.field_name, label: existing.label || existing.field_name });
+      toast.success('Field already exists — selected');
+      close();
       return;
     }
-    setCreating(true);
     try {
+      setCreating(true);
       const label = newFieldLabel.trim() || name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       const created = await base44.entities.CustomField.create({
         field_name: name,
@@ -61,9 +64,10 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
       toast.success('Calculated field created');
       close();
     } catch (e) {
-      toast.error('Failed to create field');
+      toast.error('Failed to create field: ' + (e?.message || 'Unknown error'));
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   };
 
   return (

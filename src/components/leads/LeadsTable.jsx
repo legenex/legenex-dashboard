@@ -84,6 +84,31 @@ function matchesSearch(lead, q) {
     || (lead.supplier_name || '').toLowerCase().includes(query);
 }
 
+// Permanent filter dropdown options shown above every leads table.
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All Status' },
+  { value: 'Sold', label: 'Sold' },
+  { value: 'Disqualified', label: 'Disqualified' },
+  { value: 'Unsold', label: 'Unsold' },
+  { value: 'Rejected', label: 'Rejected' },
+  { value: 'Returned', label: 'Returned' },
+  { value: 'Queued', label: 'Queued' },
+  { value: 'Error', label: 'Error' },
+  { value: 'Duplicate', label: 'Duplicate' },
+];
+
+function getSource(lead) {
+  let mf = {};
+  try { mf = JSON.parse(lead.mapped_fields || '{}'); } catch {}
+  for (const key of ['utm_source', 'source', 'lead_source', 'source_id', 'src']) {
+    const lk = key.toLowerCase();
+    for (const [k, v] of Object.entries(mf)) {
+      if (k.toLowerCase() === lk && v != null && v !== '') return String(v);
+    }
+  }
+  return null;
+}
+
 const VIEW_CONFIGS = {
   all: { title: 'All Leads', subtitle: 'All processed leads with full trace data' },
   sold: { title: 'Sold Leads', subtitle: 'Sold leads with revenue and buyer data' },
@@ -139,6 +164,9 @@ export default function LeadsTable({ view }) {
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitProgress, setResubmitProgress] = useState(null);
   const [columnConfig, setColumnConfig] = useState(() => loadColumnConfig(view));
+  const [statusFilter, setStatusFilter] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
 
   useEffect(() => {
     setSearch('');
@@ -148,6 +176,9 @@ export default function LeadsTable({ view }) {
     setSavedSets(loadSavedSets(view));
     setSelectedIds(new Set());
     setColumnConfig(loadColumnConfig(view));
+    setStatusFilter('');
+    setSupplierFilter('');
+    setSourceFilter('');
   }, [view]);
 
   // Persist column layout whenever it changes.
@@ -193,6 +224,18 @@ export default function LeadsTable({ view }) {
 
   const availableColumns = useMemo(() => buildAvailableColumns(customFields), [customFields]);
 
+  const supplierOptions = useMemo(() => {
+    const set = new Set();
+    leads.forEach(l => { if (l.supplier_name) set.add(l.supplier_name); });
+    return [{ value: '', label: 'All Suppliers' }, ...Array.from(set).sort().map(s => ({ value: s, label: s }))];
+  }, [leads]);
+
+  const sourceOptions = useMemo(() => {
+    const set = new Set();
+    leads.forEach(l => { const s = getSource(l); if (s) set.add(s); });
+    return [{ value: '', label: 'All Sources' }, ...Array.from(set).sort().map(s => ({ value: s, label: s }))];
+  }, [leads]);
+
   const columns = columnConfig.columns;
 
   // ── Column resize (drag the header right edge) ───────────────────────
@@ -231,9 +274,12 @@ export default function LeadsTable({ view }) {
       if (bounds.end && isAfter(new Date(lead.created_date), bounds.end)) return false;
       if (!customFilters.every(f => matchesFilter(lead, f))) return false;
       if (search && !matchesSearch(lead, search)) return false;
+      if (statusFilter && lead.final_status !== statusFilter) return false;
+      if (supplierFilter && lead.supplier_name !== supplierFilter) return false;
+      if (sourceFilter && getSource(lead) !== sourceFilter) return false;
       return true;
     });
-  }, [leads, view, dateRange, customDate, customFilters, search]);
+  }, [leads, view, dateRange, customDate, customFilters, search, statusFilter, supplierFilter, sourceFilter]);
 
   const exportCSV = () => {
     const cols = columns;
@@ -393,6 +439,15 @@ export default function LeadsTable({ view }) {
         onApplySet={applySavedSet}
         filterFields={filterFields}
         resultCount={filtered.length}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        statusOptions={STATUS_FILTER_OPTIONS}
+        supplierFilter={supplierFilter}
+        setSupplierFilter={setSupplierFilter}
+        supplierOptions={supplierOptions}
+        sourceFilter={sourceFilter}
+        setSourceFilter={setSourceFilter}
+        sourceOptions={sourceOptions}
       />
 
       <BulkActionBar

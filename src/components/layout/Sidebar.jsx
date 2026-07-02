@@ -114,19 +114,30 @@ export default function Sidebar() {
 
           const isOpen = openGroups.includes(group.label);
           const hasActiveChild = group.children.some(c => isChildActive(location, c));
+          const groupActive = group.path ? location.pathname === group.path : false;
+          const highlight = hasActiveChild || groupActive;
 
           return (
             <div key={group.label}>
-              <button
-                onClick={() => { toggleGroup(group.label); if (group.path) navigate(group.path); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
-                  ${hasActiveChild ? 'text-foreground' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
-              >
-                {hasActiveChild && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
-                <Icon className={`w-[18px] h-[18px] ${hasActiveChild ? 'text-primary' : ''}`} />
-                <span className="flex-1 text-left">{group.label}</span>
-                {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              </button>
+              <div className="flex items-center">
+                <button
+                  onClick={() => group.path ? navigate(group.path) : toggleGroup(group.label)}
+                  className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
+                    ${highlight ? 'text-foreground' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
+                >
+                  {highlight && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
+                  <Icon className={`w-[18px] h-[18px] ${highlight ? 'text-primary' : ''}`} />
+                  <span className="flex-1 text-left">{group.label}</span>
+                </button>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  aria-label={isOpen ? 'Collapse' : 'Expand'}
+                  className={`shrink-0 mr-1.5 p-1 rounded-md border transition-all duration-150
+                    ${isOpen ? 'bg-primary/15 text-primary border-primary/30' : 'bg-muted/60 border-sidebar-border text-sidebar-foreground hover:text-foreground hover:bg-accent'}`}
+                >
+                  {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                </button>
+              </div>
               {isOpen && (
                 <div className="ml-4 pl-3 border-l border-sidebar-border space-y-0.5 mt-0.5 mb-1">
                   {group.children.map(child => {

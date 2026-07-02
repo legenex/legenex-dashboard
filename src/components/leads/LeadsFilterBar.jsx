@@ -40,6 +40,9 @@ export default function LeadsFilterBar({
   savedSets, onSaveSet, onDeleteSet, onApplySet,
   filterFields,
   resultCount,
+  statusFilter, setStatusFilter, statusOptions,
+  supplierFilter, setSupplierFilter, supplierOptions,
+  sourceFilter, setSourceFilter, sourceOptions,
 }) {
   const [showFilters, setShowFilters] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -64,6 +67,9 @@ export default function LeadsFilterBar({
     setCustomDate({ start: '', end: '' });
     setCustomFilters([]);
     setActiveSetId('');
+    if (setStatusFilter) setStatusFilter('');
+    if (setSupplierFilter) setSupplierFilter('');
+    if (setSourceFilter) setSourceFilter('');
   };
 
   const handleApplySet = (id) => {
@@ -89,7 +95,7 @@ export default function LeadsFilterBar({
     if (activeSetId === id) setActiveSetId('');
   };
 
-  const hasActiveFilters = search || dateRange !== 'all' || customFilters.length > 0;
+  const hasActiveFilters = search || dateRange !== 'all' || customFilters.length > 0 || statusFilter || supplierFilter || sourceFilter;
 
   return (
     <div className="mb-4 space-y-3">
@@ -103,6 +109,25 @@ export default function LeadsFilterBar({
             className="pl-9 bg-card border-border"
           />
         </div>
+
+        <SearchableSelect
+          value={statusFilter || ''}
+          onValueChange={setStatusFilter}
+          className="w-[140px] bg-card border-border"
+          options={statusOptions}
+        />
+        <SearchableSelect
+          value={supplierFilter || ''}
+          onValueChange={setSupplierFilter}
+          className="w-[160px] bg-card border-border"
+          options={supplierOptions}
+        />
+        <SearchableSelect
+          value={sourceFilter || ''}
+          onValueChange={setSourceFilter}
+          className="w-[150px] bg-card border-border"
+          options={sourceOptions}
+        />
 
         <SearchableSelect
           value={dateRange}

@@ -3,8 +3,9 @@ import React from 'react';
 const statusStyles = {
   Sold: 'bg-status-sold status-sold',
   Unsold: 'bg-status-unsold status-unsold',
-  Disqualified: 'bg-status-unsold status-unsold',
+  Disqualified: 'bg-status-disqualified status-disqualified',
   Returned: 'bg-status-returned status-returned',
+  Rejected: 'bg-status-rejected status-rejected',
   Error: 'bg-status-error status-error',
   Processing: 'bg-status-processing status-processing',
   Queued: 'bg-status-queued status-queued',

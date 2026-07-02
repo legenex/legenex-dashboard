@@ -26,9 +26,14 @@ export const SYSTEM_COLUMNS = [
   { key: 'supplier', header: 'Supplier', accessor: (l) => l.supplier_name || '—' },
   { key: 'buyer', header: 'Buyer', accessor: (l) => getFromMapped(l, ['buyer', 'buyer_id', 'buyer_name']) || '' },
   { key: 'email', header: 'Email', accessor: (l) => l.email || '—' },
-  { key: 'verification', header: 'Verification', accessor: (l) => getFromMapped(l, ['phone_verified']) || '—', className: 'font-mono text-[11px]' },
+  { key: 'verification', header: 'Verification', accessor: (l) => {
+    const pv = getFromMapped(l, ['phone_verified']);
+    if (pv) return String(pv);
+    if (l.hlr_status) return String(l.hlr_status);
+    return 'None';
+  }, className: 'font-mono text-[11px]' },
   { key: 'mobile', header: 'Mobile', accessor: (l) => l.mobile || '—', className: 'font-mono text-[12px]' },
-  { key: 'source', header: 'Source', accessor: (l) => getFromMapped(l, ['source', 'lead_source', 'source_id', 'src']) || '—' },
+  { key: 'source', header: 'Source', accessor: (l) => getFromMapped(l, ['utm_source', 'source', 'lead_source', 'source_id', 'src']) || '—' },
   { key: 'processTime', header: 'Time', accessor: (l) => l.process_time_ms ? `${l.process_time_ms}ms` : '—', className: 'font-mono text-[11px] text-muted-foreground' },
   { key: 'leadId', header: 'Lead ID', accessor: (l) => l.lead_id != null ? String(l.lead_id) : '—', className: 'font-mono text-[11px]' },
   { key: 'hlrStatus', header: 'HLR Status', accessor: (l) => l.hlr_status || '—' },
@@ -38,7 +43,7 @@ export const SYSTEM_COLUMNS = [
 
 // Default column order applied to every view until the user customises it.
 export const DEFAULT_COLUMN_KEYS = [
-  'created', 'fullName', 'vertical', 'finalStatus', 'revenue',
+  'created', 'fullName', 'vertical', 'source', 'finalStatus', 'revenue',
   'state', 'supplier', 'buyer', 'email', 'verification',
 ];
 
