@@ -1206,7 +1206,7 @@ Deno.serve(async (req) => {
       } else {
         bypassResponse = { Response: 'Sent', reason: `${inboundLeadStatus} lead — no matching delivery destination` };
       }
-      const finalForBypass = inboundLeadStatus === 'Disqualified' ? 'Disqualified' : 'Sold';
+      const finalForBypass = inboundLeadStatus === 'Disqualified' ? 'Disqualified' : (inboundLeadStatus === 'Returned' ? 'Returned' : 'Sold');
       await db.entities.Lead.update(leadId, {
         final_status: finalForBypass,
         processed_at: new Date().toISOString(),

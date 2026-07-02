@@ -9,6 +9,7 @@
 export const DEFAULT_LEAD_STATUSES = [
   'Qualified',
   'Disqualified',
+  'Returned',
   'Sold',
   'Unsold',
   'Rejected',
@@ -29,6 +30,7 @@ export const STATUS_TO_TRIGGER = {
   Sold: 'on_sold',
   Unsold: 'on_unsold',
   Disqualified: 'on_dq',
+  Returned: 'on_returned',
   Queued: 'on_queued',
   Rejected: 'on_rejected',
   Duplicates: 'on_duplicates',

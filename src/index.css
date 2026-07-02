@@ -105,6 +105,8 @@
 .bg-status-queued { background-color: rgba(168, 85, 247, 0.15); }
 .status-duplicate { color: #06B6D4; }
 .bg-status-duplicate { background-color: rgba(6, 182, 212, 0.15); }
+.status-returned { color: #FFB082; }
+.bg-status-returned { background-color: rgba(255, 176, 130, 0.18); }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

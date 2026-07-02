@@ -103,6 +103,7 @@
         "Unsold",
         "Queued",
         "Disqualified",
+        "Returned",
         "Duplicate",
         "Error"
       ],
