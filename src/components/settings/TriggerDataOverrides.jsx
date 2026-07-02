@@ -53,7 +53,7 @@ export default function TriggerDataOverrides({ value, onChange, selectedTriggers
         const trigMap = map[trig] || {};
         const valueHint = VALUE_HINT[trig];
         return (
-          <Collapsible key={trig} defaultOpen className="border border-border rounded-lg bg-background/40">
+          <Collapsible key={trig} className="border border-border rounded-lg bg-background/40">
             <CollapsibleTrigger className="w-full flex items-center justify-between p-3 hover:bg-accent/40">
               <span className="text-[12px] font-semibold text-primary">{label}</span>
               <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
