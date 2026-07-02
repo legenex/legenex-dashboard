@@ -19,6 +19,7 @@ import ConnectorConditionsEditor from '@/components/settings/ConnectorConditions
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
+import { verticalColor, triggerTagClass, TAG_NEUTRAL } from '@/lib/tagColors';
 import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -621,23 +622,28 @@ export default function SettingsApiConnectors() {
                       {isCapi ? <Zap className="w-3.5 h-3.5 text-primary" /> : <Globe className="w-3.5 h-3.5 text-muted-foreground" />}
                       <Badge variant="outline" className="text-[10px]">{KIND_OPTIONS.find(k => k.value === conn.kind)?.label || conn.kind}</Badge>
                       {verticals.length > 0 ? (
-                        <Badge className="bg-primary/15 text-primary text-[10px] border border-primary/40 font-semibold inline-flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                          {verticals.map(code => verticalList.find(v => v.code === code)?.name || code).join(', ')}
-                        </Badge>
+                        (() => {
+                          const vc = verticalColor(verticals[0]);
+                          return (
+                            <Badge className={`text-[10px] font-semibold inline-flex items-center gap-1 ${vc.badge}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${vc.dot}`} />
+                              {verticals.map(code => verticalList.find(v => v.code === code)?.name || code).join(', ')}
+                            </Badge>
+                          );
+                        })()
                       ) : (
                         <Badge variant="outline" className="text-[10px] text-muted-foreground">All Verticals</Badge>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {triggers.map(t => <Badge key={t} className="bg-primary/10 text-primary text-[9px]">{statusLabelFor(t)}</Badge>)}
-                      {brands.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Brands: {brands.join(', ')}</Badge>}
-                      {suppliersFiltered.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Suppliers: {suppliersFiltered.length}</Badge>}
-                      {types.length > 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">Types: {types.join(', ')}</Badge>}
+                      {triggers.map(t => <Badge key={t} className={`text-[9px] ${triggerTagClass(t)}`}>{statusLabelFor(t)}</Badge>)}
+                      {brands.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Brands: {brands.join(', ')}</Badge>}
+                      {suppliersFiltered.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Suppliers: {suppliersFiltered.length}</Badge>}
+                      {types.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Types: {types.join(', ')}</Badge>}
                       {parseJsonArray(conn.filter_conditions).map((c, i) => (
-                        <Badge key={i} variant="outline" className="text-[9px] text-primary/70">{c.field} {c.operator} {c.value || ''}</Badge>
+                        <Badge key={i} className={`text-[9px] ${TAG_NEUTRAL}`}>{c.field} {c.operator} {c.value || ''}</Badge>
                       ))}
-                      {brands.length === 0 && suppliersFiltered.length === 0 && types.length === 0 && parseJsonArray(conn.filter_conditions).length === 0 && <Badge variant="outline" className="text-[9px] text-muted-foreground">All leads</Badge>}
+                      {brands.length === 0 && suppliersFiltered.length === 0 && types.length === 0 && parseJsonArray(conn.filter_conditions).length === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
                     </div>
                     {isCapi && <div className="font-mono text-[11px] text-muted-foreground mt-1">Pixel: {conn.fb_pixel_id || 'not set'}</div>}
                     {!isCapi && <div className="font-mono text-[11px] text-muted-foreground mt-1 truncate max-w-[400px]">{conn.target_url || 'not set'}</div>}

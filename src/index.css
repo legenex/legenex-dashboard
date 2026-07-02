@@ -112,6 +112,15 @@
 .bg-status-duplicate { background-color: rgba(59, 130, 246, 0.15); }
 .bg-status-processing { background-color: rgba(59, 130, 246, 0.15); }
 
+/* Qualification & custom lead-status colors */
+.status-qualified { color: #62b6cb; }
+.bg-status-qualified { background-color: rgba(98, 182, 203, 0.15); }
+.status-24m { color: #82d1b8; }
+.bg-status-24m { background-color: rgba(130, 209, 184, 0.15); }
+
+/* Neutral grey tag for operation / meta tags (Default, conditions, etc.) */
+.tag-neutral { color: #a5aab3; background-color: rgba(165, 170, 179, 0.12); }
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

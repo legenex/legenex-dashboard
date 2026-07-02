@@ -21,6 +21,7 @@ export const SYSTEM_COLUMNS = [
   { key: 'fullName', header: 'Full Name', accessor: (l) => `${l.first_name || ''} ${l.last_name || ''}`.trim() || '—' },
   { key: 'vertical', header: 'Vertical', accessor: (l) => getFromMapped(l, ['vertical']) || '—' },
   { key: 'finalStatus', header: 'Status', accessor: (l) => l.final_status || '—', special: 'status' },
+  { key: 'leadStatus', header: 'Lead Status', accessor: (l) => getFromMapped(l, ['lead_status']) || '—', special: 'leadStatus' },
   { key: 'revenue', header: 'Revenue', accessor: (l) => `$${Number(l.revenue || 0).toFixed(2)}`, className: 'font-mono text-[12px] status-sold' },
   { key: 'state', header: 'State', accessor: (l) => getFromMapped(l, ['accident_state', 'state', 'st', 'region', 'state_code']) || '—' },
   { key: 'supplier', header: 'Supplier', accessor: (l) => l.supplier_name || '—' },
@@ -43,7 +44,7 @@ export const SYSTEM_COLUMNS = [
 
 // Default column order applied to every view until the user customises it.
 export const DEFAULT_COLUMN_KEYS = [
-  'created', 'fullName', 'vertical', 'source', 'finalStatus', 'revenue',
+  'created', 'fullName', 'vertical', 'source', 'finalStatus', 'leadStatus', 'revenue',
   'state', 'supplier', 'buyer', 'email', 'verification',
 ];
 

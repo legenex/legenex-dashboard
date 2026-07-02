@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '@/components/shared/PageHeader';
 import ErrorStatusPill from '@/components/leads/ErrorStatusPill';
+import StatusPill from '@/components/shared/StatusPill';
 import LeadDetailModal from '@/components/leads/LeadDetailModal';
 import LeadsFilterBar from '@/components/leads/LeadsFilterBar';
 import BulkActionBar from '@/components/leads/BulkActionBar';
@@ -527,6 +528,15 @@ export default function LeadsTable({ view }) {
                             errorLogEntry={errorLogByLeadId[lead.id]}
                             onOpenDetail={openLeadDetail}
                           />
+                        </td>
+                      );
+                    }
+                    if (col.key === 'leadStatus') {
+                      const ls = def.accessor(lead);
+                      const value = ls && ls !== '—' ? String(ls) : '';
+                      return (
+                        <td key={col.key} className="px-4 py-3" style={widthStyle}>
+                          {value && value !== 'Qualified' ? <StatusPill status={value} /> : <span className="text-muted-foreground">—</span>}
                         </td>
                       );
                     }
