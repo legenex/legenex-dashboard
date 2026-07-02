@@ -424,7 +424,9 @@ export default function SettingsApiConnectors() {
               <TriggerDataOverrides
                 value={editing.trigger_data_overrides || '{}'}
                 onChange={v => setF('trigger_data_overrides', v)}
-                selectedTriggers={triggerOptions.filter(t => parseJsonArray(editing.triggers).includes(t.value))}
+                triggers={parseJsonArray(editing.triggers)}
+                triggerOptions={triggerOptions}
+                onReorder={(orderedKeys) => setF('triggers', JSON.stringify(orderedKeys))}
               />
             </CardContent>
           </Card>
