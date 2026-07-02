@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '@/components/shared/PageHeader';
@@ -6,6 +6,7 @@ import ErrorStatusPill from '@/components/leads/ErrorStatusPill';
 import LeadDetailModal from '@/components/leads/LeadDetailModal';
 import LeadsFilterBar from '@/components/leads/LeadsFilterBar';
 import BulkActionBar from '@/components/leads/BulkActionBar';
+import ColumnManager from '@/components/leads/ColumnManager';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -14,17 +15,14 @@ import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfMonth, subDays, subMonths, isAfter } from 'date-fns';
 import { processLead } from '@/functions/processLead';
+import { loadColumnConfig, saveColumnConfig, getColumnDef, buildAvailableColumns } from '@/lib/columnConfig';
 
-function getFromMapped(lead, keys) {
+function getFieldValue(lead, field) {
+  if (lead[field] != null && lead[field] !== '') return String(lead[field]);
   let mf = {};
   try { mf = JSON.parse(lead.mapped_fields || '{}'); } catch {}
-  for (const key of keys) {
-    const lowerKey = key.toLowerCase();
-    for (const [k, v] of Object.entries(mf)) {
-      if (k.toLowerCase() === lowerKey && v != null && v !== '') return v;
-    }
-  }
-  return null;
+  if (mf[field] != null && mf[field] !== '') return String(mf[field]);
+  return '';
 }
 
 function matchesView(lead, view) {
@@ -33,7 +31,7 @@ function matchesView(lead, view) {
     case 'sold': return lead.final_status === 'Sold';
     case 'unsold': return lead.final_status === 'Unsold';
     case 'disqualified':
-      return lead.final_status === 'Error' || /disqual|dq/i.test(lead.leadbyte_record_status || '');
+      return lead.final_status === 'Disqualified' || lead.final_status === 'Error' || /disqual|dq/i.test(lead.leadbyte_record_status || '');
     case 'rejected':
       return lead.final_status === 'Duplicate' || /reject/i.test(lead.leadbyte_record_status || '');
     case 'queued': return lead.final_status === 'Queued';
@@ -56,14 +54,6 @@ function getDateBounds(range, customDate) {
     };
     default: return {};
   }
-}
-
-function getFieldValue(lead, field) {
-  if (lead[field] != null && lead[field] !== '') return String(lead[field]);
-  let mf = {};
-  try { mf = JSON.parse(lead.mapped_fields || '{}'); } catch {}
-  if (mf[field] != null && mf[field] !== '') return String(mf[field]);
-  return '';
 }
 
 function matchesFilter(lead, filter) {
@@ -94,27 +84,13 @@ function matchesSearch(lead, q) {
     || (lead.supplier_name || '').toLowerCase().includes(query);
 }
 
-const COLUMN_DEFS = {
-  created: { header: 'Created', accessor: (l) => l.created_date ? format(new Date(l.created_date), 'MMM dd HH:mm') : '—', className: 'font-mono text-[11px] text-muted-foreground whitespace-nowrap' },
-  supplier: { header: 'Supplier', accessor: (l) => l.supplier_name || '—' },
-  source: { header: 'Source', accessor: (l) => getFromMapped(l, ['source', 'lead_source', 'source_id', 'src']) || '—' },
-  fullName: { header: 'Full Name', accessor: (l) => `${l.first_name || ''} ${l.last_name || ''}`.trim() || '—' },
-  email: { header: 'Email', accessor: (l) => l.email || '—' },
-  mobile: { header: 'Mobile', accessor: (l) => l.mobile || '—', className: 'font-mono text-[12px]' },
-  state: { header: 'State', accessor: (l) => getFromMapped(l, ['state', 'st', 'region', 'state_code']) || '—' },
-  revenue: { header: 'Revenue', accessor: (l) => (l.revenue != null && l.revenue !== '' && Number(l.revenue) !== 0) ? `$${Number(l.revenue).toFixed(2)}` : '-', className: 'font-mono text-[12px] status-sold' },
-  buyer: { header: 'Buyer', accessor: (l) => getFromMapped(l, ['buyer', 'buyer_id', 'buyer_name']) || '—' },
-  finalStatus: { header: 'Final Status', accessor: (l) => l.final_status || '—' },
-  processTime: { header: 'Time', accessor: (l) => l.process_time_ms ? `${l.process_time_ms}ms` : '—', className: 'font-mono text-[11px] text-muted-foreground' },
-};
-
 const VIEW_CONFIGS = {
-  all: { title: 'All Leads', subtitle: 'All processed leads with full trace data', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'revenue', 'processTime'] },
-  sold: { title: 'Sold Leads', subtitle: 'Sold leads with revenue and buyer data', columns: ['created', 'revenue', 'supplier', 'source', 'buyer', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
-  unsold: { title: 'Unsold Leads', subtitle: 'Leads that were not sold', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
-  disqualified: { title: 'Disqualified Leads', subtitle: 'Leads that were disqualified', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
-  rejected: { title: 'Rejected Leads', subtitle: 'Leads that were rejected', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
-  queued: { title: 'Queued Leads', subtitle: 'Leads queued for manual handling', columns: ['created', 'supplier', 'source', 'fullName', 'email', 'mobile', 'state', 'finalStatus', 'processTime'] },
+  all: { title: 'All Leads', subtitle: 'All processed leads with full trace data' },
+  sold: { title: 'Sold Leads', subtitle: 'Sold leads with revenue and buyer data' },
+  unsold: { title: 'Unsold Leads', subtitle: 'Leads that were not sold' },
+  disqualified: { title: 'Disqualified Leads', subtitle: 'Leads that were disqualified' },
+  rejected: { title: 'Rejected Leads', subtitle: 'Leads that were rejected' },
+  queued: { title: 'Queued Leads', subtitle: 'Leads queued for manual handling' },
 };
 
 const SYSTEM_FILTER_FIELDS = [
@@ -130,20 +106,20 @@ const SYSTEM_FILTER_FIELDS = [
   { value: 'revenue', label: 'Revenue' },
 ];
 
-const STORAGE_KEY = 'legenex_saved_filters';
+const FILTERS_STORAGE_KEY = 'legenex_saved_filters';
 
 function loadSavedSets(view) {
   try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const all = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) || '{}');
     return all[view] || [];
   } catch { return []; }
 }
 
 function persistSavedSets(view, sets) {
   try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const all = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) || '{}');
     all[view] = sets;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(all));
   } catch {}
 }
 
@@ -162,6 +138,7 @@ export default function LeadsTable({ view }) {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitProgress, setResubmitProgress] = useState(null);
+  const [columnConfig, setColumnConfig] = useState(() => loadColumnConfig(view));
 
   useEffect(() => {
     setSearch('');
@@ -170,7 +147,21 @@ export default function LeadsTable({ view }) {
     setCustomFilters([]);
     setSavedSets(loadSavedSets(view));
     setSelectedIds(new Set());
+    setColumnConfig(loadColumnConfig(view));
   }, [view]);
+
+  // Persist column layout whenever it changes.
+  useEffect(() => {
+    saveColumnConfig(view, columnConfig);
+  }, [view, columnConfig]);
+
+  // Keep the table (and Status column) in sync when leads change in the backend.
+  useEffect(() => {
+    const unsubscribe = base44.entities.Lead.subscribe(() => {
+      qc.invalidateQueries({ queryKey: ['leads-all-non-archived'] });
+    });
+    return () => { if (typeof unsubscribe === 'function') unsubscribe(); };
+  }, [qc]);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads-all-non-archived'],
@@ -200,6 +191,38 @@ export default function LeadsTable({ view }) {
     return [...SYSTEM_FILTER_FIELDS, ...customOpts];
   }, [customFields]);
 
+  const availableColumns = useMemo(() => buildAvailableColumns(customFields), [customFields]);
+
+  const columns = columnConfig.columns;
+
+  // ── Column resize (drag the header right edge) ───────────────────────
+  const resizeRef = useRef(null);
+
+  const handleResizeMove = useCallback((e) => {
+    const r = resizeRef.current;
+    if (!r) return;
+    const newWidth = Math.max(70, r.startWidth + (e.clientX - r.startX));
+    setColumnConfig((prev) => ({
+      ...prev,
+      columns: prev.columns.map((c) => (c.key === r.colKey ? { ...c, width: newWidth } : c)),
+    }));
+  }, []);
+
+  const handleResizeEnd = useCallback(() => {
+    resizeRef.current = null;
+    window.removeEventListener('mousemove', handleResizeMove);
+    window.removeEventListener('mouseup', handleResizeEnd);
+  }, [handleResizeMove]);
+
+  const handleResizeStart = useCallback((e, colKey) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const th = e.currentTarget.parentElement;
+    resizeRef.current = { colKey, startX: e.clientX, startWidth: th.offsetWidth };
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }, [handleResizeMove, handleResizeEnd]);
+
   const filtered = useMemo(() => {
     const bounds = getDateBounds(dateRange, customDate);
     return leads.filter(lead => {
@@ -213,9 +236,12 @@ export default function LeadsTable({ view }) {
   }, [leads, view, dateRange, customDate, customFilters, search]);
 
   const exportCSV = () => {
-    const cols = config.columns;
-    const headers = cols.map(c => COLUMN_DEFS[c]?.header || c);
-    const rows = filtered.map(l => cols.map(c => COLUMN_DEFS[c]?.accessor(l) || ''));
+    const cols = columns;
+    const headers = cols.map(c => getColumnDef(c.key, customFields)?.header || c.key);
+    const rows = filtered.map(l => cols.map(c => {
+      const def = getColumnDef(c.key, customFields);
+      return def ? def.accessor(l) : '';
+    }));
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -342,6 +368,11 @@ export default function LeadsTable({ view }) {
     <div>
       <PageHeader title={config.title} subtitle={config.subtitle}>
         <RefreshButton onClick={() => qc.invalidateQueries()} />
+        <ColumnManager
+          config={columnConfig}
+          availableColumns={availableColumns}
+          onChange={setColumnConfig}
+        />
         <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
           <Download className="w-4 h-4" /> Export CSV
         </Button>
@@ -387,19 +418,33 @@ export default function LeadsTable({ view }) {
                     aria-label="Select all"
                   />
                 </th>
-                {config.columns.map(colKey => (
-                  <th key={colKey} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {COLUMN_DEFS[colKey]?.header || colKey}
-                  </th>
-                ))}
+                {columns.map((col) => {
+                  const def = getColumnDef(col.key, customFields);
+                  const widthStyle = col.width ? { width: `${col.width}px`, minWidth: `${col.width}px` } : undefined;
+                  return (
+                    <th
+                      key={col.key}
+                      className="text-left px-4 py-3 pr-6 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider relative whitespace-nowrap"
+                      style={widthStyle}
+                    >
+                      {def?.header || col.key}
+                      <span
+                        onMouseDown={(e) => handleResizeStart(e, col.key)}
+                        className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/50 flex items-center justify-center"
+                      >
+                        <span className="block w-px h-4 bg-border" />
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading && (
-                <tr><td colSpan={config.columns.length + 1} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={columns.length + 1} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
               )}
               {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={config.columns.length + 1} className="px-4 py-8 text-center text-muted-foreground">No leads found</td></tr>
+                <tr><td colSpan={columns.length + 1} className="px-4 py-8 text-center text-muted-foreground">No leads found</td></tr>
               )}
               {filtered.map(lead => (
                 <tr
@@ -414,12 +459,13 @@ export default function LeadsTable({ view }) {
                       aria-label={`Select lead ${lead.id}`}
                     />
                   </td>
-                  {config.columns.map(colKey => {
-                    const col = COLUMN_DEFS[colKey];
-                    if (!col) return <td key={colKey} className="px-4 py-3">—</td>;
-                    if (colKey === 'finalStatus') {
+                  {columns.map((col) => {
+                    const def = getColumnDef(col.key, customFields);
+                    const widthStyle = col.width ? { width: `${col.width}px`, minWidth: `${col.width}px` } : undefined;
+                    if (!def) return <td key={col.key} className="px-4 py-3" style={widthStyle}>—</td>;
+                    if (col.key === 'finalStatus') {
                       return (
-                        <td key={colKey} className="px-4 py-3">
+                        <td key={col.key} className="px-4 py-3" style={widthStyle}>
                           <ErrorStatusPill
                             lead={lead}
                             errorLogEntry={errorLogByLeadId[lead.id]}
@@ -429,8 +475,8 @@ export default function LeadsTable({ view }) {
                       );
                     }
                     return (
-                      <td key={colKey} className={`px-4 py-3 ${col.className || ''}`}>
-                        {col.accessor(lead)}
+                      <td key={col.key} className={`px-4 py-3 ${def.className || ''}`} style={widthStyle}>
+                        {def.accessor(lead)}
                       </td>
                     );
                   })}
