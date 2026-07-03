@@ -139,7 +139,7 @@ export default function SettingsIntegrations() {
         toast.error(d.error || 'Send failed');
       }
     } catch (e) {
-      toast.error(e?.response?.data?.error || 'Send failed — is Gmail connected?');
+      toast.error(e?.response?.data?.error || 'Send failed - is Gmail connected?');
     }
     setGmSending(false);
   };
@@ -231,7 +231,7 @@ export default function SettingsIntegrations() {
           <div className="text-[13px] text-muted-foreground leading-relaxed">
             Connecting <span className="text-foreground font-medium">{pending?.name}</span> opens an OAuth popup so you
             can link your account and pick resources (folders, spreadsheets, channels). This needs a one-time setup of
-            the connector credentials — tell me in chat to enable the {pending?.name} connect flow and I'll wire it up.
+            the connector credentials - tell me in chat to enable the {pending?.name} connect flow and I'll wire it up.
             {pending?.channels?.length > 0 && (
               <div className="mt-2">Enables notification channels: {pending.channels.join(', ')}.</div>
             )}
@@ -245,7 +245,7 @@ export default function SettingsIntegrations() {
         </DialogContent>
       </Dialog>
 
-      {/* Gmail management — status + send a test email via the connected account */}
+      {/* Gmail management - status + send a test email via the connected account */}
       <Dialog open={gmOpen} onOpenChange={setGmOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">
           <DialogHeader>
@@ -290,7 +290,7 @@ export default function SettingsIntegrations() {
             </div>
           ) : (
             <div className="text-[13px] text-muted-foreground leading-relaxed">
-              Gmail isn't connected yet. Connection is a one-time OAuth grant — authorise the Gmail connector, then
+              Gmail isn't connected yet. Connection is a one-time OAuth grant - authorise the Gmail connector, then
               you'll be able to send test emails from here.
             </div>
           )}

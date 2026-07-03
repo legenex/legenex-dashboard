@@ -282,8 +282,8 @@ export default function Leads() {
                     <td className="px-4 py-3 text-secondary-foreground cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.supplier_name}</td>
                     <td className="px-4 py-3 text-foreground cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.first_name} {lead.last_name}</td>
                     <td className="px-4 py-3 font-mono text-[12px] cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.mobile}</td>
-                    <td className="px-4 py-3 cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.hlr_status || '—'}</td>
-                    <td className="px-4 py-3 cursor-pointer" onClick={() => { setInitialTab('leadbyte'); setSelectedLead(lead); }}>{lead.leadbyte_record_status || '—'}</td>
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.hlr_status || '-'}</td>
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => { setInitialTab('leadbyte'); setSelectedLead(lead); }}>{lead.leadbyte_record_status || '-'}</td>
                     <td className="px-4 py-3 cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>
                       <ErrorStatusPill
                         lead={lead}
@@ -291,7 +291,7 @@ export default function Leads() {
                         onOpenDetail={openLeadDetail}
                       />
                     </td>
-                    <td className="px-4 py-3 font-mono text-[11px] cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.process_time_ms ? `${lead.process_time_ms}ms` : '—'}</td>
+                    <td className="px-4 py-3 font-mono text-[11px] cursor-pointer" onClick={() => { setInitialTab('summary'); setSelectedLead(lead); }}>{lead.process_time_ms ? `${lead.process_time_ms}ms` : '-'}</td>
                   </tr>
                 );
               })}

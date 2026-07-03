@@ -27,7 +27,7 @@ export default function TopRejectionReasons({ leads }) {
     <div className="bg-card border border-border rounded-[10px] overflow-hidden">
       <div className="px-5 py-4 border-b border-border">
         <div className="text-[13px] font-semibold text-foreground">Top Rejection Reasons</div>
-        <div className="text-[11px] text-muted-foreground mt-0.5">Non-sold leads grouped by reason — ranked by volume. Fix the top source first.</div>
+        <div className="text-[11px] text-muted-foreground mt-0.5">Non-sold leads grouped by reason - ranked by volume. Fix the top source first.</div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">

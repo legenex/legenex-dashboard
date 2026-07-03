@@ -157,7 +157,7 @@ Test data:
     try {
       const resp = await sendPayloadTest({ target_url: form.target_url, payload: generated });
       setSendResult(resp.data);
-      if (resp.data?.ok) toast.success(`Sent — ${resp.data.status} ${resp.data.statusText || ''}`);
+      if (resp.data?.ok) toast.success(`Sent - ${resp.data.status} ${resp.data.statusText || ''}`);
       else toast.error(`Buyer responded ${resp.data?.status || ''} ${resp.data?.statusText || ''}`);
     } catch (e) {
       setSendResult({ error: e.message });

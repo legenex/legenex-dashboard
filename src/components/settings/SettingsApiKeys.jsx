@@ -29,7 +29,7 @@ function KeyRevealBox({ fullKey, onClose }) {
       <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-2">
           <ShieldCheck className="w-4 h-4 text-primary" />
-          <span className="text-[13px] font-semibold text-primary">Copy your key now — it won't be shown again</span>
+          <span className="text-[13px] font-semibold text-primary">Copy your key now - it won't be shown again</span>
         </div>
         <div className="font-mono text-[12px] text-foreground break-all bg-background rounded-md p-3 border border-border mt-1">
           {fullKey}
@@ -81,7 +81,7 @@ export default function SettingsApiKeys() {
   const endpointUrl = `${baseUrl}/functions/leads`;
 
   const openCreate = () => {
-    setForm({ name: '', type: 'supplier', supplier_id: '', vertical: '', active: true });
+    setForm({ name: '', type: 'supplier', supplier_id: '', vertical: '', active: true, expose_revenue: false });
     setEditingKeyId(null);
     setRevealKey(null);
     setModalOpen(true);
@@ -94,6 +94,7 @@ export default function SettingsApiKeys() {
       supplier_id: k.supplier_id || '',
       vertical: k.vertical || '',
       active: k.active ?? true,
+      expose_revenue: k.expose_revenue ?? false,
     });
     setEditingKeyId(k.id);
     setRevealKey(null);
@@ -109,6 +110,7 @@ export default function SettingsApiKeys() {
       supplier_name: form.type === 'master' ? 'Master' : (supplier?.name || ''),
       vertical: form.vertical,
       active: form.active,
+      expose_revenue: form.expose_revenue ?? false,
     });
     qc.invalidateQueries({ queryKey: ['api-keys'] });
     toast.success('Key updated');
@@ -128,7 +130,7 @@ export default function SettingsApiKeys() {
     setForm(p => ({ ...p, supplier_id: created.id }));
     setSupplierCreateOpen(false);
     setSupplierForm({ name: '', supplier_type: 'External', sid: '', vertical: '', active: true });
-    toast.success('Supplier created — linked to key');
+    toast.success('Supplier created - linked to key');
   };
 
   const handleCreate = async () => {
@@ -143,6 +145,7 @@ export default function SettingsApiKeys() {
       key,
       key_prefix: key.substring(0, 16),
       active: true,
+      expose_revenue: form.expose_revenue ?? false,
       request_count: 0,
     });
     qc.invalidateQueries({ queryKey: ['api-keys'] });
@@ -197,7 +200,7 @@ export default function SettingsApiKeys() {
             <div className="flex items-start gap-2 mt-2">
               <div className="w-4 shrink-0" />
               <div className="text-[11px] text-muted-foreground bg-yellow-500/10 border border-yellow-500/20 rounded px-2 py-1.5 text-yellow-300">
-                ⚠ This is the <strong>Gateway API key</strong> generated here — <strong>not</strong> the LeadByte <code className="font-mono">X_KEY</code> header configured in the LeadByte connector settings.
+                ⚠ This is the <strong>Gateway API key</strong> generated here - <strong>not</strong> the LeadByte <code className="font-mono">X_KEY</code> header configured in the LeadByte connector settings.
               </div>
             </div>
           </div>
@@ -248,14 +251,14 @@ export default function SettingsApiKeys() {
             )}
             {apiKeys.map(k => (
               <tr key={k.id} className="hover:bg-accent/40 transition-colors">
-                <td className="px-4 py-3 font-medium text-foreground">{k.name || k.supplier_name || '—'}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{k.name || k.supplier_name || '-'}</td>
                 <td className="px-4 py-3">
                   {k.type === 'master'
                     ? <Badge className="bg-primary/20 text-primary text-[10px] border-0">Master</Badge>
                     : <Badge className="bg-accent text-muted-foreground text-[10px] border border-border">Supplier</Badge>
                   }
                 </td>
-                <td className="px-4 py-3 text-muted-foreground text-[12px]">{k.supplier_name && k.type !== 'master' ? k.supplier_name : '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground text-[12px]">{k.supplier_name && k.type !== 'master' ? k.supplier_name : '-'}</td>
                 <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{k.key_prefix}…</td>
                 <td className="px-4 py-3">
                   <Badge variant="outline" className={k.active ? 'status-sold bg-status-sold text-[10px]' : 'text-muted-foreground text-[10px]'}>
@@ -263,11 +266,11 @@ export default function SettingsApiKeys() {
                   </Badge>
                 </td>
                 <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                  {k.last_used_at ? format(new Date(k.last_used_at), 'MMM dd HH:mm') : '—'}
+                  {k.last_used_at ? format(new Date(k.last_used_at), 'MMM dd HH:mm') : '-'}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px]">{k.request_count || 0}</td>
                 <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                  {k.created_date ? format(new Date(k.created_date), 'MMM dd yyyy') : '—'}
+                  {k.created_date ? format(new Date(k.created_date), 'MMM dd yyyy') : '-'}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
@@ -278,7 +281,7 @@ export default function SettingsApiKeys() {
                           toast.success('Full API key copied');
                         } else {
                           navigator.clipboard.writeText(k.key_prefix);
-                          toast.error('Full key unavailable — copied prefix only');
+                          toast.error('Full key unavailable - copied prefix only');
                         }
                       }}>
                       <Copy className="w-3 h-3" />
@@ -330,8 +333,8 @@ export default function SettingsApiKeys() {
                     onValueChange={v => setForm(p => ({ ...p, type: v, supplier_id: '' }))}
                     className="mt-1 bg-background"
                     options={[
-                      { value: 'master', label: 'Master — no linked supplier, leads recorded as "Master"' },
-                      { value: 'supplier', label: 'Supplier — attributed to a specific supplier' },
+                      { value: 'master', label: 'Master - no linked supplier, leads recorded as "Master"' },
+                      { value: 'supplier', label: 'Supplier - attributed to a specific supplier' },
                     ]}
                   />
                 </div>
@@ -367,6 +370,15 @@ export default function SettingsApiKeys() {
                   <div className="flex items-center gap-2">
                     <Switch checked={form.active} onCheckedChange={v => setForm(p => ({ ...p, active: v }))} />
                     <Label className="text-[12px]">Active</Label>
+                  </div>
+                )}
+                {form.type === 'supplier' && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={form.expose_revenue ?? false} onCheckedChange={v => setForm(p => ({ ...p, expose_revenue: v }))} />
+                      <Label className="text-[12px]">Expose revenue in supplier response</Label>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Per-key override. Master keys and Internal suppliers already receive revenue.</p>
                   </div>
                 )}
               </div>

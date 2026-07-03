@@ -519,7 +519,7 @@ export default function LeadsTable({ view }) {
                   {columns.map((col) => {
                     const def = getColumnDef(col.key, customFields);
                     const widthStyle = col.width ? { width: `${col.width}px`, minWidth: `${col.width}px` } : undefined;
-                    if (!def) return <td key={col.key} className="px-4 py-3" style={widthStyle}>—</td>;
+                    if (!def) return <td key={col.key} className="px-4 py-3" style={widthStyle}>-</td>;
                     if (col.key === 'finalStatus') {
                       return (
                         <td key={col.key} className="px-4 py-3" style={widthStyle}>
@@ -533,10 +533,10 @@ export default function LeadsTable({ view }) {
                     }
                     if (col.key === 'leadStatus') {
                       const ls = def.accessor(lead);
-                      const value = ls && ls !== '—' ? String(ls) : '';
+                      const value = ls && ls !== '-' ? String(ls) : '';
                       return (
                         <td key={col.key} className="px-4 py-3" style={widthStyle}>
-                          {value && value !== 'Qualified' ? <StatusPill status={value} /> : <span className="text-muted-foreground">—</span>}
+                          {value && value !== 'Qualified' ? <StatusPill status={value} /> : <span className="text-muted-foreground">-</span>}
                         </td>
                       );
                     }

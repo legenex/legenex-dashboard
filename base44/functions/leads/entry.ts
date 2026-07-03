@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       payload._supplier_key = supplierKeyRaw;
     }
 
-    // Delegate to processLead via SDK functions.invoke (not fetch — fetch to
+    // Delegate to processLead via SDK functions.invoke (not fetch - fetch to
     // /functions/processLead doesn't resolve inside the Deno worker).
     // functions.invoke throws on non-2xx; extract the response body from the error.
     try {

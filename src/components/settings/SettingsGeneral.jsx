@@ -104,9 +104,9 @@ export default function SettingsGeneral() {
               onValueChange={v => setForm(p => ({ ...p, default_fail_mode: v }))}
               className="mt-1 w-full bg-background"
               options={[
-                { value: 'fail_open', label: 'Fail Open — continue without data' },
-                { value: 'fail_closed', label: 'Fail Closed — stop and error' },
-                { value: 'forward_blank', label: 'Forward Blank — send empty fields' },
+                { value: 'fail_open', label: 'Fail Open - continue without data' },
+                { value: 'fail_closed', label: 'Fail Closed - stop and error' },
+                { value: 'forward_blank', label: 'Forward Blank - send empty fields' },
               ]}
             />
             <p className="text-[11px] text-muted-foreground mt-1">What happens when an external lookup (HLR, etc.) fails.</p>
@@ -142,7 +142,7 @@ export default function SettingsGeneral() {
                 ['data', 'Allows leads to be sent to data partners'],
                 ['event', 'Only allows leads to be sent to Conversion Events'],
                 ['queue', 'Holds lead for manual processing'],
-                ['test', 'Sends test lead to system and does nothing else — sits in system for testing'],
+                ['test', 'Sends test lead to system and does nothing else - sits in system for testing'],
               ].map(([val, desc]) => (
                 <div key={val} className="border border-border rounded-md p-2.5">
                   <div className="font-mono text-[12px] text-primary font-semibold">{val}</div>

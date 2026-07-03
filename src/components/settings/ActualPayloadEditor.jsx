@@ -112,7 +112,7 @@ export function ActualPayloadEditor({ value, onChange, customFields = [] }) {
       setJsonError(null);
       onChange(str);
     } catch {
-      setJsonError('Invalid JSON — fix to save');
+      setJsonError('Invalid JSON - fix to save');
     }
   }
 

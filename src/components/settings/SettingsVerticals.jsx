@@ -83,7 +83,7 @@ export default function SettingsVerticals() {
               <tr key={v.id} className="hover:bg-accent/40 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{v.name}</td>
                 <td className="px-4 py-3"><Badge className={`text-[10px] font-mono inline-flex items-center gap-1 ${verticalColor(v.code).badge}`}><span className={`w-1.5 h-1.5 rounded-full ${verticalColor(v.code).dot}`} />{v.code}</Badge></td>
-                <td className="px-4 py-3 text-muted-foreground text-[12px] truncate max-w-[260px]">{v.description || '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground text-[12px] truncate max-w-[260px]">{v.description || '-'}</td>
                 <td className="px-4 py-3">
                   <Badge variant="outline" className={`text-[9px] ${v.active ? 'status-sold bg-status-sold' : 'text-muted-foreground'}`}>
                     {v.active ? 'Active' : 'Inactive'}
@@ -126,7 +126,7 @@ export default function SettingsVerticals() {
             <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-[11px] text-muted-foreground leading-relaxed">
               <Info className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
               <span>
-                Verticals segment leads into delivery buckets. The inbound payload's <code className="bg-muted px-1 rounded text-primary font-mono">vertical</code> field is matched against Delivery destinations configured with this vertical — only leads whose <code className="bg-muted px-1 rounded text-primary font-mono">vertical</code> matches will be sent to those destinations. Use the <strong>Code</strong> to match the exact value suppliers send (e.g. <code className="font-mono">MVA</code>, <code className="font-mono">WC</code>, <code className="font-mono">DEBT</code>).
+                Verticals segment leads into delivery buckets. The inbound payload's <code className="bg-muted px-1 rounded text-primary font-mono">vertical</code> field is matched against Delivery destinations configured with this vertical - only leads whose <code className="bg-muted px-1 rounded text-primary font-mono">vertical</code> matches will be sent to those destinations. Use the <strong>Code</strong> to match the exact value suppliers send (e.g. <code className="font-mono">MVA</code>, <code className="font-mono">WC</code>, <code className="font-mono">DEBT</code>).
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">

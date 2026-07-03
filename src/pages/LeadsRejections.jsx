@@ -62,7 +62,7 @@ export default function LeadsRejections() {
 
   return (
     <div>
-      <PageHeader title="Rejections" subtitle="Rejected leads — Unsold, Duplicate, and Error dispositions" />
+      <PageHeader title="Rejections" subtitle="Rejected leads - Unsold, Duplicate, and Error dispositions" />
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 max-w-xs">
@@ -128,9 +128,9 @@ export default function LeadsRejections() {
                   <td className="px-4 py-3 text-secondary-foreground">{lead.supplier_name}</td>
                   <td className="px-4 py-3 text-foreground">{lead.first_name} {lead.last_name}</td>
                   <td className="px-4 py-3 font-mono text-[12px]">{lead.mobile}</td>
-                  <td className="px-4 py-3">{lead.hlr_status || '—'}</td>
+                  <td className="px-4 py-3">{lead.hlr_status || '-'}</td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <span onClick={() => { setInitialTab('leadbyte'); setSelectedLead(lead); }}>{lead.leadbyte_record_status || '—'}</span>
+                    <span onClick={() => { setInitialTab('leadbyte'); setSelectedLead(lead); }}>{lead.leadbyte_record_status || '-'}</span>
                   </td>
                   <td className="px-4 py-3">
                     <ErrorStatusPill
@@ -139,7 +139,7 @@ export default function LeadsRejections() {
                       onOpenDetail={openLeadDetail}
                     />
                   </td>
-                  <td className="px-4 py-3 font-mono text-[11px]">{lead.process_time_ms ? `${lead.process_time_ms}ms` : '—'}</td>
+                  <td className="px-4 py-3 font-mono text-[11px]">{lead.process_time_ms ? `${lead.process_time_ms}ms` : '-'}</td>
                 </tr>
               ))}
             </tbody>

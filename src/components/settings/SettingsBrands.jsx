@@ -94,8 +94,8 @@ export default function SettingsBrands() {
               <tr key={b.id} className="hover:bg-accent/40 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{b.brand_name}</td>
                 <td className="px-4 py-3"><Badge className={`text-[10px] font-mono ${brandColor(b.brand_code).badge}`}>{b.brand_code}</Badge></td>
-                <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[200px]">{b.website_url || '—'}</td>
-                <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[200px]">{b.optin_url || '—'}</td>
+                <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[200px]">{b.website_url || '-'}</td>
+                <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[200px]">{b.optin_url || '-'}</td>
                 <td className="px-4 py-3">
                   <Badge variant="outline" className={`text-[9px] ${b.active ? 'status-sold bg-status-sold' : 'text-muted-foreground'}`}>
                     {b.active ? 'Active' : 'Inactive'}

@@ -555,7 +555,7 @@ export default function SettingsLeadByte() {
                          Reset to Last Sent
                        </Button>
                        <Button size="sm" variant="secondary" disabled={savingTestPayload || !editing.id} onClick={async () => {
-                         try { JSON.parse(testPayloadStr); } catch { toast.error('Invalid JSON — fix before saving'); return; }
+                         try { JSON.parse(testPayloadStr); } catch { toast.error('Invalid JSON - fix before saving'); return; }
                          setSavingTestPayload(true);
                          await saveTestPayload(testPayloadStr);
                          toast.success('Test payload saved');
@@ -742,7 +742,7 @@ function ResponseBuilderPanel({ mappings, onSave, onDelete, onSeed, editingMappi
   return (
     <div className="space-y-4">
       <div className="text-[13px] text-muted-foreground leading-relaxed bg-card border border-border rounded-lg p-4">
-        <p className="font-medium text-foreground mb-1">Response Builder — Operator Rules</p>
+        <p className="font-medium text-foreground mb-1">Response Builder - Operator Rules</p>
         <p>Rules are evaluated in sort order. The <strong>first matching rule</strong> wins. The fallback rule matches anything not caught above. The matched rule's Response Label is returned to the supplier as <code className="bg-muted px-1 rounded text-primary text-[11px]">{`{ "Response": "..." }`}</code>.</p>
       </div>
 
@@ -772,7 +772,7 @@ function ResponseBuilderPanel({ mappings, onSave, onDelete, onSeed, editingMappi
                 <td className="px-3 py-3 font-mono text-[11px] text-primary">{m.field_path || 'records[0].status'}</td>
                 <td className="px-3 py-3 text-[12px] text-foreground">{operatorLabel(m.operator || 'contains')}</td>
                 <td className="px-3 py-3 font-mono text-[12px] text-muted-foreground">
-                  {m.is_fallback ? <Badge className="bg-primary/10 text-primary text-[10px]">Fallback</Badge> : (m.lb_status || '—')}
+                  {m.is_fallback ? <Badge className="bg-primary/10 text-primary text-[10px]">Fallback</Badge> : (m.lb_status || '-')}
                 </td>
                 <td className="px-3 py-3 text-foreground font-medium">{m.response_label}</td>
                 <td className="px-3 py-3"><span className={`font-medium ${statusTextClass(m.final_status)}`}>{m.final_status}</span></td>

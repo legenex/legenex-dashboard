@@ -64,13 +64,13 @@ export default function DeliveryLogsTab() {
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.http_status != null
                     ? <Badge className={r.http_status < 300 ? 'bg-status-sold status-sold text-[9px]' : 'bg-status-error status-error text-[9px]'}>{r.http_status}</Badge>
-                    : <span className="text-muted-foreground">—</span>}
+                    : <span className="text-muted-foreground">-</span>}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <span className={r.success ? 'status-sold' : 'status-error'}>{r.success ? 'Delivered' : 'Failed'}</span>
                 </td>
-                <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground whitespace-nowrap max-w-[220px] truncate">{r.error || '—'}</td>
-                <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.timestamp ? format(new Date(r.timestamp), 'MMM d HH:mm') : '—'}</td>
+                <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground whitespace-nowrap max-w-[220px] truncate">{r.error || '-'}</td>
+                <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.timestamp ? format(new Date(r.timestamp), 'MMM d HH:mm') : '-'}</td>
               </tr>
             ))}
           </tbody>

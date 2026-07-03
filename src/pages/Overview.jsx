@@ -123,7 +123,7 @@ export default function Overview() {
     { name: 'Duplicate', value: rangeLeads.filter(l => l.final_status === 'Duplicate').length },
   ].filter(d => d.value > 0);
 
-  // 14-day chart — always 14 days regardless of selected range
+  // 14-day chart - always 14 days regardless of selected range
   const chartData = [];
   for (let i = 13; i >= 0; i--) {
     const day = subDays(now, i);
@@ -148,7 +148,7 @@ export default function Overview() {
 
   return (
     <div>
-      <PageHeader title="Overview" subtitle="Daily source-of-truth dashboard — real-time pipeline health and lead metrics">
+      <PageHeader title="Overview" subtitle="Daily source-of-truth dashboard - real-time pipeline health and lead metrics">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="text-[11px] text-muted-foreground whitespace-nowrap">
             Showing: <span className="text-foreground font-medium">{RANGE_LABELS[range]}</span>
@@ -219,7 +219,7 @@ export default function Overview() {
                         <td className="px-4 py-3 font-mono text-[12px] status-duplicate">{dup}</td>
                         <td className="px-4 py-3 font-mono text-[12px] status-error">{err}</td>
                         <td className="px-4 py-3 font-mono text-[12px]">{rate}%</td>
-                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{avgT ? `${avgT}ms` : '—'}</td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{avgT ? `${avgT}ms` : '-'}</td>
                       </tr>
                     );
                   })}
@@ -236,7 +236,7 @@ export default function Overview() {
         <KpiCard label="Leads" value={rangeLeads.length} trend={leadsTrend} trendLabel="vs prior period" icon={Inbox} />
         <KpiCard label="Sold" value={soldLeads.length} icon={CheckCircle2} />
         <KpiCard label="Unsold" value={unsoldLeads.length} icon={XCircle} />
-        <KpiCard label="Avg Time" value={avgProcessTime ? `${avgProcessTime}ms` : '—'} icon={Clock} />
+        <KpiCard label="Avg Time" value={avgProcessTime ? `${avgProcessTime}ms` : '-'} icon={Clock} />
       </div>
 
       <div className="mt-6 mb-3 flex items-center gap-2">
@@ -259,7 +259,7 @@ export default function Overview() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-card border border-border rounded-[10px] p-5">
-          <div className="text-[13px] font-semibold text-foreground mb-4">Leads — Last 14 Days</div>
+          <div className="text-[13px] font-semibold text-foreground mb-4">Leads - Last 14 Days</div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData} barGap={1}>
               <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -333,7 +333,7 @@ export default function Overview() {
 
       {/* Footer note */}
       <div className="mt-6 mb-2 text-[11px] text-muted-foreground text-center px-4">
-        System of record: Legenex Lead Gateway (go-forward). Historical pre-gateway volume still lives in LeadByte, BigQuery, and Google Sheets — reconciliation in progress.
+        System of record: Legenex Lead Gateway (go-forward). Historical pre-gateway volume still lives in LeadByte, BigQuery, and Google Sheets - reconciliation in progress.
       </div>
     </div>
   );

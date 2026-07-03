@@ -47,7 +47,7 @@ export default function TriggerDataOverrides({ value, onChange, triggers, trigge
     onChange(JSON.stringify(next));
   };
 
-  // Ordered list of selected triggers — follows the `triggers` array order.
+  // Ordered list of selected triggers - follows the `triggers` array order.
   const selected = (triggers || [])
     .map(key => triggerOptions.find(t => t.value === key))
     .filter(Boolean);

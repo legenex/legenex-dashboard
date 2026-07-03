@@ -308,7 +308,7 @@ export default function SettingsApiConnectors() {
   const sendTestEvent = async () => {
     setSendingTest(true);
     setTestResult(null);
-    // Pass the raw template string — the backend resolves tokens then parses JSON.
+    // Pass the raw template string - the backend resolves tokens then parses JSON.
     // Pre-parsing here fails on unquoted tokens like "value": {{conv_value}}.
     try {
       const resp = await testCapiConnector({ connector_id: editing.id, test_payload: testPayloadStr });
@@ -398,11 +398,11 @@ export default function SettingsApiConnectors() {
           </CardContent>
         </Card>
 
-        {/* Per-Trigger Event Names — visible for all connector kinds */}
+        {/* Per-Trigger Event Names - visible for all connector kinds */}
         <Card className="bg-card border-border">
           <CardContent className="p-4 space-y-3">
             <div className="text-[13px] font-semibold text-foreground">Event Names</div>
-            <p className="text-[11px] text-muted-foreground">Event name fired per trigger. Received/Unsold/Queued default to "Lead" if blank. Sold and Disqualified have no default — if blank, that event does not fire. Use <code className="bg-muted px-1 rounded text-primary">{'{{lead_event}}'}</code> in the payload template to inject the firing event name dynamically.</p>
+            <p className="text-[11px] text-muted-foreground">Event name fired per trigger. Received/Unsold/Queued default to "Lead" if blank. Sold and Disqualified have no default - if blank, that event does not fire. Use <code className="bg-muted px-1 rounded text-primary">{'{{lead_event}}'}</code> in the payload template to inject the firing event name dynamically.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <div><Label className="text-[12px]">Received Event Name</Label><Input value={editing.received_event_name || ''} onChange={e => setF('received_event_name', e.target.value)} placeholder="Lead" className="mt-1 bg-background font-mono text-[12px]" /></div>
               <div><Label className="text-[12px]">Sold Event Name</Label><Input value={editing.sold_event_name || ''} onChange={e => setF('sold_event_name', e.target.value)} placeholder="SubmittedApplication / Sold_Lead / Qualified_Lead / CompleteRegistration" className="mt-1 bg-background font-mono text-[12px]" /></div>
@@ -415,12 +415,12 @@ export default function SettingsApiConnectors() {
           </CardContent>
         </Card>
 
-        {/* Event Custom Data — each trigger is its own collapsible dropdown */}
+        {/* Event Custom Data - each trigger is its own collapsible dropdown */}
         {isCapi && (
           <Card className="bg-card border-border">
             <CardContent className="p-4 space-y-3">
               <div className="text-[13px] font-semibold text-foreground">Event Custom Data</div>
-              <p className="text-[11px] text-muted-foreground">Each value here becomes a token in the template below — Content Name is <code className="text-primary">{'{{content_name}}'}</code>, Value is <code className="text-primary">{'{{value}}'}</code>, etc. The template pulls the matching value for whichever trigger fires, so each trigger can send different values. To use a static value instead, replace the token in the template with literal text. Values support {'{{conv_value}}'}, {'{{revenue}}'} and any lead field token.</p>
+              <p className="text-[11px] text-muted-foreground">Each value here becomes a token in the template below - Content Name is <code className="text-primary">{'{{content_name}}'}</code>, Value is <code className="text-primary">{'{{value}}'}</code>, etc. The template pulls the matching value for whichever trigger fires, so each trigger can send different values. To use a static value instead, replace the token in the template with literal text. Values support {'{{conv_value}}'}, {'{{revenue}}'} and any lead field token.</p>
               <TriggerDataOverrides
                 value={editing.trigger_data_overrides || '{}'}
                 onChange={v => setF('trigger_data_overrides', v)}
@@ -543,7 +543,7 @@ export default function SettingsApiConnectors() {
           </Card>
         )}
 
-        {/* Save — persists the connector (incl. the template) and returns to the list */}
+        {/* Save - persists the connector (incl. the template) and returns to the list */}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
           <Button onClick={saveConnector} disabled={!editing.name} className="gap-1.5"><Save className="w-4 h-4" /> Save Connector</Button>

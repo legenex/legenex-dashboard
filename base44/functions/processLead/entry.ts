@@ -198,7 +198,7 @@ function escapeJsonString(s) {
   return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
 }
 
-// Unified token resolver — same engine for LeadByte and CAPI templates.
+// Unified token resolver - same engine for LeadByte and CAPI templates.
 // Resolves {{token}} and {{token|transform}} against the lead data object.
 function resolveTokenValue(token, d, leadId) {
   switch (token) {
@@ -594,8 +594,8 @@ function supplierMatchesFilter(settings, supplierAttribution, supplierRecord) {
 // on_received: received_event_name || lead_event_name || 'Lead'
 // on_unsold: unsold_event_name || 'Lead'
 // on_queued: queued_event_name || 'Lead'
-// on_sold: sold_event_name (no fallback — blank means skip)
-// on_dq: dq_event_name (no fallback — blank means skip)
+// on_sold: sold_event_name (no fallback - blank means skip)
+// on_dq: dq_event_name (no fallback - blank means skip)
 function getTriggerEventName(conn, trigger) {
   switch (trigger) {
     case 'on_received': return conn.received_event_name || conn.lead_event_name || 'Lead';
@@ -615,14 +615,14 @@ function fireConnectors(db, connectors, trigger, leadData, leadId, supplierAttri
   for (const conn of connectors) {
     if (!conn.enabled) continue;
     const triggers = parseJsonArray(conn.triggers);
-    // No triggers selected = fire on every lead (gated only by filters). Only fire once — at intake (on_received).
+    // No triggers selected = fire on every lead (gated only by filters). Only fire once - at intake (on_received).
     if (triggers.length > 0 && !triggers.includes(trigger)) continue;
     if (triggers.length === 0 && trigger !== 'on_received') continue;
     if (!connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRecord)) continue;
     if (!connectorMatchesConditions(conn, leadData)) continue;
 
     const eventName = getTriggerEventName(conn, trigger);
-    // Sold and DQ have no fallback — skip if blank
+    // Sold and DQ have no fallback - skip if blank
     if (!eventName && (trigger === 'on_sold' || trigger === 'on_dq')) continue;
 
     if (conn.kind === 'facebook_capi') {
@@ -679,7 +679,7 @@ function fireDeliveries(db, destinations, trigger, leadData, leadId, supplierAtt
     if (!dest.enabled) continue;
     if (dest.is_default) continue;
     const triggers = parseJsonArray(dest.triggers);
-    // No triggers selected = fire on every lead (gated only by filters). Only fire once — at intake (on_received).
+    // No triggers selected = fire on every lead (gated only by filters). Only fire once - at intake (on_received).
     if (triggers.length > 0 && !triggers.includes(trigger)) continue;
     if (triggers.length === 0 && trigger !== 'on_received') continue;
     if (!connectorMatchesFilters(dest, leadData, supplierAttribution, supplierRecord)) continue;
@@ -1083,12 +1083,12 @@ Deno.serve(async (req) => {
     };
     routeIs.standard = !routeIs.direct && !routeIs.data && !routeIs.event && !routeIs.queue && !routeIs.test;
 
-    // TEST route: save only — no processing, no triggers
+    // TEST route: save only - no processing, no triggers
     if (routeIs.test) {
-      const testResponse = { Response: 'Queued', reason: 'Test route — lead saved for testing only' };
+      const testResponse = { Response: 'Queued', reason: 'Test route - lead saved for testing only' };
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
-        queue_reason: 'Test route — no downstream processing',
+        queue_reason: 'Test route - no downstream processing',
         processed_at: new Date().toISOString(),
         process_time_ms: Date.now() - startTime,
         response_returned: JSON.stringify(testResponse),
@@ -1096,15 +1096,15 @@ Deno.serve(async (req) => {
       return Response.json(testResponse, { status: 200 });
     }
 
-    // QUEUE route: hold for manual processing — fire on_queued, skip LeadByte
+    // QUEUE route: hold for manual processing - fire on_queued, skip LeadByte
     if (routeIs.queue) {
       fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
       if (!routeIs.event) fireDeliveries(db, allDestinations, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
-      await evaluateNotifications(db, ['lead_queued'], { id: leadId, queue_reason: 'Queue route — held for manual processing' }, supplierAttribution, { queue_reason: 'Queue route' });
-      const queueResponse = { Response: 'Queued', reason: 'Queue route — held for manual processing' };
+      await evaluateNotifications(db, ['lead_queued'], { id: leadId, queue_reason: 'Queue route - held for manual processing' }, supplierAttribution, { queue_reason: 'Queue route' });
+      const queueResponse = { Response: 'Queued', reason: 'Queue route - held for manual processing' };
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
-        queue_reason: 'Queue route — held for manual processing',
+        queue_reason: 'Queue route - held for manual processing',
         processed_at: new Date().toISOString(),
         process_time_ms: Date.now() - startTime,
         response_returned: JSON.stringify(queueResponse),
@@ -1115,7 +1115,7 @@ Deno.serve(async (req) => {
     // ── PRE-CLASSIFIED LEADS: bypass the entire LeadByte system ────────
     // A Disqualified lead is NOT an Unsold lead (Unsold = a Qualified lead
     // that didn't sell). Disqualified leads and custom (non-builtin) lead
-    // statuses (e.g. "24m Lead") are pre-classified — they skip HLR/phone
+    // statuses (e.g. "24m Lead") are pre-classified - they skip HLR/phone
     // verification, email validation, TrustedForm, the payload delay, and
     // LeadByte. They fire their matching trigger (on_dq / on_<custom>),
     // AWAIT every send so CAPI + delivery logs populate, and return the
@@ -1126,7 +1126,7 @@ Deno.serve(async (req) => {
     if (inboundLeadStatus && inboundLeadStatus !== 'Qualified' && (inboundLeadStatus === 'Disqualified' || !isBuiltinStatus)) {
       const bypassTrigger = triggerKeyForStatus(inboundLeadStatus);
 
-      // CAPI / webhook connectors — awaited so logs populate before return.
+      // CAPI / webhook connectors - awaited so logs populate before return.
       for (const conn of apiConnectors) {
         if (!conn.enabled) continue;
         const trig = parseJsonArray(conn.triggers);
@@ -1161,7 +1161,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Delivery destinations — awaited, capture payload + response body.
+      // Delivery destinations - awaited, capture payload + response body.
       const deliveryResults = [];
       if (!routeIs.event) {
         for (const dest of allDestinations) {
@@ -1202,9 +1202,9 @@ Deno.serve(async (req) => {
           try { const j = JSON.parse(respBody); responseLabel = j.Response || j.response || j.status || j.message || respBody; }
           catch { responseLabel = respBody; }
         }
-        bypassResponse = { Response: responseLabel, reason: `${inboundLeadStatus} lead — delivered to ${primary.connector} (HTTP ${primary.http_status || 'n/a'})` };
+        bypassResponse = { Response: responseLabel, reason: `${inboundLeadStatus} lead - delivered to ${primary.connector} (HTTP ${primary.http_status || 'n/a'})` };
       } else {
-        bypassResponse = { Response: 'Sent', reason: `${inboundLeadStatus} lead — no matching delivery destination` };
+        bypassResponse = { Response: 'Sent', reason: `${inboundLeadStatus} lead - no matching delivery destination` };
       }
       const finalForBypass = inboundLeadStatus === 'Disqualified' ? 'Disqualified' : (inboundLeadStatus === 'Returned' ? 'Returned' : 'Sold');
       await db.entities.Lead.update(leadId, {
@@ -1218,7 +1218,7 @@ Deno.serve(async (req) => {
 
     // ── b. FIRE ON RECEIVED (route-aware, fire-and-forget) ─────────────
     fireConnectors(db, apiConnectors, 'on_received', leadPayload, leadId, supplierAttribution, supplierRecord);
-    // Event route: conversion events only — skip deliveries
+    // Event route: conversion events only - skip deliveries
     if (!routeIs.event) {
       fireDeliveries(db, allDestinations, 'on_received', leadPayload, leadId, supplierAttribution, supplierRecord);
     }
@@ -1425,7 +1425,7 @@ Deno.serve(async (req) => {
     // Only forward to LeadByte if the lead's effective trigger (derived from
     // lead_status) matches the default connector's triggers. Empty triggers =
     // fire on every lead. A pre-classified non-Qualified lead (e.g. Disqualified)
-    // is never sent to LeadByte — it fires the matching trigger instead.
+    // is never sent to LeadByte - it fires the matching trigger instead.
     {
       const lbTriggers = parseJsonArray(leadByteConnector.triggers);
       const effStatus = String(enrichedData.lead_status || leadPayload.lead_status || '').trim();
@@ -1452,7 +1452,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check LeadByte connector filters — route to DQ destinations instead of dropping
+    // Check LeadByte connector filters - route to DQ destinations instead of dropping
     if (!connectorMatchesFilters(leadByteConnector, enrichedData, supplierAttribution, supplierRecord) ||
         !connectorMatchesConditions(leadByteConnector, enrichedData)) {
       const skipResponse = { Response: 'Unsold', reason: 'Did not match LeadByte filters - routed to DQ destinations' };
@@ -1624,9 +1624,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Include revenue in the supplier response only for master keys and Internal suppliers
+    // Include revenue in the supplier response for master keys, Internal suppliers,
+    // or any submitting API key with expose_revenue enabled (per-key override).
     const exposeRevenue = apiKeyRecord.type === 'master' ||
-      (apiKeyRecord.type === 'supplier' && supplierRecord?.supplier_type === 'Internal');
+      (apiKeyRecord.type === 'supplier' && supplierRecord?.supplier_type === 'Internal') ||
+      apiKeyRecord.expose_revenue === true;
     if (exposeRevenue && capturedRevenue != null && !isNaN(capturedRevenue)) {
       supplierResponse = { ...supplierResponse, revenue: capturedRevenue.toFixed(2) };
     }

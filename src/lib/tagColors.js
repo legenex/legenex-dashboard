@@ -9,7 +9,7 @@ const VERTICAL_FIXED = {
   WC: { badge: 'bg-blue-500/15 text-blue-300 border-blue-500/40', dot: 'bg-blue-400' },
 };
 
-// Distinct colours for other verticals — deterministic hash of the vertical code.
+// Distinct colours for other verticals - deterministic hash of the vertical code.
 const VERTICAL_PALETTE = [
   { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40', dot: 'bg-amber-400' },
   { badge: 'bg-purple-500/15 text-purple-300 border-purple-500/40', dot: 'bg-purple-400' },
@@ -46,7 +46,7 @@ const BRAND_PALETTE = [
 
 export function brandColor(code) {
   const s = String(code || '');
-  // djb2 hash — spreads short codes (DS, CMC, CAC…) across the palette so
+  // djb2 hash - spreads short codes (DS, CMC, CAC…) across the palette so
   // brand codes get visibly distinct colours instead of clustering.
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;

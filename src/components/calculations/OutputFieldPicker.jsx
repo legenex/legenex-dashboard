@@ -42,7 +42,7 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
     const existing = fields.find(f => f.field_name === name);
     if (existing) {
       onValueChange({ field_name: existing.field_name, label: existing.label || existing.field_name });
-      toast.success('Field already exists — selected');
+      toast.success('Field already exists - selected');
       close();
       return;
     }

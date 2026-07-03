@@ -32,16 +32,16 @@ export default function QueueRecoveryRow({
         />
       </td>
       <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-        {lead.created_date ? format(new Date(lead.created_date), 'MMM dd HH:mm') : '—'}
+        {lead.created_date ? format(new Date(lead.created_date), 'MMM dd HH:mm') : '-'}
       </td>
-      <td className="px-4 py-3 text-secondary-foreground">{lead.supplier_name || '—'}</td>
+      <td className="px-4 py-3 text-secondary-foreground">{lead.supplier_name || '-'}</td>
       <td className="px-4 py-3 text-foreground">
         {lead.first_name || ''} {lead.last_name || ''}
       </td>
-      <td className="px-4 py-3 font-mono text-[12px]">{lead.mobile || '—'}</td>
-      <td className="px-4 py-3 text-[12px]">{lead.email || '—'}</td>
+      <td className="px-4 py-3 font-mono text-[12px]">{lead.mobile || '-'}</td>
+      <td className="px-4 py-3 text-[12px]">{lead.email || '-'}</td>
       <td className="px-4 py-3 text-[12px] text-purple-400 max-w-[200px] truncate" title={lead.queue_reason || ''}>
-        {lead.queue_reason || '—'}
+        {lead.queue_reason || '-'}
       </td>
       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
         <div className="w-[280px]">

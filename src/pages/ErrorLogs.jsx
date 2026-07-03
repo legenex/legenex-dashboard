@@ -133,10 +133,10 @@ export default function ErrorLogs({ embedded = false }) {
                 <td className="px-4 py-3">
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${severityColors[err.severity] || ''}`}>{err.severity}</span>
                 </td>
-                <td className="px-4 py-3 text-secondary-foreground">{err.supplier_name || '—'}</td>
+                <td className="px-4 py-3 text-secondary-foreground">{err.supplier_name || '-'}</td>
                 <td className="px-4 py-3 text-foreground truncate max-w-[300px]">{err.message}</td>
-                <td className="px-4 py-3">{err.lead_id ? <ExternalLink className="w-3.5 h-3.5 text-primary" /> : '—'}</td>
-                <td className="px-4 py-3">{err.resolved ? <CheckCircle className="w-4 h-4 text-[#22C55E]" /> : '—'}</td>
+                <td className="px-4 py-3">{err.lead_id ? <ExternalLink className="w-3.5 h-3.5 text-primary" /> : '-'}</td>
+                <td className="px-4 py-3">{err.resolved ? <CheckCircle className="w-4 h-4 text-[#22C55E]" /> : '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -154,7 +154,7 @@ export default function ErrorLogs({ embedded = false }) {
               <div className="grid grid-cols-2 gap-3">
                 <div><div className="text-[11px] text-muted-foreground">Stage</div><div className="text-[13px] font-mono">{selected.stage}</div></div>
                 <div><div className="text-[11px] text-muted-foreground">Severity</div><div className="text-[13px]">{selected.severity}</div></div>
-                <div><div className="text-[11px] text-muted-foreground">Supplier</div><div className="text-[13px]">{selected.supplier_name || '—'}</div></div>
+                <div><div className="text-[11px] text-muted-foreground">Supplier</div><div className="text-[13px]">{selected.supplier_name || '-'}</div></div>
                 <div><div className="text-[11px] text-muted-foreground">Time</div><div className="text-[13px] font-mono">{selected.created_date ? format(new Date(selected.created_date), 'PPpp') : ''}</div></div>
               </div>
               <div>

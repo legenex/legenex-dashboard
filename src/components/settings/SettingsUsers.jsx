@@ -54,10 +54,10 @@ export default function SettingsUsers() {
             )}
             {users.map(u => (
               <tr key={u.id} className="hover:bg-accent/40 transition-colors">
-                <td className="px-4 py-3 font-medium text-foreground">{u.full_name || '—'}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{u.full_name || '-'}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3"><Badge variant="outline" className={`text-[10px] ${u.role === 'admin' ? 'text-primary border-primary/30' : ''}`}>{u.role || 'user'}</Badge></td>
-                <td className="px-4 py-3 text-muted-foreground font-mono text-[11px]">{u.created_date ? format(new Date(u.created_date), 'MMM dd, yyyy') : '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground font-mono text-[11px]">{u.created_date ? format(new Date(u.created_date), 'MMM dd, yyyy') : '-'}</td>
               </tr>
             ))}
           </tbody>

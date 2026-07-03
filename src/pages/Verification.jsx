@@ -210,7 +210,7 @@ export default function Verification() {
               </Card>
 
               <Card className="bg-card border-border">
-                <CardHeader><CardTitle className="text-[14px]">Scope — Suppliers & Routes</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-[14px]">Scope - Suppliers & Routes</CardTitle></CardHeader>
                 <CardContent>
                   <RouteSupplierFilters
                     suppliers={suppliers}
@@ -334,7 +334,7 @@ export default function Verification() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-[14px]">Email Validation Test</CardTitle>
-                <p className="text-[12px] text-muted-foreground">Free validation service (Disify) — checks format, DNS/MX records, disposable domains and free providers. No API key required.</p>
+                <p className="text-[12px] text-muted-foreground">Free validation service (Disify) - checks format, DNS/MX records, disposable domains and free providers. No API key required.</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>

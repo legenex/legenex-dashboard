@@ -62,7 +62,7 @@ function shouldExpand(group, location) {
 
 const SIDEBAR_GROUPS_KEY = 'legenex_sidebar_open_groups';
 
-// Persisted open groups — survives navigation and page refresh.
+// Persisted open groups - survives navigation and page refresh.
 function loadOpenGroups(location) {
   try {
     const stored = JSON.parse(localStorage.getItem(SIDEBAR_GROUPS_KEY));

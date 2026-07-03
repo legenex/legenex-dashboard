@@ -74,7 +74,7 @@ export default function ConnectorFilterPanel({ editing, onFieldChange, brandOpti
         <div className="text-[13px] font-semibold text-foreground">Filters</div>
         <p className="text-[11px] text-muted-foreground">Empty = match all. Pills within each group are OR (lead matches ANY selected pill). All non-empty groups must match. Field conditions below are the primary AND gate.</p>
 
-        {/* Quick filter pills — inline flow, wraps naturally */}
+        {/* Quick filter pills - inline flow, wraps naturally */}
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           <div className="flex items-start gap-2">
             <span className="text-[11px] font-medium text-muted-foreground mt-1.5 whitespace-nowrap">Brands</span>
@@ -94,7 +94,7 @@ export default function ConnectorFilterPanel({ editing, onFieldChange, brandOpti
           </div>
         </div>
 
-        {/* Field Conditions — separate section */}
+        {/* Field Conditions - separate section */}
         <div className="pt-3 border-t border-border">
           <Label className="text-[12px]">Field Conditions</Label>
           <p className="text-[11px] text-muted-foreground mt-0.5">Only match when all conditions match the enriched lead data including calculated fields. Empty = no conditions.</p>

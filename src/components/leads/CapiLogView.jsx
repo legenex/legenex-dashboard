@@ -33,7 +33,7 @@ function CapiEntry({ e }) {
         className="flex items-center gap-2 w-full p-2.5 text-left flex-wrap"
       >
         {open ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-primary shrink-0" />}
-        <Badge className="bg-primary/10 text-primary text-[9px]">{e.event_name || '—'}</Badge>
+        <Badge className="bg-primary/10 text-primary text-[9px]">{e.event_name || '-'}</Badge>
         <span className="text-[11px] text-muted-foreground">{e.connector || ''}</span>
         <span className="text-[10px] text-muted-foreground font-mono">{e.pixel || ''}</span>
         <span className="ml-auto flex items-center gap-2">
@@ -66,7 +66,7 @@ function CapiEntry({ e }) {
           <div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Facebook Response</div>
             <pre className="bg-background border border-border rounded-md p-2 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all">
-{e.fb_response ? JSON.stringify(e.fb_response, null, 2) : (e.fbtrace_id ? JSON.stringify({ events_received: e.events_received ?? null, messages: [], fbtrace_id: e.fbtrace_id }, null, 2) : '—')}
+{e.fb_response ? JSON.stringify(e.fb_response, null, 2) : (e.fbtrace_id ? JSON.stringify({ events_received: e.events_received ?? null, messages: [], fbtrace_id: e.fbtrace_id }, null, 2) : '-')}
             </pre>
           </div>
         </div>

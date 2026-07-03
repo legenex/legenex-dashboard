@@ -108,7 +108,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
             </span>
           </div>
           <div className="text-[12px] text-muted-foreground mt-1">
-            {lead.supplier_name} — {lead.created_date ? format(new Date(lead.created_date), 'PPpp') : ''}
+            {lead.supplier_name} - {lead.created_date ? format(new Date(lead.created_date), 'PPpp') : ''}
           </div>
         </DialogHeader>
 
@@ -147,16 +147,16 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
                   ['LeadByte Status', lead.leadbyte_record_status],
                   ['LeadByte Lead ID', lead.leadbyte_lead_id],
                   ['Queue ID', lead.leadbyte_queue_id],
-                  ['Response Code', lbResp.code !== undefined ? lbResp.code : '—'],
-                  ['Response Message', lbResp.message || '—'],
-                  ['Response Errors', Array.isArray(lbResp.errors) && lbResp.errors.length ? lbResp.errors.join('; ') : (lbResp.errors || '—')],
-                  ['Process Time', lead.process_time_ms ? `${lead.process_time_ms}ms` : '—'],
-                  ['TrustedForm Valid', lead.trustedform_valid === true ? 'Yes' : lead.trustedform_valid === false ? 'No' : '—'],
-                  ['Queue Reason', lead.queue_reason || '—'],
+                  ['Response Code', lbResp.code !== undefined ? lbResp.code : '-'],
+                  ['Response Message', lbResp.message || '-'],
+                  ['Response Errors', Array.isArray(lbResp.errors) && lbResp.errors.length ? lbResp.errors.join('; ') : (lbResp.errors || '-')],
+                  ['Process Time', lead.process_time_ms ? `${lead.process_time_ms}ms` : '-'],
+                  ['TrustedForm Valid', lead.trustedform_valid === true ? 'Yes' : lead.trustedform_valid === false ? 'No' : '-'],
+                  ['Queue Reason', lead.queue_reason || '-'],
                 ].map(([label, val]) => (
                   <div key={label}>
                     <div className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</div>
-                    <div className="text-[13px] text-foreground font-medium mt-0.5 font-mono">{val || '—'}</div>
+                    <div className="text-[13px] text-foreground font-medium mt-0.5 font-mono">{val || '-'}</div>
                   </div>
                 ))}
               </div>

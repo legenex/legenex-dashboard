@@ -48,7 +48,7 @@ export default function DeliveryStatusList({ lead }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
-        <span><span className="text-muted-foreground">Supplier: </span><span className="text-foreground font-medium">{lead.supplier_name || '—'}</span></span>
+        <span><span className="text-muted-foreground">Supplier: </span><span className="text-foreground font-medium">{lead.supplier_name || '-'}</span></span>
         {sid && <span><span className="text-muted-foreground">SID: </span><span className="text-foreground font-mono">{sid}</span></span>}
         {ssid && <span><span className="text-muted-foreground">SSID: </span><span className="text-foreground font-mono">{ssid}</span></span>}
         {supplierKey && <span><span className="text-muted-foreground">Key: </span><span className="text-foreground font-mono">{supplierKey}</span></span>}
@@ -61,7 +61,7 @@ export default function DeliveryStatusList({ lead }) {
             {deliveries.map((d, i) => (
               <StatusLine
                 key={i}
-                label={d.connector || '—'}
+                label={d.connector || '-'}
                 sublabel={d.trigger ? `(${d.trigger})` : ''}
                 ok={!!d.success}
                 httpStatus={d.http_status}
@@ -79,7 +79,7 @@ export default function DeliveryStatusList({ lead }) {
             {capi.map((e, i) => (
               <StatusLine
                 key={i}
-                label={e.connector || '—'}
+                label={e.connector || '-'}
                 sublabel={e.event_name ? `(${e.event_name})` : ''}
                 ok={e.success !== false && e.http_status != null && e.http_status < 300 && (e.events_received == null || e.events_received >= 1)}
                 httpStatus={e.http_status}

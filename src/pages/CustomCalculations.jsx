@@ -129,7 +129,7 @@ export default function CustomCalculations() {
         } else if (existing.field_type !== 'Calculated') {
           await base44.entities.CustomField.update(existing.id, { field_type: 'Calculated' });
         }
-      } catch (e) { /* field may already exist (e.g. created inline) — ignore */ }
+      } catch (e) { /* field may already exist (e.g. created inline) - ignore */ }
       qc.invalidateQueries({ queryKey: ['custom-calculations'] });
       qc.invalidateQueries({ queryKey: ['custom-fields'] });
       setOpen(false);
@@ -290,7 +290,7 @@ export default function CustomCalculations() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-2">
             <div className="lg:col-span-2 space-y-4">
-            {/* Input Field — at the TOP */}
+            {/* Input Field - at the TOP */}
             <div className="space-y-1.5">
               <Label>Input Field</Label>
               <SearchableSelect

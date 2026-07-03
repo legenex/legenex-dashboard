@@ -171,9 +171,9 @@ export default function QueueRecovery() {
       const resp = await recoverTrustedForm({ lead_id: lead.id });
       const result = resp.data?.results?.[0];
       if (result?.success) {
-        // Cert found — now re-run the lead through the pipeline with the recovered cert
+        // Cert found - now re-run the lead through the pipeline with the recovered cert
         await assignAndRerun(lead, result.recovered_cert_url);
-        toast.success(`Cert recovered via ${result.cert_source} — lead re-processed`);
+        toast.success(`Cert recovered via ${result.cert_source} - lead re-processed`);
       } else {
         toast.error(result?.error || 'No cert found');
       }

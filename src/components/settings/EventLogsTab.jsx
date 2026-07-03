@@ -64,19 +64,19 @@ export default function EventLogsTab() {
                 <td className="px-3 py-2 whitespace-nowrap">{r.connector}</td>
                 <td className="px-3 py-2 whitespace-nowrap"><Badge className="bg-primary/10 text-primary text-[9px]">{r.event_name}</Badge></td>
                 <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">{r.pixel}</td>
-                <td className="px-3 py-2 font-mono text-[11px] text-foreground whitespace-nowrap">{r.value || '—'}</td>
+                <td className="px-3 py-2 font-mono text-[11px] text-foreground whitespace-nowrap">{r.value || '-'}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.http_status != null
                     ? <Badge className={r.http_status < 300 ? 'bg-status-sold status-sold text-[9px]' : 'bg-status-error status-error text-[9px]'}>{r.http_status}</Badge>
-                    : <span className="text-muted-foreground">—</span>}
+                    : <span className="text-muted-foreground">-</span>}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.events_received != null
                     ? <Badge className={r.events_received > 0 ? 'bg-status-sold status-sold text-[9px]' : 'bg-status-error status-error text-[9px]'}>{r.events_received}</Badge>
-                    : <span className="text-muted-foreground">—</span>}
+                    : <span className="text-muted-foreground">-</span>}
                 </td>
-                <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground whitespace-nowrap">{r.fbtrace_id || '—'}</td>
-                <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.created ? format(new Date(r.created), 'MMM d HH:mm') : '—'}</td>
+                <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground whitespace-nowrap">{r.fbtrace_id || '-'}</td>
+                <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.created ? format(new Date(r.created), 'MMM d HH:mm') : '-'}</td>
               </tr>
             ))}
           </tbody>

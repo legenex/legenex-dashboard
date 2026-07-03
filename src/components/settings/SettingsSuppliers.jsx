@@ -176,7 +176,7 @@ export default function SettingsSuppliers() {
         active: form.active,
         request_count: 0,
       });
-      toast.success('Supplier created — copy the key now!');
+      toast.success('Supplier created - copy the key now!');
       await qc.invalidateQueries({ queryKey: ['suppliers'] });
       await qc.invalidateQueries({ queryKey: ['api-keys'] });
     }
@@ -323,9 +323,9 @@ export default function SettingsSuppliers() {
                       {s.active ? 'Active' : 'Inactive'}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{s.sid || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{parseBrandArray(s.brand).join(', ') || '—'}</td>
-                  <td className="px-4 py-3"><Badge variant="outline" className={`text-[10px] ${s.supplier_type === 'Internal' ? 'status-sold bg-status-sold' : s.supplier_type === 'Calls' ? 'status-queued bg-status-queued' : 'text-muted-foreground'}`}>{s.supplier_type || '—'}</Badge></td>
+                  <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{s.sid || '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{parseBrandArray(s.brand).join(', ') || '-'}</td>
+                  <td className="px-4 py-3"><Badge variant="outline" className={`text-[10px] ${s.supplier_type === 'Internal' ? 'status-sold bg-status-sold' : s.supplier_type === 'Calls' ? 'status-queued bg-status-queued' : 'text-muted-foreground'}`}>{s.supplier_type || '-'}</Badge></td>
                   <td className="px-4 py-3"><Badge variant="outline" className="text-[10px]">{s.payout_type}</Badge></td>
                   <td className="px-4 py-3">
                     {k ? (
@@ -337,10 +337,10 @@ export default function SettingsSuppliers() {
                           {showKeys[s.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
                       </div>
-                    ) : <span className="text-muted-foreground text-[11px]">—</span>}
+                    ) : <span className="text-muted-foreground text-[11px]">-</span>}
                   </td>
                   <td className="px-4 py-3 text-[11px] text-muted-foreground font-mono">
-                    {k?.last_used_at ? format(new Date(k.last_used_at), 'MMM dd HH:mm') : '—'}
+                    {k?.last_used_at ? format(new Date(k.last_used_at), 'MMM dd HH:mm') : '-'}
                   </td>
                   <td className="px-4 py-3 font-mono text-[11px]">{k?.request_count || 0}</td>
                   <td className="px-4 py-3">
@@ -390,7 +390,7 @@ export default function SettingsSuppliers() {
           {newKeyFull ? (
             <div className="space-y-4">
               <div className="bg-background border border-primary/30 rounded-lg p-4">
-                <div className="text-[12px] font-semibold text-primary mb-2">API Key Generated — Copy Now</div>
+                <div className="text-[12px] font-semibold text-primary mb-2">API Key Generated - Copy Now</div>
                 <div className="font-mono text-[12px] text-foreground break-all bg-muted/50 rounded p-3">{newKeyFull}</div>
                 <p className="text-[11px] text-muted-foreground mt-2">This key will never be shown in full again. Store it securely.</p>
               </div>
@@ -500,7 +500,7 @@ export default function SettingsSuppliers() {
                 value={apiKeyForm.type}
                 onValueChange={v => setApiKeyForm(p => ({ ...p, type: v, supplier_id: '' }))}
                 className="mt-1 bg-background"
-                options={[{ value: 'master', label: 'Master — no linked supplier' }, { value: 'supplier', label: 'Supplier — attributed to a supplier' }]}
+                options={[{ value: 'master', label: 'Master - no linked supplier' }, { value: 'supplier', label: 'Supplier - attributed to a supplier' }]}
               />
             </div>
             {apiKeyForm.type === 'supplier' && (
