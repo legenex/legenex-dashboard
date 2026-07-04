@@ -11,8 +11,9 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Copy, Trash2, Edit2, Wand2, GripVertical, Sparkles, CheckCheck, Ban, Download } from 'lucide-react';
+import { Plus, Copy, Trash2, Edit2, Wand2, GripVertical, Sparkles, CheckCheck, Ban, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
+import ImportExportFieldsDialog from '@/components/settings/ImportExportFieldsDialog';
 
 const BLANK_FIELD = {
   field_name: '', label: '', field_type: 'string',
@@ -44,6 +45,7 @@ export default function SettingsCustomFields() {
   const [orderedFields, setOrderedFields] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [importExportOpen, setImportExportOpen] = useState(false);
 
   const { data: fields = [] } = useQuery({
     queryKey: ['custom-fields'],
@@ -165,31 +167,6 @@ export default function SettingsCustomFields() {
     toast.success('Field deleted and added to ignore list');
   };
 
-  const handleExport = () => {
-    const exportData = orderedFields.map(f => ({
-      field_name: f.field_name,
-      label: f.label || '',
-      field_type: f.field_type || 'string',
-      source: f.source || 'inbound',
-      required: f.required ?? false,
-      include_in_leadbyte: f.include_in_leadbyte ?? true,
-      leadbyte_field_name: f.leadbyte_field_name || f.field_name,
-      system_role: f.system_role || '',
-      auto_created: f.auto_created ?? false,
-      sample_value: f.sample_value || '',
-      options: parseJsonArray(f.options),
-      sort_order: f.sort_order ?? 0,
-    }));
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'custom-fields.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${exportData.length} fields`);
-  };
-
   const handleDetect = async () => {
     setDetecting(true);
     try {
@@ -273,8 +250,8 @@ export default function SettingsCustomFields() {
       <div className="flex items-center justify-between mb-4">
         <div className="text-[13px] text-muted-foreground">{fields.length} fields defined</div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport} disabled={orderedFields.length === 0} className="gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Export JSON
+          <Button size="sm" variant="outline" onClick={() => setImportExportOpen(true)} className="gap-1.5">
+            <ArrowDownUp className="w-3.5 h-3.5" /> Import / Export Fields
           </Button>
           <Button size="sm" variant="outline" onClick={() => setDetectOpen(true)} className="gap-1.5">
             <Wand2 className="w-3.5 h-3.5" /> Detect from JSON
@@ -471,6 +448,12 @@ export default function SettingsCustomFields() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportExportFieldsDialog
+        open={importExportOpen}
+        onOpenChange={setImportExportOpen}
+        fields={orderedFields}
+      />
     </div>
   );
 }
