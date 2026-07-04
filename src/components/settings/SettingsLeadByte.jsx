@@ -19,8 +19,9 @@ import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { verticalColor, triggerTagClass, TAG_NEUTRAL, statusTextClass } from '@/lib/tagColors';
-import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
+import ImportExportDialog from '@/components/shared/ImportExportDialog';
 
 const DEFAULT_TEST_PAYLOAD = {
   campid: "LEGAL-MVA-USA",
@@ -192,6 +193,7 @@ export default function SettingsLeadByte() {
   const [activeTab, setActiveTab] = useState('connectors');
   const [connectorSubTab, setConnectorSubTab] = useState('connector');
   const [verticalFilter, setVerticalFilter] = useState('all');
+  const [ioOpen, setIoOpen] = useState(false);
 
   const [editingMapping, setEditingMapping] = useState(null);
   const [savingMapping, setSavingMapping] = useState(false);
@@ -642,8 +644,23 @@ export default function SettingsLeadByte() {
                 options={[{ value: 'all', label: 'All Verticals' }, ...verticalFilterOptions]}
               />
             </div>
-            <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Destination</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export</Button>
+              <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Destination</Button>
+            </div>
           </div>
+
+          <ImportExportDialog
+            open={ioOpen}
+            onOpenChange={setIoOpen}
+            entityName="LeadByteConnector"
+            records={connectors}
+            matchKey="api_name"
+            labelKey="api_name"
+            exportPrefix="destinations"
+            queryKeys={[['lb-connectors-all']]}
+            title="Import / Export Destinations"
+          />
           <div className="space-y-4">
             {[...connectors].filter(conn => {
               if (verticalFilter === 'all') return true;

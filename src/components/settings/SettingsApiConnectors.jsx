@@ -22,8 +22,9 @@ import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { verticalColor, triggerTagClass, TAG_NEUTRAL } from '@/lib/tagColors';
-import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy, GripVertical } from 'lucide-react';
+import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy, GripVertical, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
+import ImportExportDialog from '@/components/shared/ImportExportDialog';
 
 const KIND_OPTIONS = [
   { value: 'facebook_capi', label: 'Facebook CAPI' },
@@ -188,6 +189,7 @@ export default function SettingsApiConnectors() {
   const [activePlatform, setActivePlatform] = useState('facebook');
   const [statusFilter, setStatusFilter] = useState('all');
   const [testTrigger, setTestTrigger] = useState('on_received');
+  const [ioOpen, setIoOpen] = useState(false);
 
   const { data: connectors = [] } = useQuery({
     queryKey: ['api-connectors'],
@@ -610,8 +612,23 @@ export default function SettingsApiConnectors() {
             options={STATUS_FILTERS}
           />
         </div>
-        <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Connector</Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export</Button>
+          <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Connector</Button>
+        </div>
       </div>
+
+      <ImportExportDialog
+        open={ioOpen}
+        onOpenChange={setIoOpen}
+        entityName="ApiConnector"
+        records={connectors}
+        matchKey="name"
+        labelKey="name"
+        exportPrefix="conversion-events"
+        queryKeys={[['api-connectors']]}
+        title="Import / Export Conversion Events"
+      />
 
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="connectors">
