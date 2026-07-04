@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   Mail, MessageCircle, HardDrive, FileSpreadsheet, Hash, Database, BarChart3, Facebook,
-  CheckCircle2, Plug, Zap, ShieldAlert, Send, Save,
+  CheckCircle2, Plug, Zap, ShieldAlert, Send, Save, Megaphone, Music2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import MetaAdSpend from '@/components/settings/MetaAdSpend';
 
 const INTEGRATIONS = [
   { type: 'gmail', name: 'Gmail', icon: Mail, desc: 'Send & receive email notifications', supported: true, channels: ['Email'] },
@@ -22,8 +23,14 @@ const INTEGRATIONS = [
   { type: 'googlesheets', name: 'Google Sheets', icon: FileSpreadsheet, desc: 'Read & write spreadsheet data', supported: true, channels: [] },
   { type: 'slack', name: 'Slack', icon: Hash, desc: 'Channel notifications & alerts', supported: true, channels: ['Slack'] },
   { type: 'googlebigquery', name: 'BigQuery', icon: Database, desc: 'Export & query lead data at scale', supported: true, channels: [] },
-  { type: 'meta', name: 'Meta (Facebook)', icon: Facebook, desc: 'Page & Ad Account spend integration', supported: false, comingSoon: true, channels: [] },
   { type: 'google_analytics', name: 'Google Analytics', icon: BarChart3, desc: 'Traffic & conversion analytics', supported: true, channels: [] },
+];
+
+// Ad platforms for true-CPL spend attribution. Meta is live; the rest are coming soon.
+const AD_PLATFORMS = [
+  { type: 'google_ads', name: 'Google Ads', icon: Megaphone, desc: 'Search & display ad spend', comingSoon: true },
+  { type: 'taboola', name: 'Taboola', icon: BarChart3, desc: 'Native ad spend', comingSoon: true },
+  { type: 'tiktok', name: 'TikTok Ads', icon: Music2, desc: 'TikTok ad spend', comingSoon: true },
 ];
 
 export default function SettingsIntegrations() {
@@ -219,6 +226,40 @@ export default function SettingsIntegrations() {
             </div>
           );
         })}
+      </div>
+
+      {/* Ad spend & true CPL section */}
+      <div className="mt-8">
+        <div className="text-[15px] font-semibold text-foreground mb-1">Ad Spend & True CPL</div>
+        <div className="text-[13px] text-muted-foreground mb-4 max-w-2xl">
+          Connect ad platforms to sync spend and calculate true CPL per supplier and source. Synced spend feeds Reports and Finances.
+        </div>
+
+        <MetaAdSpend />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          {AD_PLATFORMS.map((it) => {
+            const Icon = it.icon;
+            return (
+              <div key={it.type} className="bg-card border border-border rounded-[12px] p-4 flex flex-col opacity-80">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-primary" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="text-[14px] font-semibold text-foreground">{it.name}</div>
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">Coming soon</Badge>
+                    </div>
+                    <div className="text-[12px] text-muted-foreground mt-0.5">{it.desc}</div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-4">
+                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Zap className="w-3.5 h-3.5" /> Not available</span>
+                  <Button size="sm" variant="outline" disabled className="gap-1.5 opacity-60"><Plug className="w-3.5 h-3.5" /> Connect</Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Info dialog for OAuth connectors (connection initiated through the platform) */}

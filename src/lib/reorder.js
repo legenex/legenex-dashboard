@@ -13,3 +13,11 @@ export function sortByOrder(items) {
 export function nextSortOrder(items) {
   return items.reduce((m, c) => Math.max(m, c.sort_order || 0), 0) + 1;
 }
+
+// Immutable array move: returns a new array with the item at `from` moved to `to`.
+export function reorder(list, from, to) {
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
