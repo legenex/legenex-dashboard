@@ -13,10 +13,11 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Plus, Pencil, Trash2, Calculator, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Calculator, GripVertical, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { OutputFieldPicker } from '@/components/calculations/OutputFieldPicker';
 import ReferenceKeyPanel from '@/components/calculations/ReferenceKeyPanel';
+import ImportExportDialog from '@/components/shared/ImportExportDialog';
 
 const DEFAULT_DATE_BUCKETS = [
   { label: 'Within 7 Days', max_days: 7 },
@@ -94,6 +95,7 @@ export default function CustomCalculations() {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [deleteId, setDeleteId] = useState(null);
+  const [ioOpen, setIoOpen] = useState(false);
 
   const { data: calcs = [] } = useQuery({
     queryKey: ['custom-calculations'],
@@ -215,10 +217,25 @@ export default function CustomCalculations() {
   return (
     <div className="p-6">
       <PageHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data. Drag to reorder.">
+        <Button onClick={() => setIoOpen(true)} size="sm" variant="outline" className="gap-2">
+          <ArrowDownUp className="w-4 h-4" /> Import / Export Fields
+        </Button>
         <Button onClick={openNew} size="sm" className="gap-2">
           <Plus className="w-4 h-4" /> New Calculated Field
         </Button>
       </PageHeader>
+
+      <ImportExportDialog
+        open={ioOpen}
+        onOpenChange={setIoOpen}
+        entityName="CustomCalculation"
+        records={calcs}
+        matchKey="output_token"
+        labelKey="output_label"
+        exportPrefix="calculated-fields"
+        queryKeys={[['custom-calculations']]}
+        title="Import / Export Calculated Fields"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">

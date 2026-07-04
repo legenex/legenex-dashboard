@@ -9,9 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, Save, Trash2, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { brandColor } from '@/lib/tagColors';
+import ImportExportDialog from '@/components/shared/ImportExportDialog';
 
 const DEFAULT_FORM = {
   brand_name: '', brand_code: '', website_url: '', optin_url: '',
@@ -34,6 +35,7 @@ export default function CampaignBrands() {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [editingId, setEditingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [ioOpen, setIoOpen] = useState(false);
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
@@ -98,9 +100,22 @@ export default function CampaignBrands() {
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export Fields</Button>
         <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Create Brand</Button>
       </div>
+
+      <ImportExportDialog
+        open={ioOpen}
+        onOpenChange={setIoOpen}
+        entityName="Brand"
+        records={brands}
+        matchKey="brand_name"
+        labelKey="brand_name"
+        exportPrefix="brands"
+        queryKeys={[['brands']]}
+        title="Import / Export Brands"
+      />
 
       <div className="bg-card border border-border rounded-[10px] overflow-hidden">
         <table className="w-full text-[13px]">

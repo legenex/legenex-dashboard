@@ -9,9 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/partnerMetrics';
+import ImportExportDialog from '@/components/shared/ImportExportDialog';
 
 const BLANK = {
   company_name: '', email: '', phone: '', location: '',
@@ -24,6 +25,7 @@ export default function CampaignBuyers() {
   const navigate = useNavigate();
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
+  const [ioOpen, setIoOpen] = useState(false);
 
   const { data: buyers = [] } = useQuery({
     queryKey: ['buyers'],
@@ -68,9 +70,22 @@ export default function CampaignBuyers() {
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export Fields</Button>
         <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> New Buyer</Button>
       </div>
+
+      <ImportExportDialog
+        open={ioOpen}
+        onOpenChange={setIoOpen}
+        entityName="Buyer"
+        records={buyers}
+        matchKey="company_name"
+        labelKey="company_name"
+        exportPrefix="buyers"
+        queryKeys={[['buyers']]}
+        title="Import / Export Buyers"
+      />
 
       <div className="bg-card border border-border rounded-[10px] overflow-x-auto">
         <table className="w-full text-[13px] min-w-[1000px]">

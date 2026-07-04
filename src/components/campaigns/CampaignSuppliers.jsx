@@ -10,9 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Copy } from 'lucide-react';
+import { Plus, Copy, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplierMetrics, money, pct } from '@/lib/partnerMetrics';
+import ImportExportDialog from '@/components/shared/ImportExportDialog';
 
 function generateKey(supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -41,6 +42,7 @@ export default function CampaignSuppliers() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [newKey, setNewKey] = useState(null);
+  const [ioOpen, setIoOpen] = useState(false);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
@@ -104,9 +106,22 @@ export default function CampaignSuppliers() {
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export Fields</Button>
         <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Create Supplier</Button>
       </div>
+
+      <ImportExportDialog
+        open={ioOpen}
+        onOpenChange={setIoOpen}
+        entityName="Supplier"
+        records={suppliers}
+        matchKey="name"
+        labelKey="name"
+        exportPrefix="suppliers"
+        queryKeys={[['suppliers']]}
+        title="Import / Export Suppliers"
+      />
 
       <div className="bg-card border border-border rounded-[10px] overflow-x-auto">
         <table className="w-full text-[13px] min-w-[1000px]">
