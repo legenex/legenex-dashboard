@@ -1,17 +1,32 @@
 {
+  "name": "User",
+  "type": "object",
   "properties": {
     "role": {
       "type": "string",
-      "description": "The role of the user in the app",
+      "description": "Platform role of the user in the app",
       "enum": [
         "admin",
         "user"
       ]
+    },
+    "base_role": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "admin",
+        "manager",
+        "supplier",
+        "buyer"
+      ],
+      "description": "Granular app role preset that pre-fills the permission checklist"
+    },
+    "permissions": {
+      "type": "string",
+      "description": "JSON object map of permission key -> true for every section/page/function this user can access"
     }
   },
   "required": [
     "role"
-  ],
-  "name": "User",
-  "type": "object"
+  ]
 }

@@ -10,32 +10,50 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
-  Mail, MessageCircle, HardDrive, FileSpreadsheet, Hash, Database, BarChart3, Facebook,
-  CheckCircle2, Plug, Zap, ShieldAlert, Send, Save, Megaphone, Music2,
+  Mail, MessageCircle, HardDrive, FileSpreadsheet, Hash, CheckCircle2, Plug, Zap, ShieldAlert,
+  Send, Save, Megaphone, Music2, BarChart3, Facebook, Phone, PhoneCall, ShieldCheck,
+  CreditCard, Receipt, Webhook, Settings2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MetaAdSpend from '@/components/settings/MetaAdSpend';
 
-const INTEGRATIONS = [
-  { type: 'gmail', name: 'Gmail', icon: Mail, desc: 'Send & receive email notifications', supported: true, channels: ['Email'] },
-  { type: 'whatsapp', name: 'WhatsApp', icon: MessageCircle, desc: 'Send WhatsApp messages to any number', supported: true, custom: true, channels: ['WhatsApp'] },
-  { type: 'googledrive', name: 'Google Drive', icon: HardDrive, desc: 'File storage, exports & backups', supported: true, channels: [] },
-  { type: 'googlesheets', name: 'Google Sheets', icon: FileSpreadsheet, desc: 'Read & write spreadsheet data', supported: true, channels: [] },
-  { type: 'slack', name: 'Slack', icon: Hash, desc: 'Channel notifications & alerts', supported: true, channels: ['Slack'] },
-  { type: 'googlebigquery', name: 'BigQuery', icon: Database, desc: 'Export & query lead data at scale', supported: true, channels: [] },
-  { type: 'google_analytics', name: 'Google Analytics', icon: BarChart3, desc: 'Traffic & conversion analytics', supported: true, channels: [] },
+const CATEGORIES = [
+  { key: 'all', label: 'All' },
+  { key: 'ads', label: 'Ad Platforms' },
+  { key: 'delivery', label: 'Lead Delivery' },
+  { key: 'notify', label: 'Notifications & Reports' },
+  { key: 'billing', label: 'Billing' },
+  { key: 'validation', label: 'Lead Validation' },
 ];
 
-// Ad platforms for true-CPL spend attribution. Meta is live; the rest are coming soon.
-const AD_PLATFORMS = [
-  { type: 'google_ads', name: 'Google Ads', icon: Megaphone, desc: 'Search & display ad spend', comingSoon: true },
-  { type: 'taboola', name: 'Taboola', icon: BarChart3, desc: 'Native ad spend', comingSoon: true },
-  { type: 'tiktok', name: 'TikTok Ads', icon: Music2, desc: 'TikTok ad spend', comingSoon: true },
+// category-tagged integration catalog. `meta` renders the live MetaAdSpend flow.
+const CATALOG = [
+  { type: 'meta', category: 'ads', name: 'Meta (Facebook) Ads', icon: Facebook, desc: 'Sync ad spend & map to campaigns for true CPL', live: 'meta' },
+  { type: 'google_ads', category: 'ads', name: 'Google Ads', icon: Megaphone, desc: 'Search & display ad spend', comingSoon: true },
+  { type: 'taboola', category: 'ads', name: 'Taboola', icon: BarChart3, desc: 'Native ad spend', comingSoon: true },
+  { type: 'tiktok', category: 'ads', name: 'TikTok Ads', icon: Music2, desc: 'TikTok ad spend', comingSoon: true },
+
+  { type: 'leadbyte', category: 'delivery', name: 'LeadByte', icon: Send, desc: 'Deliver leads to LeadByte campaigns', link: '/deliveries', action: 'Configure' },
+  { type: 'leadshook', category: 'delivery', name: 'Leadshook', icon: Send, desc: 'Deliver leads to Leadshook funnels', comingSoon: true },
+  { type: 'googlesheets', category: 'delivery', name: 'Google Sheets', icon: FileSpreadsheet, desc: 'Write delivered leads to a spreadsheet', supported: true, oauth: true },
+  { type: 'ringba', category: 'delivery', name: 'Ringba', icon: PhoneCall, desc: 'Call webhook delivery to Ringba', comingSoon: true },
+  { type: 'truecall', category: 'delivery', name: 'TrueCall', icon: Phone, desc: 'Call webhook delivery to TrueCall', comingSoon: true },
+
+  { type: 'slack', category: 'notify', name: 'Slack', icon: Hash, desc: 'Channel notifications & alerts', supported: true, oauth: true },
+  { type: 'gmail', category: 'notify', name: 'Gmail', icon: Mail, desc: 'Send & receive email notifications', supported: true, gmail: true },
+
+  { type: 'stripe', category: 'billing', name: 'Stripe', icon: CreditCard, desc: 'Buyer payments & subscription billing', comingSoon: true },
+  { type: 'xero', category: 'billing', name: 'Xero', icon: Receipt, desc: 'Sync invoices & payments to Xero', comingSoon: true },
+
+  { type: 'trustedform', category: 'validation', name: 'TrustedForm', icon: ShieldCheck, desc: 'Cert validation passthrough on inbound leads', link: '/verification', action: 'Configure' },
+  { type: 'jornaya', category: 'validation', name: 'Jornaya', icon: ShieldCheck, desc: 'LeadiD token passthrough validation', comingSoon: true },
 ];
 
 export default function SettingsIntegrations() {
   const qc = useQueryClient();
+  const [cat, setCat] = useState('all');
   const [pending, setPending] = useState(null);
+
   const [waOpen, setWaOpen] = useState(false);
   const [waForm, setWaForm] = useState({ access_token: '', phone_number_id: '' });
   const [waTest, setWaTest] = useState({ to: '', body: 'Test from Legenex' });
@@ -56,131 +74,98 @@ export default function SettingsIntegrations() {
   const statusMap = data?.data?.status || data?.status || {};
 
   const openWhatsapp = async () => {
-    setWaOpen(true);
-    setWaLoading(true);
+    setWaOpen(true); setWaLoading(true);
     try {
       const list = await base44.entities.IntegrationConfig.filter({ name: 'whatsapp' });
       const cfg = list[0];
-      if (cfg) {
-        const p = JSON.parse(cfg.config || '{}');
-        setWaForm({ access_token: p.access_token || '', phone_number_id: p.phone_number_id || '' });
-      } else {
-        setWaForm({ access_token: '', phone_number_id: '' });
-      }
-    } catch {
-      setWaForm({ access_token: '', phone_number_id: '' });
-    }
+      if (cfg) { const p = JSON.parse(cfg.config || '{}'); setWaForm({ access_token: p.access_token || '', phone_number_id: p.phone_number_id || '' }); }
+      else setWaForm({ access_token: '', phone_number_id: '' });
+    } catch { setWaForm({ access_token: '', phone_number_id: '' }); }
     setWaLoading(false);
   };
 
   const saveWhatsapp = async () => {
-    if (!waForm.access_token?.trim() || !waForm.phone_number_id?.trim()) {
-      toast.error('Access token and Phone Number ID are required');
-      return;
-    }
+    if (!waForm.access_token?.trim() || !waForm.phone_number_id?.trim()) { toast.error('Access token and Phone Number ID are required'); return; }
     setWaSaving(true);
     try {
       const list = await base44.entities.IntegrationConfig.filter({ name: 'whatsapp' });
       const payload = JSON.stringify(waForm);
-      if (list[0]) {
-        await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
-      } else {
-        await base44.entities.IntegrationConfig.create({ name: 'whatsapp', config: payload });
-      }
+      if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
+      else await base44.entities.IntegrationConfig.create({ name: 'whatsapp', config: payload });
       toast.success('WhatsApp credentials saved');
-      qc.invalidateQueries({ queryKey: ['integration-status'] });
-      refetch();
-    } catch {
-      toast.error('Failed to save credentials');
-    }
+      qc.invalidateQueries({ queryKey: ['integration-status'] }); refetch();
+    } catch { toast.error('Failed to save credentials'); }
     setWaSaving(false);
   };
 
   const sendTest = async () => {
-    if (!waTest.to?.trim() || !waTest.body?.trim()) {
-      toast.error('Enter a number and a message');
-      return;
-    }
+    if (!waTest.to?.trim() || !waTest.body?.trim()) { toast.error('Enter a number and a message'); return; }
     setWaSending(true);
     try {
       const res = await sendWhatsapp({ to: waTest.to, body: waTest.body });
       const d = res?.data || {};
-      if (d.success) {
-        toast.success('WhatsApp message sent');
-      } else {
-        toast.error(d.error || 'Send failed');
-      }
-    } catch (e) {
-      toast.error(e?.response?.data?.error || 'Send failed');
-    }
+      if (d.success) toast.success('WhatsApp message sent'); else toast.error(d.error || 'Send failed');
+    } catch (e) { toast.error(e?.response?.data?.error || 'Send failed'); }
     setWaSending(false);
   };
 
   const openGmail = async () => {
-    setGmOpen(true);
-    setGmLoading(true);
-    setGmFrom('');
-    try {
-      const res = await sendGmail({});
-      const d = res?.data || {};
-      if (d.connected) setGmFrom(d.from || '');
-    } catch {
-      setGmFrom('');
-    }
+    setGmOpen(true); setGmLoading(true); setGmFrom('');
+    try { const res = await sendGmail({}); const d = res?.data || {}; if (d.connected) setGmFrom(d.from || ''); }
+    catch { setGmFrom(''); }
     setGmLoading(false);
   };
 
   const sendGmailTest = async () => {
-    if (!gmTest.to?.trim()) {
-      toast.error('Enter a recipient email address');
-      return;
-    }
+    if (!gmTest.to?.trim()) { toast.error('Enter a recipient email address'); return; }
     setGmSending(true);
     try {
       const res = await sendGmail({ to: gmTest.to, subject: gmTest.subject, body: gmTest.body });
       const d = res?.data || {};
-      if (d.success) {
-        toast.success(`Email sent from ${d.from || 'Gmail'}`);
-        if (d.from) setGmFrom(d.from);
-      } else {
-        toast.error(d.error || 'Send failed');
-      }
-    } catch (e) {
-      toast.error(e?.response?.data?.error || 'Send failed - is Gmail connected?');
-    }
+      if (d.success) { toast.success(`Email sent from ${d.from || 'Gmail'}`); if (d.from) setGmFrom(d.from); }
+      else toast.error(d.error || 'Send failed');
+    } catch (e) { toast.error(e?.response?.data?.error || 'Send failed - is Gmail connected?'); }
     setGmSending(false);
   };
 
   const handleConnect = (it) => {
-    if (it.custom && it.type === 'whatsapp') {
-      openWhatsapp();
-      return;
-    }
-    if (it.type === 'gmail') {
-      openGmail();
-      return;
-    }
+    if (it.type === 'whatsapp') return openWhatsapp();
+    if (it.gmail) return openGmail();
+    if (it.link) { window.location.href = it.link; return; }
     setPending(it);
   };
+
+  const visible = CATALOG.filter(it => cat === 'all' || it.category === cat);
+  const showMeta = cat === 'all' || cat === 'ads';
 
   return (
     <div>
       <div className="text-[13px] text-muted-foreground mb-4 max-w-2xl">
-        Connect external services used for notifications and data sync. WhatsApp connects with your Cloud API
-        credentials; Google and Slack connect via OAuth.
+        Connect the external services powering ad spend, lead delivery, notifications, billing and validation.
+      </div>
+
+      {/* Category filter tabs */}
+      <div className="flex flex-wrap gap-1.5 mb-5">
+        {CATEGORIES.map(c => (
+          <button
+            key={c.key}
+            onClick={() => setCat(c.key)}
+            className={`text-[12px] px-3 py-1.5 rounded-full border transition-colors ${cat === c.key ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {INTEGRATIONS.map((it) => {
+        {visible.map((it) => {
+          if (it.live === 'meta') return null; // Meta rendered as its own full block below
           const Icon = it.icon;
-          const connected = !!statusMap[it.type];
-          const isWa = it.type === 'whatsapp';
+          const connected = it.supported ? !!statusMap[it.type] : false;
           return (
-            <div key={it.type} className="bg-card border border-border rounded-[12px] p-4 flex flex-col">
+            <div key={it.type} className={`bg-card border border-border rounded-[12px] p-4 flex flex-col ${it.comingSoon ? 'opacity-80' : ''}`}>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="w-5 h-5 text-primary" />
-                </div>
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-primary" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <div className="text-[14px] font-semibold text-foreground">{it.name}</div>
@@ -192,34 +177,22 @@ export default function SettingsIntegrations() {
 
               <div className="flex items-center justify-between mt-4">
                 {it.comingSoon ? (
-                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5" /> Not available
-                  </span>
+                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Zap className="w-3.5 h-3.5" /> Not available</span>
+                ) : it.link ? (
+                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Settings2 className="w-3.5 h-3.5" /> In-app</span>
                 ) : isLoading ? (
                   <span className="text-[11px] text-muted-foreground">Checking…</span>
                 ) : connected ? (
-                  <span className="text-[11px] status-sold inline-flex items-center gap-1 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Connected
-                  </span>
+                  <span className="text-[11px] status-sold inline-flex items-center gap-1 font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Connected</span>
                 ) : (
-                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
-                    <ShieldAlert className="w-3.5 h-3.5" /> Not connected
-                  </span>
+                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Not connected</span>
                 )}
+
                 {it.comingSoon ? (
-                  <Button size="sm" variant="outline" disabled className="gap-1.5 opacity-60">
-                    <Plug className="w-3.5 h-3.5" /> Connect
-                  </Button>
+                  <Button size="sm" variant="outline" disabled className="gap-1.5 opacity-60"><Plug className="w-3.5 h-3.5" /> Connect</Button>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant={connected ? 'outline' : 'default'}
-                    className="gap-1.5"
-                    onClick={() => handleConnect(it)}
-                  >
-                    {isWa
-                      ? (connected ? <><Plug className="w-3.5 h-3.5" /> Manage</> : <><Plug className="w-3.5 h-3.5" /> Connect</>)
-                      : (connected ? 'Manage' : <><Plug className="w-3.5 h-3.5" /> Connect</>)}
+                  <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={() => handleConnect(it)}>
+                    {it.action || (connected ? 'Manage' : <><Plug className="w-3.5 h-3.5" /> Connect</>)}
                   </Button>
                 )}
               </div>
@@ -228,41 +201,18 @@ export default function SettingsIntegrations() {
         })}
       </div>
 
-      {/* Ad spend & true CPL section */}
-      <div className="mt-8">
-        <div className="text-[15px] font-semibold text-foreground mb-1">Ad Spend & True CPL</div>
-        <div className="text-[13px] text-muted-foreground mb-4 max-w-2xl">
-          Connect ad platforms to sync spend and calculate true CPL per supplier and source. Synced spend feeds Reports and Finances.
+      {/* Meta ad-spend live flow (Ad Platforms) */}
+      {showMeta && (
+        <div className="mt-8">
+          <div className="text-[15px] font-semibold text-foreground mb-1">Meta Ad Spend & True CPL</div>
+          <div className="text-[13px] text-muted-foreground mb-4 max-w-2xl">
+            Connect Meta to sync spend and map ad accounts/campaigns to a vertical, brand and supplier. Synced spend feeds Reports and Finances.
+          </div>
+          <MetaAdSpend />
         </div>
+      )}
 
-        <MetaAdSpend />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          {AD_PLATFORMS.map((it) => {
-            const Icon = it.icon;
-            return (
-              <div key={it.type} className="bg-card border border-border rounded-[12px] p-4 flex flex-col opacity-80">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-primary" /></div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-[14px] font-semibold text-foreground">{it.name}</div>
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">Coming soon</Badge>
-                    </div>
-                    <div className="text-[12px] text-muted-foreground mt-0.5">{it.desc}</div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Zap className="w-3.5 h-3.5" /> Not available</span>
-                  <Button size="sm" variant="outline" disabled className="gap-1.5 opacity-60"><Plug className="w-3.5 h-3.5" /> Connect</Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Info dialog for OAuth connectors (connection initiated through the platform) */}
+      {/* OAuth connect info dialog */}
       <Dialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
         <DialogContent className="bg-popover border-border max-w-[440px]">
           <DialogHeader>
@@ -270,23 +220,17 @@ export default function SettingsIntegrations() {
             <DialogDescription>{pending?.desc}</DialogDescription>
           </DialogHeader>
           <div className="text-[13px] text-muted-foreground leading-relaxed">
-            Connecting <span className="text-foreground font-medium">{pending?.name}</span> opens an OAuth popup so you
-            can link your account and pick resources (folders, spreadsheets, channels). This needs a one-time setup of
-            the connector credentials - tell me in chat to enable the {pending?.name} connect flow and I'll wire it up.
-            {pending?.channels?.length > 0 && (
-              <div className="mt-2">Enables notification channels: {pending.channels.join(', ')}.</div>
-            )}
+            Connecting <span className="text-foreground font-medium">{pending?.name}</span> opens an OAuth grant so you can link your account and pick resources.
+            This needs a one-time connector setup — tell me in chat to enable the {pending?.name} connect flow and I'll wire it up.
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPending(null)}>Close</Button>
-            <Button onClick={() => { setPending(null); refetch(); qc.invalidateQueries({ queryKey: ['integration-status'] }); }}>
-              <Plug className="w-4 h-4" /> Refresh status
-            </Button>
+            <Button onClick={() => { setPending(null); refetch(); qc.invalidateQueries({ queryKey: ['integration-status'] }); }}><Plug className="w-4 h-4" /> Refresh status</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Gmail management - status + send a test email via the connected account */}
+      {/* Gmail management */}
       <Dialog open={gmOpen} onOpenChange={setGmOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">
           <DialogHeader>
@@ -298,50 +242,28 @@ export default function SettingsIntegrations() {
           ) : gmFrom ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-[12px]">
-                <CheckCircle2 className="w-4 h-4 status-sold" />
-                <span className="status-sold font-medium">Connected</span>
-                <span className="text-muted-foreground">· {gmFrom}</span>
+                <CheckCircle2 className="w-4 h-4 status-sold" /><span className="status-sold font-medium">Connected</span><span className="text-muted-foreground">· {gmFrom}</span>
               </div>
               <div className="border-t border-border pt-4">
                 <div className="text-[12px] font-medium text-foreground mb-2">Send a test email</div>
                 <div className="space-y-2">
-                  <Input
-                    value={gmTest.to}
-                    onChange={(e) => setGmTest((p) => ({ ...p, to: e.target.value }))}
-                    placeholder="To, e.g. you@example.com"
-                    className="bg-background font-mono text-[12px]"
-                  />
-                  <Input
-                    value={gmTest.subject}
-                    onChange={(e) => setGmTest((p) => ({ ...p, subject: e.target.value }))}
-                    placeholder="Subject"
-                    className="bg-background text-[13px]"
-                  />
-                  <Input
-                    value={gmTest.body}
-                    onChange={(e) => setGmTest((p) => ({ ...p, body: e.target.value }))}
-                    placeholder="Message body"
-                    className="bg-background text-[13px]"
-                  />
-                  <Button size="sm" onClick={sendGmailTest} disabled={gmSending} className="gap-1.5">
-                    <Send className="w-3.5 h-3.5" /> {gmSending ? 'Sending…' : 'Send test'}
-                  </Button>
+                  <Input value={gmTest.to} onChange={(e) => setGmTest((p) => ({ ...p, to: e.target.value }))} placeholder="To, e.g. you@example.com" className="bg-background font-mono text-[12px]" />
+                  <Input value={gmTest.subject} onChange={(e) => setGmTest((p) => ({ ...p, subject: e.target.value }))} placeholder="Subject" className="bg-background text-[13px]" />
+                  <Input value={gmTest.body} onChange={(e) => setGmTest((p) => ({ ...p, body: e.target.value }))} placeholder="Message body" className="bg-background text-[13px]" />
+                  <Button size="sm" onClick={sendGmailTest} disabled={gmSending} className="gap-1.5"><Send className="w-3.5 h-3.5" /> {gmSending ? 'Sending…' : 'Send test'}</Button>
                 </div>
               </div>
             </div>
           ) : (
             <div className="text-[13px] text-muted-foreground leading-relaxed">
-              Gmail isn't connected yet. Connection is a one-time OAuth grant - authorise the Gmail connector, then
-              you'll be able to send test emails from here.
+              Gmail isn't connected yet. Connection is a one-time OAuth grant - authorise the Gmail connector, then you'll be able to send test emails from here.
             </div>
           )}
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setGmOpen(false)}>Close</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="ghost" onClick={() => setGmOpen(false)}>Close</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* WhatsApp Cloud API configuration */}
+      {/* WhatsApp config (kept for existing credentials) */}
       <Dialog open={waOpen} onOpenChange={setWaOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">
           <DialogHeader>
@@ -354,54 +276,26 @@ export default function SettingsIntegrations() {
             <div className="space-y-4">
               <div>
                 <Label className="text-[12px]">Access Token</Label>
-                <Input
-                  value={waForm.access_token}
-                  onChange={(e) => setWaForm((p) => ({ ...p, access_token: e.target.value }))}
-                  placeholder="Permanent access token from Meta App"
-                  className="mt-1 bg-background font-mono text-[12px]"
-                  type="password"
-                />
+                <Input value={waForm.access_token} onChange={(e) => setWaForm((p) => ({ ...p, access_token: e.target.value }))} placeholder="Permanent access token from Meta App" className="mt-1 bg-background font-mono text-[12px]" type="password" />
               </div>
               <div>
                 <Label className="text-[12px]">Phone Number ID</Label>
-                <Input
-                  value={waForm.phone_number_id}
-                  onChange={(e) => setWaForm((p) => ({ ...p, phone_number_id: e.target.value }))}
-                  placeholder="e.g. 1077XXXXXXXXXXX"
-                  className="mt-1 bg-background font-mono text-[12px]"
-                />
+                <Input value={waForm.phone_number_id} onChange={(e) => setWaForm((p) => ({ ...p, phone_number_id: e.target.value }))} placeholder="e.g. 1077XXXXXXXXXXX" className="mt-1 bg-background font-mono text-[12px]" />
               </div>
               <div className="flex justify-end">
-                <Button size="sm" onClick={saveWhatsapp} disabled={waSaving} className="gap-1.5">
-                  <Save className="w-3.5 h-3.5" /> {waSaving ? 'Saving…' : 'Save credentials'}
-                </Button>
+                <Button size="sm" onClick={saveWhatsapp} disabled={waSaving} className="gap-1.5"><Save className="w-3.5 h-3.5" /> {waSaving ? 'Saving…' : 'Save credentials'}</Button>
               </div>
-
               <div className="border-t border-border pt-4">
                 <div className="text-[12px] font-medium text-foreground mb-2">Send a test message</div>
                 <div className="space-y-2">
-                  <Input
-                    value={waTest.to}
-                    onChange={(e) => setWaTest((p) => ({ ...p, to: e.target.value }))}
-                    placeholder="To number, e.g. 27831234567"
-                    className="bg-background font-mono text-[12px]"
-                  />
-                  <Input
-                    value={waTest.body}
-                    onChange={(e) => setWaTest((p) => ({ ...p, body: e.target.value }))}
-                    placeholder="Message body"
-                    className="bg-background text-[13px]"
-                  />
-                  <Button size="sm" variant="outline" onClick={sendTest} disabled={waSending} className="gap-1.5">
-                    <Send className="w-3.5 h-3.5" /> {waSending ? 'Sending…' : 'Send test'}
-                  </Button>
+                  <Input value={waTest.to} onChange={(e) => setWaTest((p) => ({ ...p, to: e.target.value }))} placeholder="To number, e.g. 27831234567" className="bg-background font-mono text-[12px]" />
+                  <Input value={waTest.body} onChange={(e) => setWaTest((p) => ({ ...p, body: e.target.value }))} placeholder="Message body" className="bg-background text-[13px]" />
+                  <Button size="sm" variant="outline" onClick={sendTest} disabled={waSending} className="gap-1.5"><Send className="w-3.5 h-3.5" /> {waSending ? 'Sending…' : 'Send test'}</Button>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setWaOpen(false)}>Close</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="ghost" onClick={() => setWaOpen(false)}>Close</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

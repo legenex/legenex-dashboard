@@ -40,10 +40,15 @@ const navGroups = [
     label: 'Settings', icon: SettingsIcon, type: 'dropdown', path: '/settings',
     children: [
       { label: 'General', path: '/settings', tab: 'general' },
-      { label: 'Users', path: '/settings', tab: 'users' },
-      { label: 'API Keys', path: '/settings', tab: 'apikeys' },
+      { label: 'Users and Roles', path: '/settings', tab: 'users' },
+      { label: 'Integrations', path: '/settings', tab: 'integrations' },
+      { label: 'Data Sources', path: '/settings', tab: 'data-sources' },
       { label: 'Custom Fields', path: '/settings', tab: 'fields' },
+      { label: 'Field Mapping', path: '/settings', tab: 'field-mapping' },
+      { label: 'API Keys', path: '/settings', tab: 'apikeys' },
       { label: 'Error Logs', path: '/settings', tab: 'errors' },
+      { label: 'Knowledge Base', path: '/settings', tab: 'knowledge' },
+      { label: 'Billing', path: '/settings', tab: 'billing' },
     ],
   },
 ];

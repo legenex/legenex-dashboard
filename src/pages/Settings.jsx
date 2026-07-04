@@ -1,49 +1,69 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeader from '@/components/shared/PageHeader';
-import SettingsUsers from '@/components/settings/SettingsUsers';
-import SettingsApiKeys from '@/components/settings/SettingsApiKeys';
-import SettingsCustomFields from '@/components/settings/SettingsCustomFields';
+import SettingsNav from '@/components/settings/SettingsNav';
 import SettingsGeneral from '@/components/settings/SettingsGeneral';
-import SettingsIgnoreList from '@/components/settings/SettingsIgnoreList';
+import SettingsUsers from '@/components/settings/SettingsUsers';
 import SettingsIntegrations from '@/components/settings/SettingsIntegrations';
-import SettingsNotifications from '@/components/settings/SettingsNotifications';
+import SettingsDataSources from '@/components/settings/SettingsDataSources';
+import SettingsCustomFields from '@/components/settings/SettingsCustomFields';
+import SettingsFieldMapping from '@/components/settings/SettingsFieldMapping';
+import SettingsApiKeys from '@/components/settings/SettingsApiKeys';
+import SettingsKnowledgeBase from '@/components/settings/SettingsKnowledgeBase';
+import SettingsBilling from '@/components/settings/SettingsBilling';
+import SettingsIgnoreList from '@/components/settings/SettingsIgnoreList';
 import ErrorLogs from '@/pages/ErrorLogs';
+
+const NAV = [
+  { group: 'Account', items: [
+    { key: 'general', label: 'General' },
+    { key: 'users', label: 'Users and Roles' },
+  ] },
+  { group: 'Data', items: [
+    { key: 'integrations', label: 'Integrations' },
+    { key: 'data-sources', label: 'Data Sources' },
+    { key: 'fields', label: 'Custom Fields' },
+    { key: 'field-mapping', label: 'Field Mapping' },
+    { key: 'apikeys', label: 'API Keys' },
+    { key: 'errors', label: 'Error Logs' },
+    { key: 'knowledge', label: 'Knowledge Base' },
+    { key: 'billing', label: 'Billing and Plan' },
+  ] },
+];
+
+const PANELS = {
+  general: <SettingsGeneral />,
+  users: <SettingsUsers />,
+  integrations: <SettingsIntegrations />,
+  'data-sources': <SettingsDataSources />,
+  fields: <SettingsCustomFields />,
+  'field-mapping': <SettingsFieldMapping />,
+  apikeys: <SettingsApiKeys />,
+  errors: <ErrorLogs embedded />,
+  knowledge: <SettingsKnowledgeBase />,
+  billing: <SettingsBilling />,
+  adaptive: <SettingsIgnoreList />,
+};
+
+const VALID = Object.keys(PANELS);
 
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'general';
-
-  const setTab = (v) => {
-    setSearchParams({ tab: v }, { replace: true });
-  };
+  const raw = searchParams.get('tab') || 'general';
+  const tab = VALID.includes(raw) ? raw : 'general';
+  const setTab = (v) => setSearchParams({ tab: v }, { replace: true });
 
   return (
     <div className="h-full flex flex-col min-h-0">
       <div className="shrink-0">
-        <PageHeader title="Settings" subtitle="General settings, users, API keys, custom fields, error logs, and adaptive fields" />
+        <PageHeader title="Settings" subtitle="Account, users & roles, integrations, data sources and more" />
       </div>
-      <Tabs value={tab} onValueChange={setTab} className="flex-1 min-h-0 flex flex-col">
-        <TabsList className="bg-muted mb-4 shrink-0 self-start">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="apikeys">API Keys</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="fields">Custom Fields</TabsTrigger>
-          <TabsTrigger value="errors">Error Logs</TabsTrigger>
-          <TabsTrigger value="adaptive">Adaptive Fields</TabsTrigger>
-        </TabsList>
-        <TabsContent value="general" className="flex-1 min-h-0 overflow-y-auto"><SettingsGeneral /></TabsContent>
-        <TabsContent value="users" className="flex-1 min-h-0 overflow-y-auto"><SettingsUsers /></TabsContent>
-        <TabsContent value="apikeys" className="flex-1 min-h-0 overflow-y-auto"><SettingsApiKeys /></TabsContent>
-        <TabsContent value="integrations" className="flex-1 min-h-0 overflow-y-auto"><SettingsIntegrations /></TabsContent>
-        <TabsContent value="notifications" className="flex-1 min-h-0 overflow-y-auto"><SettingsNotifications /></TabsContent>
-        <TabsContent value="fields" className="flex-1 min-h-0 overflow-y-auto"><SettingsCustomFields /></TabsContent>
-        <TabsContent value="errors" className="flex-1 min-h-0 overflow-y-auto"><ErrorLogs embedded /></TabsContent>
-        <TabsContent value="adaptive" className="flex-1 min-h-0 overflow-y-auto"><SettingsIgnoreList /></TabsContent>
-      </Tabs>
+      <div className="flex-1 min-h-0 flex gap-6">
+        <SettingsNav groups={NAV} active={tab} onSelect={setTab} />
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+          {PANELS[tab]}
+        </div>
+      </div>
     </div>
   );
 }

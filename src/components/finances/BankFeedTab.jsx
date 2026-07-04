@@ -2,9 +2,13 @@ import React, { useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { categorizeTransactions } from '@/functions/categorizeTransactions';
+import { syncMercury } from '@/functions/syncMercury';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Sparkles, Link2, ArrowDownUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Upload, Sparkles, Link2, ArrowDownUp, RefreshCw, CheckCircle2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/reportMetrics';
 import { unmatched } from '@/lib/financeMetrics';
@@ -19,11 +23,54 @@ export default function BankFeedTab() {
   const qc = useQueryClient();
   const fileRef = useRef();
   const [busy, setBusy] = useState(false);
+  const [mercuryOpen, setMercuryOpen] = useState(false);
+  const [mForm, setMForm] = useState({ api_token: '', account_id: '' });
+  const [mSaving, setMSaving] = useState(false);
+  const [mSyncing, setMSyncing] = useState(false);
 
   const { data: txns = [] } = useQuery({
     queryKey: ['bank-txns'],
     queryFn: () => base44.entities.BankTransaction.list('-date', 500),
   });
+
+  const { data: mercuryCfg } = useQuery({
+    queryKey: ['mercury-config'],
+    queryFn: async () => (await base44.entities.IntegrationConfig.filter({ name: 'mercury' }))[0] || null,
+  });
+  const mercuryConnected = !!mercuryCfg;
+  const mercuryMeta = (() => { try { return JSON.parse(mercuryCfg?.config || '{}'); } catch { return {}; } })();
+
+  const openMercury = () => {
+    setMForm({ api_token: '', account_id: mercuryMeta.account_id || '' });
+    setMercuryOpen(true);
+  };
+
+  const saveMercury = async () => {
+    if (!mForm.api_token.trim()) { toast.error('Enter your Mercury API token'); return; }
+    setMSaving(true);
+    try {
+      const payload = JSON.stringify({ api_token: mForm.api_token.trim(), account_id: mForm.account_id.trim() || undefined });
+      if (mercuryCfg?.id) await base44.entities.IntegrationConfig.update(mercuryCfg.id, { config: payload });
+      else await base44.entities.IntegrationConfig.create({ name: 'mercury', config: payload });
+      toast.success('Mercury connected — pulling transactions…');
+      qc.invalidateQueries({ queryKey: ['mercury-config'] });
+      setMercuryOpen(false);
+      await runMercurySync();
+    } catch { toast.error('Failed to save Mercury token'); }
+    setMSaving(false);
+  };
+
+  const runMercurySync = async () => {
+    setMSyncing(true);
+    try {
+      const res = await syncMercury({});
+      const d = res?.data || {};
+      if (d.success) toast.success(`Synced ${d.ingested} new transaction${d.ingested !== 1 ? 's' : ''} from Mercury`);
+      else toast.error(d.error || 'Mercury sync failed');
+      qc.invalidateQueries({ queryKey: ['bank-txns'] });
+    } catch (e) { toast.error(e?.response?.data?.error || 'Mercury sync failed'); }
+    setMSyncing(false);
+  };
 
   const moneyIn = txns.filter(t => t.amount > 0).reduce((a, t) => a + Number(t.amount), 0);
   const moneyOut = txns.filter(t => t.amount < 0).reduce((a, t) => a + Number(t.amount), 0);
@@ -97,9 +144,21 @@ export default function BankFeedTab() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={importCsv} />
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.info('Connect Mercury: paste your Mercury API token in Settings to enable live feed sync')}>
-            <Link2 className="w-3.5 h-3.5" /> Connect Mercury
-          </Button>
+          {mercuryConnected ? (
+            <>
+              <span className="text-[11px] status-sold inline-flex items-center gap-1 font-medium mr-1"><CheckCircle2 className="w-3.5 h-3.5" /> Mercury connected</span>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={runMercurySync} disabled={mSyncing}>
+                <RefreshCw className={`w-3.5 h-3.5 ${mSyncing ? 'animate-spin' : ''}`} /> Sync Now
+              </Button>
+              <Button size="sm" variant="ghost" className="gap-1.5" onClick={openMercury}>
+                <Link2 className="w-3.5 h-3.5" /> Reconnect
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={openMercury}>
+              <Link2 className="w-3.5 h-3.5" /> Connect Mercury
+            </Button>
+          )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={busy}>
             <Upload className="w-3.5 h-3.5" /> Import CSV
           </Button>
@@ -136,6 +195,31 @@ export default function BankFeedTab() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={mercuryOpen} onOpenChange={setMercuryOpen}>
+        <DialogContent className="bg-popover border-border max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Connect Mercury</DialogTitle>
+            <DialogDescription>Paste your Mercury API token to pull transactions live. CSV import stays available as a fallback.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-[12px]">Mercury API Token</Label>
+              <Input value={mForm.api_token} onChange={e => setMForm(p => ({ ...p, api_token: e.target.value }))} type="password" placeholder="secret-token-…" className="mt-1 bg-background font-mono text-[12px]" />
+              <p className="text-[11px] text-muted-foreground mt-1.5">Create a read token in Mercury → Settings → API tokens. Requires read access to transactions.</p>
+            </div>
+            <div>
+              <Label className="text-[12px]">Account ID (optional)</Label>
+              <Input value={mForm.account_id} onChange={e => setMForm(p => ({ ...p, account_id: e.target.value }))} placeholder="Leave blank to sync all accounts" className="mt-1 bg-background font-mono text-[12px]" />
+            </div>
+            {mercuryMeta.last_synced_at && <div className="text-[11px] text-muted-foreground">Last synced {new Date(mercuryMeta.last_synced_at).toLocaleString()}. Syncs automatically every hour.</div>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setMercuryOpen(false)}>Cancel</Button>
+            <Button onClick={saveMercury} disabled={mSaving} className="gap-1.5"><Save className="w-3.5 h-3.5" /> {mSaving ? 'Saving…' : 'Save & Sync'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

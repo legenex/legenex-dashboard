@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import DataBotWidget from '@/components/databot/DataBotWidget';
 
 export default function AppLayout() {
   return (
@@ -11,6 +12,7 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+      <DataBotWidget />
     </div>
   );
 }
