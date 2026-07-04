@@ -7,12 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/partnerMetrics';
 
-const BLANK = { company_name: '', email: '', phone: '', location: '' };
+const BLANK = {
+  company_name: '', email: '', phone: '', location: '',
+  buyer_type: '', vertical: '', billing_mode: 'lead_count',
+  billing_model: '', billing_email: '', min_balance: 0,
+};
 
 export default function CampaignBuyers() {
   const qc = useQueryClient();
@@ -24,6 +29,11 @@ export default function CampaignBuyers() {
     queryKey: ['buyers'],
     queryFn: () => base44.entities.Buyer.list('-created_date'),
   });
+  const { data: verticalList = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
 
   const openCreate = () => { setForm(BLANK); setModal(true); };
 
@@ -33,10 +43,14 @@ export default function CampaignBuyers() {
       email: form.email,
       phone: form.phone,
       location: form.location,
-      billing_mode: 'lead_count',
+      buyer_type: form.buyer_type,
+      vertical: form.vertical,
+      billing_mode: form.billing_mode,
+      billing_model: form.billing_model,
+      billing_email: form.billing_email,
       portal_enabled: false,
       balance: 0,
-      min_balance: 0,
+      min_balance: Number(form.min_balance) || 0,
       active: true,
     });
     qc.invalidateQueries({ queryKey: ['buyers'] });
@@ -97,13 +111,61 @@ export default function CampaignBuyers() {
       </div>
 
       <Dialog open={modal} onOpenChange={setModal}>
-        <DialogContent className="bg-popover border-border max-w-[440px]">
-          <DialogHeader><DialogTitle>Create Destination</DialogTitle></DialogHeader>
+        <DialogContent className="bg-popover border-border max-w-[520px]">
+          <DialogHeader><DialogTitle>New Buyer</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label className="text-[12px]">Company Name *</Label><Input value={form.company_name} onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} className="mt-1 bg-background" /></div>
-            <div><Label className="text-[12px]">Email</Label><Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="mt-1 bg-background" /></div>
-            <div><Label className="text-[12px]">Phone</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className="mt-1 bg-background" /></div>
-            <div><Label className="text-[12px]">Location</Label><Input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="mt-1 bg-background" /></div>
+            <div><Label className="text-[12px]">Company Name *</Label><Input value={form.company_name} onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} placeholder="e.g. Acme Legal" className="mt-1 bg-background" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-[12px]">Email</Label><Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="contact@buyer.com" className="mt-1 bg-background" /></div>
+              <div><Label className="text-[12px]">Phone</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="(555) 123-4567" className="mt-1 bg-background" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-[12px]">Location</Label><Input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="mt-1 bg-background" /></div>
+              <div>
+                <Label className="text-[12px]">Buyer Type</Label>
+                <SearchableSelect
+                  value={form.buyer_type}
+                  onValueChange={v => setForm(p => ({ ...p, buyer_type: v }))}
+                  className="mt-1 bg-background"
+                  placeholder="Select…"
+                  options={[
+                    { value: 'Direct', label: 'Direct' },
+                    { value: 'Aggregator', label: 'Aggregator' },
+                    { value: 'Network', label: 'Network' },
+                  ]}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-[12px]">Vertical (optional)</Label>
+              <SearchableSelect
+                value={form.vertical}
+                onValueChange={v => setForm(p => ({ ...p, vertical: v }))}
+                className="mt-1 bg-background"
+                placeholder="Any vertical"
+                options={[{ value: '', label: 'Any vertical' }, ...verticalOptions]}
+              />
+            </div>
+            <div>
+              <Label className="text-[12px] mb-2 block">Billing Mode</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[{ v: 'lead_count', l: 'Lead Count', d: 'Operator-managed, invoiced' }, { v: 'wallet', l: 'Wallet', d: 'Prepaid, auto-deducted' }].map(o => (
+                  <button key={o.v} type="button" onClick={() => setForm(p => ({ ...p, billing_mode: o.v }))}
+                    className={`text-left p-2.5 rounded-lg border transition-all ${form.billing_mode === o.v ? 'border-primary bg-primary/10' : 'border-border bg-background hover:bg-accent/40'}`}>
+                    <div className="text-[13px] font-medium text-foreground">{o.l}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{o.d}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-[12px]">Billing Model</Label><Input value={form.billing_model} onChange={e => setForm(p => ({ ...p, billing_model: e.target.value }))} placeholder="e.g. Net 30, Prepaid" className="mt-1 bg-background" /></div>
+              <div><Label className="text-[12px]">Billing Email</Label><Input value={form.billing_email} onChange={e => setForm(p => ({ ...p, billing_email: e.target.value }))} className="mt-1 bg-background" /></div>
+            </div>
+            {form.billing_mode === 'wallet' && (
+              <div><Label className="text-[12px]">Min Balance ($)</Label><Input type="number" value={form.min_balance} onChange={e => setForm(p => ({ ...p, min_balance: e.target.value }))} className="mt-1 bg-background font-mono text-[12px]" /></div>
+            )}
+            <p className="text-[11px] text-muted-foreground">Portal access, wallet funding, and invoicing can be configured after creation.</p>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setModal(false)}>Cancel</Button>

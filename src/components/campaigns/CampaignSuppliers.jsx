@@ -7,14 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplierMetrics, money, pct } from '@/lib/partnerMetrics';
 
-function generateKey() {
+function generateKey(supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let key = 'lgnx_ext_';
+  let prefix = 'lgnx_ext_';
+  if (supplierType === 'Internal') prefix = 'lgnx_int_';
+  else if (supplierType === 'Calls') prefix = 'lgnx_cls_';
+  let key = prefix;
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   return key;
 }
@@ -25,7 +30,10 @@ function parseArr(raw) {
   try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
-const BLANK = { name: '', email: '', phone: '' };
+const BLANK = {
+  name: '', sid: '', supplier_type: '', vertical: '', payout_type: '', payout_value: null,
+  email: '', landing_page_url: '', brand: [], active: true,
+};
 
 export default function CampaignSuppliers() {
   const qc = useQueryClient();
@@ -42,27 +50,42 @@ export default function CampaignSuppliers() {
     queryKey: ['leads-metrics'],
     queryFn: () => base44.entities.Lead.list('-created_date', 1000),
   });
+  const { data: brands = [] } = useQuery({
+    queryKey: ['brands'],
+    queryFn: () => base44.entities.Brand.list(),
+  });
+  const { data: verticalList = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
 
   const openCreate = () => { setForm(BLANK); setNewKey(null); setModal(true); };
 
   const createSupplier = async () => {
     const supplier = await base44.entities.Supplier.create({
       name: form.name,
+      sid: form.sid,
+      supplier_type: form.supplier_type || 'External',
+      vertical: form.vertical,
+      payout_type: form.payout_type,
+      payout_value: form.payout_value,
       email: form.email,
-      phone: form.phone,
-      supplier_type: 'External',
+      landing_page_url: form.landing_page_url,
+      brand: Array.isArray(form.brand) ? form.brand.join(', ') : (form.brand || ''),
       portal_enabled: false,
-      active: true,
+      active: form.active,
     });
-    const key = generateKey();
+    const key = generateKey(form.supplier_type);
     await base44.entities.ApiKey.create({
       name: form.name,
       type: 'supplier',
       supplier_name: form.name,
       supplier_id: supplier.id,
+      vertical: form.vertical,
       key,
       key_prefix: key.substring(0, 16),
-      active: true,
+      active: form.active,
       request_count: 0,
     });
     setNewKey(key);
@@ -129,8 +152,8 @@ export default function CampaignSuppliers() {
       </div>
 
       <Dialog open={modal} onOpenChange={(v) => { if (!v && !newKey) setModal(false); }}>
-        <DialogContent className="bg-popover border-border max-w-[440px]">
-          <DialogHeader><DialogTitle>{newKey ? 'Supplier Created' : 'Create Supplier'}</DialogTitle></DialogHeader>
+        <DialogContent className="bg-popover border-border max-w-[500px]">
+          <DialogHeader><DialogTitle>{newKey ? 'Supplier Created' : 'New Supplier'}</DialogTitle></DialogHeader>
           {newKey ? (
             <div className="space-y-4">
               <div className="bg-background border border-primary/30 rounded-lg p-4">
@@ -144,14 +167,85 @@ export default function CampaignSuppliers() {
           ) : (
             <>
               <div className="space-y-4">
-                <div><Label className="text-[12px]">Source Name *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="mt-1 bg-background" /></div>
-                <div><Label className="text-[12px]">Email</Label><Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="mt-1 bg-background" /></div>
-                <div><Label className="text-[12px]">Phone</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className="mt-1 bg-background" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-[12px]">Name *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="mt-1 bg-background" /></div>
+                  <div><Label className="text-[12px]">SID</Label><Input value={form.sid} onChange={e => setForm(p => ({ ...p, sid: e.target.value }))} placeholder="e.g. mysup" className="mt-1 bg-background" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[12px]">Supplier Type *</Label>
+                    <SearchableSelect
+                      value={form.supplier_type}
+                      onValueChange={v => setForm(p => ({ ...p, supplier_type: v }))}
+                      className="mt-1 bg-background"
+                      placeholder="Select…"
+                      options={[
+                        { value: 'Internal', label: 'Internal' },
+                        { value: 'External', label: 'External' },
+                        { value: 'Calls', label: 'Calls' },
+                      ]}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[12px]">Payout Type</Label>
+                    <SearchableSelect
+                      value={form.payout_type}
+                      onValueChange={v => setForm(p => ({ ...p, payout_type: v, payout_value: (v === 'Flat CPL' || v === 'Revenue %' || v === 'Profit %') ? (p.payout_value ?? '') : null }))}
+                      className="mt-1 bg-background"
+                      placeholder="None"
+                      options={[
+                        { value: '', label: 'None' },
+                        { value: 'Flat CPL', label: 'Flat CPL' },
+                        { value: 'Revenue %', label: 'Revenue %' },
+                        { value: 'Profit %', label: 'Profit %' },
+                        { value: 'Inbound Call', label: 'Inbound Call' },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[12px]">Vertical (optional)</Label>
+                  <SearchableSelect
+                    value={form.vertical}
+                    onValueChange={v => setForm(p => ({ ...p, vertical: v }))}
+                    className="mt-1 bg-background"
+                    placeholder="Any vertical"
+                    options={[{ value: '', label: 'Any vertical' }, ...verticalOptions]}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[12px]">Brand(s)</Label>
+                    <MultiSelect
+                      value={form.brand}
+                      onValueChange={v => setForm(p => ({ ...p, brand: v }))}
+                      className="mt-1 bg-background"
+                      placeholder="Select brands…"
+                      options={brands.map(b => ({ value: b.brand_name, label: b.brand_name }))}
+                    />
+                  </div>
+                  <div><Label className="text-[12px]">Email</Label><Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="mt-1 bg-background" /></div>
+                </div>
+                {(form.payout_type === 'Flat CPL' || form.payout_type === 'Revenue %' || form.payout_type === 'Profit %') && (
+                  <div>
+                    <Label className="text-[12px]">{form.payout_type === 'Flat CPL' ? 'Price ($)' : 'Percentage (%)'}</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.payout_value ?? ''}
+                      onChange={e => setForm(p => ({ ...p, payout_value: e.target.value === '' ? null : Number(e.target.value) }))}
+                      placeholder={form.payout_type === 'Flat CPL' ? 'e.g. 25.00' : 'e.g. 15'}
+                      className="mt-1 bg-background font-mono text-[12px]"
+                    />
+                  </div>
+                )}
+                <div><Label className="text-[12px]">Landing Page URL</Label><Input value={form.landing_page_url} onChange={e => setForm(p => ({ ...p, landing_page_url: e.target.value }))} className="mt-1 bg-background font-mono text-[12px]" /></div>
+                <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={v => setForm(p => ({ ...p, active: v }))} /><Label className="text-[12px]">Active</Label></div>
                 <p className="text-[11px] text-muted-foreground">An API key is auto-generated on create.</p>
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setModal(false)}>Cancel</Button>
-                <Button onClick={createSupplier} disabled={!form.name}>Create Supplier</Button>
+                <Button onClick={createSupplier} disabled={!form.name || !form.supplier_type}>Create Supplier</Button>
               </DialogFooter>
             </>
           )}
