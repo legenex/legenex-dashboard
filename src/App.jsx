@@ -18,7 +18,10 @@ import Overview from '@/pages/Overview';
 import LeadsView from '@/pages/LeadsView';
 import QueueRecovery from '@/pages/QueueRecovery';
 import Campaigns from '@/pages/Campaigns';
-import Buyers from '@/pages/Buyers';
+import SupplierDetail from '@/pages/SupplierDetail';
+import BuyerDetail from '@/pages/BuyerDetail';
+import Reports from '@/pages/Reports';
+import Finances from '@/pages/Finances';
 
 import Deliveries from '@/pages/Deliveries';
 import ConversionEvents from '@/pages/ConversionEvents';
@@ -68,8 +71,12 @@ const AuthenticatedApp = () => {
           <Route path="/queue-recovery" element={<QueueRecovery />} />
           <Route path="/errors" element={<Navigate to="/settings?tab=errors" replace />} />
           <Route path="/campaigns" element={<Campaigns />} />
-          <Route path="/buyers" element={<Buyers />} />
-          <Route path="/suppliers" element={<Navigate to="/campaigns" replace />} />
+          <Route path="/suppliers/:id" element={<SupplierDetail />} />
+          <Route path="/buyers/:id" element={<BuyerDetail />} />
+          <Route path="/buyers" element={<Navigate to="/campaigns?tab=buyers" replace />} />
+          <Route path="/suppliers" element={<Navigate to="/campaigns?tab=suppliers" replace />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/finances" element={<Finances />} />
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/conversion-events" element={<ConversionEvents />} />
           <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
-  ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
+  BarChart3, Wallet, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
 } from 'lucide-react';
 
 const navGroups = [
@@ -25,6 +25,8 @@ const navGroups = [
       { label: 'Conversion Events', path: '/conversion-events' },
     ],
   },
+  { label: 'Reports', icon: BarChart3, path: '/reports', type: 'single' },
+  { label: 'Finances', icon: Wallet, path: '/finances', type: 'single' },
   {
     label: 'Tools', icon: Wrench, type: 'dropdown',
     children: [
@@ -89,7 +91,7 @@ export default function Sidebar() {
       style={{ borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}>
 
       <Link to="/" className="flex items-center px-5 py-6">
-        <img src="https://media.base44.com/images/public/6a363ed8bf1b77641238d41d/f9cc21785_LogoWideLightClear.png" alt="Legenex" className="h-10 w-auto max-w-full object-contain" />
+        <img src="https://media.base44.com/images/public/6a363ed8bf1b77641238d41d/f9cc21785_LogoWideLightClear.png" alt="Legenex DashFlo" className="h-10 w-auto max-w-full object-contain" />
       </Link>
 
       <nav className="flex-1 px-3 space-y-0.5 mt-2 overflow-y-auto">
