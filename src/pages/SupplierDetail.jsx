@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Copy, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplierMetrics, money, pct } from '@/lib/partnerMetrics';
@@ -34,6 +35,10 @@ export default function SupplierDetail() {
     queryKey: ['campaigns'],
     queryFn: () => base44.entities.Campaign.list(),
   });
+  const { data: brands = [] } = useQuery({
+    queryKey: ['brands'],
+    queryFn: () => base44.entities.Brand.list(),
+  });
   const { data: leads = [] } = useQuery({
     queryKey: ['leads-metrics'],
     queryFn: () => base44.entities.Lead.list('-created_date', 1000),
@@ -47,6 +52,12 @@ export default function SupplierDetail() {
   const assignedCampaigns = campaigns.filter(c => parseArr(supplier.campaign_ids).includes(c.id));
   const supplierLeads = leads.filter(l => l.supplier_name === supplier.name);
   const m = supplierMetrics(leads, supplier.name);
+
+  const updateBrand = async (brand) => {
+    await base44.entities.Supplier.update(supplier.id, { brand: brand === '__none__' ? '' : brand });
+    qc.invalidateQueries({ queryKey: ['supplier', id] });
+    toast.success('Brand updated');
+  };
 
   const togglePortal = async () => {
     await base44.entities.Supplier.update(supplier.id, { portal_enabled: !supplier.portal_enabled });
@@ -107,6 +118,20 @@ export default function SupplierDetail() {
             <Row label="Name" value={supplier.name} />
             <Row label="Email" value={supplier.email} />
             <Row label="Phone" value={supplier.phone} />
+            <div className="flex items-center justify-between py-2.5 border-b border-border">
+              <span className="text-[12px] text-muted-foreground">Brand</span>
+              <Select value={supplier.brand || '__none__'} onValueChange={updateBrand}>
+                <SelectTrigger className="h-8 w-[220px] text-[13px]">
+                  <SelectValue placeholder="No brand" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No brand</SelectItem>
+                  {brands.map(b => (
+                    <SelectItem key={b.id} value={b.brand_name}>{b.brand_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center justify-between py-2.5 border-b border-border">
               <span className="text-[12px] text-muted-foreground">API Key</span>
               {key ? (
