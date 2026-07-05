@@ -115,10 +115,10 @@ export default function Reports() {
   };
 
   return (
-    <div className="flex gap-5">
+    <div className="flex gap-5 h-full min-h-0 items-stretch">
       <ReportSidebar active={active} onSelect={(id) => { setActive(id); setFilters({}); }} customReports={reports} onNewReport={newReport} />
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="flex items-start justify-between mb-5">
           <div>
             <h1 className="text-[22px] font-bold text-foreground tracking-tight">{title}</h1>
