@@ -126,12 +126,8 @@
 /* Neutral grey tag for operation / meta tags (Default, conditions, etc.) */
 .tag-neutral { color: #a5aab3; background-color: rgba(165, 170, 179, 0.12); }
 
-/* Scrollbar styling — thin, subtle, theme-aware */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(212 16% 80%); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(212 16% 68%); }
-.dark ::-webkit-scrollbar-thumb { background: hsl(212 15% 30%); }
-.dark ::-webkit-scrollbar-thumb:hover { background: hsl(212 15% 40%); }
-* { scrollbar-width: thin; scrollbar-color: hsl(212 16% 80%) transparent; }
-.dark * { scrollbar-color: hsl(212 15% 30%) transparent; }
+::-webkit-scrollbar-thumb { background: hsl(222, 15%, 20%); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(222, 15%, 28%); }
