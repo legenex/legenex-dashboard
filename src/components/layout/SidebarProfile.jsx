@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/AuthContext';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,

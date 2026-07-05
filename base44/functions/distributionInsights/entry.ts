@@ -2,7 +2,23 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // Distribution AI Insights: summarizes OPERATIONAL trends for a selected period.
 // The frontend sends a pre-aggregated, revenue-free summary; we return a short narrative.
-// Uses the built-in InvokeLLM integration with claude_sonnet_4_6.
+// Uses OpenAI (OPENAI_API_KEY secret).
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4 }) {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  messages.push({ role: 'user', content: prompt });
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, temperature }),
+  });
+  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? '';
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -27,10 +43,7 @@ Be specific and use the actual numbers/percentages from the data. If a trend is 
 === OPERATIONAL DATA (JSON) ===
 ${JSON.stringify(summary)}`;
 
-    const answer = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt,
-      model: 'claude_sonnet_4_6',
-    });
+    const answer = await callOpenAI({ prompt });
 
     return Response.json({ insights: typeof answer === 'string' ? answer : JSON.stringify(answer) });
   } catch (error) {

@@ -1,7 +1,29 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // DataBot: answers questions about the app's own data + a curated Knowledge Base.
-// Uses the built-in InvokeLLM integration with claude_sonnet_4_6.
+// Uses OpenAI (OPENAI_API_KEY secret).
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, jsonSchema = null }) {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  messages.push({ role: 'user', content: prompt });
+  const payload: Record<string, unknown> = { model, messages, temperature };
+  if (jsonSchema) {
+    payload.response_format = { type: 'json_schema', json_schema: { name: 'response', strict: false, schema: jsonSchema } };
+  }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content ?? '';
+  if (jsonSchema) { try { return JSON.parse(content); } catch { return content; } }
+  return content;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -68,10 +90,7 @@ ${convo || '(none)'}
 User: ${question}
 DataBot:`;
 
-    const answer = await svc.integrations.Core.InvokeLLM({
-      prompt,
-      model: 'claude_sonnet_4_6',
-    });
+    const answer = await callOpenAI({ prompt });
 
     return Response.json({ answer: typeof answer === 'string' ? answer : JSON.stringify(answer) });
   } catch (error) {

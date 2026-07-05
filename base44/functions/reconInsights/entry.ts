@@ -1,6 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // Produces AI reconciliation insights over per-counterparty gaps. Admin-only.
+// Uses OpenAI (OPENAI_API_KEY secret).
+async function callOpenAI({ prompt, model = 'gpt-4o-mini', temperature = 0.4 }) {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature }),
+  });
+  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? '';
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -17,7 +31,7 @@ Deno.serve(async (req) => {
       `${g.name} (${g.type}): expected ${g.expected}, paid ${g.paid}, short ${g.short}`
     ).join('\n');
 
-    const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const result = await callOpenAI({
       prompt: `You are a finance ops analyst for a lead-gen business. Given open reconciliation gaps between what counterparties owe/were owed (expected) and what was actually paid, give a short, punchy set of insights (max 5 bullet points). Focus on biggest risks, patterns, and what to chase first. Be concrete.
 
 Open gaps:

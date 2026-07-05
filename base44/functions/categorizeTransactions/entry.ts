@@ -1,7 +1,26 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // AI-categorizes uncategorized BankTransaction records into tech / media / personal / payouts / revenue / other.
-// Also returns AI reconciliation insights. Admin-only.
+// Uses OpenAI (OPENAI_API_KEY secret). Admin-only.
+async function callOpenAI({ prompt, model = 'gpt-4o-mini', temperature = 0.2, jsonSchema = null }) {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  const payload: Record<string, unknown> = { model, messages: [{ role: 'user', content: prompt }], temperature };
+  if (jsonSchema) {
+    payload.response_format = { type: 'json_schema', json_schema: { name: 'response', strict: false, schema: jsonSchema } };
+  }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content ?? '';
+  if (jsonSchema) { try { return JSON.parse(content); } catch { return {}; } }
+  return content;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -17,7 +36,7 @@ Deno.serve(async (req) => {
       // Batch to keep the prompt small.
       const batch = uncategorized.slice(0, 100);
       const list = batch.map((t: any, i: number) => `${i}. ${t.description || '(no description)'} | amount ${t.amount}`).join('\n');
-      const result = await svc.integrations.Core.InvokeLLM({
+      const result = await callOpenAI({
         prompt: `You are a bookkeeping assistant for a lead-generation business. Categorize each bank transaction into exactly one of: tech, media, personal, payouts, revenue, other.
 - tech: software, SaaS, hosting, APIs, tools
 - media: ad spend, marketing, agencies, creative
@@ -30,7 +49,7 @@ Transactions:
 ${list}
 
 Return JSON with an array "items" of { index, category }.`,
-        response_json_schema: {
+        jsonSchema: {
           type: 'object',
           properties: {
             items: {

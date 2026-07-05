@@ -1,9 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// AI-guided onboarding walkthrough. Streams-free single-turn responses built on
-// the built-in InvokeLLM integration (model claude_sonnet_4_6), guiding the user
-// through connecting lead sources, mapping ad campaigns to vertical/brand/supplier,
-// and reading the Overview & Distribution dashboards.
+// AI-guided onboarding walkthrough. Uses OpenAI (OPENAI_API_KEY secret).
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4 }) {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  messages.push({ role: 'user', content: prompt });
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, temperature }),
+  });
+  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? '';
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -30,10 +43,7 @@ Style: warm, concise, practical. Give ONE clear step at a time with the exact pa
       ? `Start the walkthrough. Greet the user by name (${user.full_name || 'there'}) in one sentence, briefly say what you'll cover, then give the very first step.`
       : `Conversation so far:\n\n${convo}\n\nContinue as the Guide with the next helpful reply.`;
 
-    const reply = await base44.integrations.Core.InvokeLLM({
-      prompt: `${system}\n\n${prompt}`,
-      model: 'claude_sonnet_4_6',
-    });
+    const reply = await callOpenAI({ system, prompt });
 
     return Response.json({ reply: typeof reply === 'string' ? reply : String(reply) });
   } catch (error) {
