@@ -16,7 +16,7 @@ export default function GroupedKpiCard({
     <AnimatedPanel className="p-4 h-full overflow-hidden group" style={{ borderLeft: '2px solid #E5484D66' }}>
       {/* top row: label + icon box */}
       <div className="flex items-start justify-between">
-        <div className="text-[12px] font-medium uppercase tracking-wider" style={{ color: '#8B95A8' }}>{label}</div>
+        <div className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
         {Icon && (
           <div
             className="w-9 h-9 rounded-lg flex items-center justify-center"
@@ -29,8 +29,8 @@ export default function GroupedKpiCard({
 
       {/* big value + dim percent-change */}
       <div className="flex items-baseline gap-2 mt-2">
-        <div className="text-[30px] font-bold leading-tight tabular-nums" style={{ color: '#EEF2F8' }}>{f(animated)}</div>
-        <div className="text-[12px] font-medium" style={{ color: '#5A6478' }}>{delta.toFixed(1)}%</div>
+        <div className="text-[30px] font-bold leading-tight tabular-nums text-foreground">{f(animated)}</div>
+        <div className="text-[12px] font-medium text-muted-foreground/70">{delta.toFixed(1)}%</div>
       </div>
 
       {/* red gap-line with traveling dot */}
