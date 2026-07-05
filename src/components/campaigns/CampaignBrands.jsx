@@ -13,6 +13,9 @@ import { Plus, Save, Trash2, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { brandColor } from '@/lib/tagColors';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
+import { TableShell, Row, Tag, EmptyRow } from '@/components/campaigns/campaignTable';
+
+const B_TEMPLATE = '1.5fr 0.7fr 1.6fr 0.8fr 0.7fr 0.8fr 1.2fr';
 
 const DEFAULT_FORM = {
   brand_name: '', brand_code: '', website_url: '', optin_url: '',
@@ -117,45 +120,28 @@ export default function CampaignBrands() {
         title="Import / Export Brands"
       />
 
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
-        <table className="w-full text-[13px]">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              {['Brand Name', 'Code', 'Website', 'Suppliers', 'FB / IG', 'Status', 'Actions'].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {brands.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No brands yet</td></tr>
-            )}
-            {brands.map(b => {
-              const fb = parseArr(b.facebook_pages).length;
-              const ig = parseArr(b.instagram_accounts).length;
-              return (
-                <tr key={b.id} className="hover:bg-accent/40 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{b.brand_name}</td>
-                  <td className="px-4 py-3"><Badge className={`text-[10px] font-mono ${brandColor(b.brand_code).badge}`}>{b.brand_code}</Badge></td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[180px]">{b.website_url || '-'}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-[12px]">{parseArr(b.supplier_names).length || 0}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-[12px]">{fb} / {ig}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline" className={`text-[9px] ${b.active ? 'status-sold bg-status-sold' : 'text-muted-foreground'}`}>{b.active ? 'Active' : 'Inactive'}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(b)} className="h-7 text-[11px] px-2">Edit</Button>
-                      <Button size="sm" variant="ghost" onClick={() => toggleActive(b)} className="h-7 text-[11px] px-2 text-muted-foreground">{b.active ? 'Deactivate' : 'Activate'}</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(b)} className="h-7 w-7 p-0 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <TableShell head={['Brand Name', 'Code', 'Website', 'Suppliers', 'FB / IG', 'Status', 'Actions']} template={B_TEMPLATE}>
+        {brands.length === 0 && <EmptyRow>No brands yet</EmptyRow>}
+        {brands.map((b, i) => {
+          const fb = parseArr(b.facebook_pages).length;
+          const ig = parseArr(b.instagram_accounts).length;
+          return (
+            <Row key={b.id} template={B_TEMPLATE} i={i}>
+              <span className="text-[13px] font-semibold text-foreground truncate">{b.brand_name}</span>
+              <span><Badge className={`text-[10px] font-mono ${brandColor(b.brand_code).badge}`}>{b.brand_code}</Badge></span>
+              <span className="font-mono text-[11px] text-muted-foreground truncate">{b.website_url || '-'}</span>
+              <span className="text-right font-mono text-[12px] text-muted-foreground">{parseArr(b.supplier_names).length || 0}</span>
+              <span className="text-right font-mono text-[12px] text-muted-foreground">{fb} / {ig}</span>
+              <span><Tag tone={b.active ? 'green' : 'slate'}>{b.active ? 'Active' : 'Inactive'}</Tag></span>
+              <span className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" onClick={() => openEdit(b)} className="h-7 text-[11px] px-2">Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => toggleActive(b)} className="h-7 text-[11px] px-2 text-muted-foreground">{b.active ? 'Deactivate' : 'Activate'}</Button>
+                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(b)} className="h-7 w-7 p-0 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
+              </span>
+            </Row>
+          );
+        })}
+      </TableShell>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
         <AlertDialogContent className="bg-popover border-border">

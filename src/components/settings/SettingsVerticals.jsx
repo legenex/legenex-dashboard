@@ -12,6 +12,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Save, Trash2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { verticalColor } from '@/lib/tagColors';
+import { TableShell, Row, Tag, EmptyRow } from '@/components/campaigns/campaignTable';
+
+const V_TEMPLATE = '1.6fr 0.7fr 2fr 0.8fr 1.2fr';
 
 const DEFAULT_FORM = { name: '', code: '', description: '', active: true };
 
@@ -66,41 +69,26 @@ export default function SettingsVerticals() {
         <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Add Vertical</Button>
       </div>
 
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
-        <table className="w-full text-[13px]">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              {['Vertical', 'Code', 'Description', 'Status', 'Actions'].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {verticals.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No verticals yet</td></tr>
-            )}
-            {verticals.map(v => (
-              <tr key={v.id} className="hover:bg-accent/40 transition-colors">
-                <td className="px-4 py-3 font-medium text-foreground">{v.name}</td>
-                <td className="px-4 py-3"><Badge className={`text-[10px] font-mono inline-flex items-center gap-1 ${verticalColor(v.code).badge}`}><span className={`w-1.5 h-1.5 rounded-full ${verticalColor(v.code).dot}`} />{v.code}</Badge></td>
-                <td className="px-4 py-3 text-muted-foreground text-[12px] truncate max-w-[260px]">{v.description || '-'}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="outline" className={`text-[9px] ${v.active ? 'status-sold bg-status-sold' : 'text-muted-foreground'}`}>
-                    {v.active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(v)} className="h-7 text-[11px] px-2">Edit</Button>
-                    <Button size="sm" variant="ghost" onClick={() => toggleActive(v)} className="h-7 text-[11px] px-2 text-muted-foreground">{v.active ? 'Deactivate' : 'Activate'}</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(v)} className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Delete Vertical"><Trash2 className="w-3 h-3" /></Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <TableShell head={['Vertical', 'Code', 'Description', 'Status', 'Actions']} template={V_TEMPLATE}>
+        {verticals.length === 0 && <EmptyRow>No verticals yet</EmptyRow>}
+        {verticals.map((v, i) => (
+          <Row key={v.id} template={V_TEMPLATE} i={i}>
+            <span className="text-[13px] font-semibold text-foreground truncate">{v.name}</span>
+            <span>
+              <Badge className={`text-[10px] font-mono inline-flex items-center gap-1 ${verticalColor(v.code).badge}`}><span className={`w-1.5 h-1.5 rounded-full ${verticalColor(v.code).dot}`} />{v.code}</Badge>
+            </span>
+            <span className="text-[12px] text-muted-foreground truncate">{v.description || '-'}</span>
+            <span>
+              <Tag tone={v.active ? 'green' : 'slate'}>{v.active ? 'Active' : 'Inactive'}</Tag>
+            </span>
+            <span className="flex items-center gap-1">
+              <Button size="sm" variant="ghost" onClick={() => openEdit(v)} className="h-7 text-[11px] px-2">Edit</Button>
+              <Button size="sm" variant="ghost" onClick={() => toggleActive(v)} className="h-7 text-[11px] px-2 text-muted-foreground">{v.active ? 'Deactivate' : 'Activate'}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(v)} className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Delete Vertical"><Trash2 className="w-3 h-3" /></Button>
+            </span>
+          </Row>
+        ))}
+      </TableShell>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
         <AlertDialogContent className="bg-popover border-border">

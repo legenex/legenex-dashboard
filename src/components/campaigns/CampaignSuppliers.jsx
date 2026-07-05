@@ -14,6 +14,9 @@ import { Plus, Copy, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplierMetrics, money, pct } from '@/lib/partnerMetrics';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
+import { TableShell, Row, Tag, EmptyRow } from '@/components/campaigns/campaignTable';
+
+const SUP_TEMPLATE = '1.6fr 0.9fr 0.7fr 0.9fr 0.8fr 0.9fr 0.9fr 0.7fr 0.9fr 0.9fr 0.9fr 0.8fr 0.9fr';
 
 function generateKey(supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -123,48 +126,35 @@ export default function CampaignSuppliers() {
         title="Import / Export Suppliers"
       />
 
-      <div className="bg-card border border-border rounded-[10px] overflow-x-auto">
-        <table className="w-full text-[13px] min-w-[1000px]">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              {COLS.map(h => (
-                <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {suppliers.length === 0 && (
-              <tr><td colSpan={COLS.length} className="px-4 py-8 text-center text-muted-foreground">No suppliers yet</td></tr>
-            )}
-            {suppliers.map(s => {
-              const m = supplierMetrics(leads, s.name);
-              const campaignCount = parseArr(s.campaign_ids).length;
-              return (
-                <tr key={s.id} onClick={() => navigate(`/suppliers/${s.id}`)} className="hover:bg-accent/40 transition-colors cursor-pointer">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-foreground">{s.name}</div>
-                    <Badge variant="outline" className={`text-[9px] mt-0.5 ${s.active ? 'status-sold bg-status-sold' : 'text-muted-foreground'}`}>{s.active ? 'Active' : 'Inactive'}</Badge>
-                  </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <Switch checked={!!s.portal_enabled} onCheckedChange={() => {}} onClick={(e) => togglePortal(s, e)} />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{m.total}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{campaignCount}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{m.accepted}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{pct(m.acceptedPct)}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{m.duplicate}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{m.dq}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{money(m.cost)}</td>
-                  <td className="px-4 py-3 font-mono text-[12px] status-sold">{money(m.revenue)}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{money(m.profit)}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{money(m.cpl)}</td>
-                  <td className="px-4 py-3 font-mono text-[12px]">{pct(m.convRate)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <TableShell head={COLS} template={SUP_TEMPLATE} minWidth="1000px">
+        {suppliers.length === 0 && <EmptyRow>No suppliers yet</EmptyRow>}
+        {suppliers.map((s, i) => {
+          const m = supplierMetrics(leads, s.name);
+          const campaignCount = parseArr(s.campaign_ids).length;
+          return (
+            <Row key={s.id} template={SUP_TEMPLATE} i={i} onClick={() => navigate(`/suppliers/${s.id}`)}>
+              <span className="min-w-0">
+                <span className="block font-medium text-foreground truncate">{s.name}</span>
+                <Tag tone={s.active ? 'green' : 'slate'}>{s.active ? 'Active' : 'Inactive'}</Tag>
+              </span>
+              <span onClick={e => e.stopPropagation()}>
+                <Switch checked={!!s.portal_enabled} onCheckedChange={() => {}} onClick={(e) => togglePortal(s, e)} />
+              </span>
+              <span className="text-right font-mono text-[12px] text-foreground">{m.total}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{campaignCount}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{m.accepted}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{pct(m.acceptedPct)}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{m.duplicate}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{m.dq}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{money(m.cost)}</span>
+              <span className="text-right font-mono text-[12px] status-sold">{money(m.revenue)}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{money(m.profit)}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{money(m.cpl)}</span>
+              <span className="text-right font-mono text-[12px] text-foreground">{pct(m.convRate)}</span>
+            </Row>
+          );
+        })}
+      </TableShell>
 
       <Dialog open={modal} onOpenChange={(v) => { if (!v && !newKey) setModal(false); }}>
         <DialogContent className="bg-popover border-border max-w-[500px]">

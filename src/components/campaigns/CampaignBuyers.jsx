@@ -13,6 +13,9 @@ import { Plus, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/partnerMetrics';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
+import { TableShell, Row, Tag, EmptyRow } from '@/components/campaigns/campaignTable';
+
+const BUYER_TEMPLATE = '1.6fr 0.8fr 0.9fr 1fr 0.9fr 0.9fr 0.9fr 0.9fr 1fr 0.9fr 0.9fr 0.9fr';
 
 const BLANK = {
   company_name: '', email: '', phone: '', location: '',
@@ -87,43 +90,30 @@ export default function CampaignBuyers() {
         title="Import / Export Buyers"
       />
 
-      <div className="bg-card border border-border rounded-[10px] overflow-x-auto">
-        <table className="w-full text-[13px] min-w-[1000px]">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              {COLS.map(h => (
-                <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {buyers.length === 0 && (
-              <tr><td colSpan={COLS.length} className="px-4 py-8 text-center text-muted-foreground">No buyers yet. Buyers can be created manually or are auto-created from LeadByte sold responses.</td></tr>
-            )}
-            {buyers.map(b => (
-              <tr key={b.id} onClick={() => navigate(`/buyers/${b.id}`)} className="hover:bg-accent/40 transition-colors cursor-pointer">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-foreground">{b.company_name}</div>
-                  {b.auto_created && <Badge variant="outline" className="text-[9px] mt-0.5 text-muted-foreground">Auto</Badge>}
-                </td>
-                <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                  <Switch checked={!!b.portal_enabled} onClick={(e) => togglePortal(b, e)} onCheckedChange={() => {}} />
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{b.buyer_type || '-'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{b.vertical || '-'}</td>
-                <td className="px-4 py-3 font-mono text-[12px]">{money(b.balance)}</td>
-                <td className="px-4 py-3 font-mono text-[12px]">{money(b.min_balance)}</td>
-                <td className="px-4 py-3 font-mono text-[12px]">{b.card_last4 ? `•••• ${b.card_last4}` : '-'}</td>
-                <td className="px-4 py-3">{b.auto_recharge ? <Badge className="text-[10px] status-sold bg-status-sold">On</Badge> : <span className="text-muted-foreground text-[12px]">Off</span>}</td>
-                <td className="px-4 py-3"><Badge variant="outline" className="text-[10px]">{b.billing_mode === 'wallet' ? 'Wallet' : 'Lead Count'}</Badge></td>
-                <td className="px-4 py-3 font-mono text-[12px] status-sold">-</td>
-                <td className="px-4 py-3 font-mono text-[12px]">-</td>
-                <td className="px-4 py-3 font-mono text-[12px]">-</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <TableShell head={COLS} template={BUYER_TEMPLATE} minWidth="1000px">
+        {buyers.length === 0 && <EmptyRow>No buyers yet. Buyers can be created manually or are auto-created from LeadByte sold responses.</EmptyRow>}
+        {buyers.map((b, i) => (
+          <Row key={b.id} template={BUYER_TEMPLATE} i={i} onClick={() => navigate(`/buyers/${b.id}`)}>
+            <span className="min-w-0">
+              <span className="block font-medium text-foreground truncate">{b.company_name}</span>
+              {b.auto_created && <Badge variant="outline" className="text-[9px] mt-0.5 text-muted-foreground">Auto</Badge>}
+            </span>
+            <span onClick={e => e.stopPropagation()}>
+              <Switch checked={!!b.portal_enabled} onClick={(e) => togglePortal(b, e)} onCheckedChange={() => {}} />
+            </span>
+            <span className="text-[12px] text-muted-foreground truncate">{b.buyer_type || '-'}</span>
+            <span className="text-[12px] text-muted-foreground truncate">{b.vertical || '-'}</span>
+            <span className="text-right font-mono text-[12px] text-foreground">{money(b.balance)}</span>
+            <span className="text-right font-mono text-[12px] text-foreground">{money(b.min_balance)}</span>
+            <span className="text-right font-mono text-[12px] text-foreground">{b.card_last4 ? `•••• ${b.card_last4}` : '-'}</span>
+            <span>{b.auto_recharge ? <Tag tone="green">On</Tag> : <span className="text-muted-foreground text-[12px]">Off</span>}</span>
+            <span><Badge variant="outline" className="text-[10px]">{b.billing_mode === 'wallet' ? 'Wallet' : 'Lead Count'}</Badge></span>
+            <span className="text-right font-mono text-[12px] status-sold">-</span>
+            <span className="text-right font-mono text-[12px] text-foreground">-</span>
+            <span className="text-right font-mono text-[12px] text-foreground">-</span>
+          </Row>
+        ))}
+      </TableShell>
 
       <Dialog open={modal} onOpenChange={setModal}>
         <DialogContent className="bg-popover border-border max-w-[520px]">
