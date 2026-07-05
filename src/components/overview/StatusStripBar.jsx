@@ -17,7 +17,7 @@ export default function StatusStripBar({ items = [] }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="bg-card border border-border rounded-[12px] px-4 py-3 flex items-center flex-wrap gap-x-6 gap-y-3"
+      className="px-4 py-3 flex items-center flex-wrap gap-x-6 gap-y-3"
     >
       {items.map((it, i) => (
         <div key={it.label} className="flex items-center gap-2">

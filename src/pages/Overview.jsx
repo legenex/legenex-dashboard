@@ -14,6 +14,7 @@ import StatusStripBar from '@/components/overview/StatusStripBar';
 import Reveal from '@/components/overview/Reveal';
 import PanelSectionHeader from '@/components/overview/PanelSectionHeader';
 import CountUpText from '@/components/overview/CountUpText';
+import AnimatedPanel from '@/components/overview/AnimatedPanel';
 import { Badge } from '@/components/ui/badge';
 import {
   Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend,
@@ -253,17 +254,19 @@ export default function Overview() {
 
       {/* AI Analyst summary band */}
       <Reveal>
-        <AiAnalystBand
-          text={briefing.text}
-          loading={briefing.loading}
-          error={briefing.error}
-          onRefresh={briefing.refresh}
-          confidence={analystConfidence}
-          riskLevel={riskLevel}
-          riskNote={riskNote}
-          topRecommendation={topRecommendation}
-          feedCount={feedCount}
-        />
+        <AnimatedPanel>
+          <AiAnalystBand
+            text={briefing.text}
+            loading={briefing.loading}
+            error={briefing.error}
+            onRefresh={briefing.refresh}
+            confidence={analystConfidence}
+            riskLevel={riskLevel}
+            riskNote={riskNote}
+            topRecommendation={topRecommendation}
+            feedCount={feedCount}
+          />
+        </AnimatedPanel>
       </Reveal>
 
       {/* Grouped KPI cards */}
@@ -309,171 +312,185 @@ export default function Overview() {
       </motion.div>
 
       {/* Daily finance chart */}
-      <Reveal delay={0.05}>
-        <div className="bg-card border border-border rounded-[12px] p-5 mt-6">
-          <div className="text-[13px] font-semibold text-foreground mb-1">Booked Revenue vs Verified Income vs Ad Spend</div>
-          <div className="text-[11px] text-muted-foreground mb-4">The distance between the booked bars and the verified line is money booked but not yet proven.</div>
-          <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={daily}>
-              <XAxis dataKey="date" tick={{ fill: '#8B95A8', fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
-              <YAxis tick={{ fill: '#8B95A8', fontSize: 11 }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 }} labelStyle={{ color: '#EEF2F8' }} formatter={(v) => fmtMoney(v)} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Booked" fill="#E5484D" radius={[3, 3, 0, 0]} maxBarSize={22} animationDuration={800} />
-              <Line dataKey="Verified" stroke="#3DD68C" strokeWidth={2} dot={false} animationDuration={900} />
-              <Line dataKey="Spend" stroke="#8B95A8" strokeWidth={2} strokeDasharray="4 3" dot={false} animationDuration={900} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+      <Reveal delay={0.05} className="mt-6 block">
+        <AnimatedPanel duration={6.5}>
+          <div className="p-5">
+            <div className="text-[13px] font-semibold text-foreground mb-1">Booked Revenue vs Verified Income vs Ad Spend</div>
+            <div className="text-[11px] text-muted-foreground mb-4">The distance between the booked bars and the verified line is money booked but not yet proven.</div>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={daily}>
+                <XAxis dataKey="date" tick={{ fill: '#8B95A8', fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis tick={{ fill: '#8B95A8', fontSize: 11 }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 }} labelStyle={{ color: '#EEF2F8' }} formatter={(v) => fmtMoney(v)} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Booked" fill="#E5484D" radius={[3, 3, 0, 0]} maxBarSize={22} animationDuration={800} />
+                <Line dataKey="Verified" stroke="#3DD68C" strokeWidth={2} dot={false} animationDuration={900} />
+                <Line dataKey="Spend" stroke="#8B95A8" strokeWidth={2} strokeDasharray="4 3" dot={false} animationDuration={900} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </AnimatedPanel>
       </Reveal>
 
       {/* Action queue */}
       <Reveal delay={0.05} className="mt-4 block">
-        <ActionQueueCard
-          queue={queue}
-          onResolve={(item) => toast.info(`Resolving: ${item.label} — ${item.name}`)}
-          onDone={(item) => toast.success(`Marked done: ${item.label}`)}
-        />
+        <AnimatedPanel>
+          <ActionQueueCard
+            queue={queue}
+            onResolve={(item) => toast.info(`Resolving: ${item.label} — ${item.name}`)}
+            onDone={(item) => toast.success(`Marked done: ${item.label}`)}
+          />
+        </AnimatedPanel>
       </Reveal>
 
       {/* Reconciliation status callout */}
       <Reveal delay={0.05} className="mt-4 block">
-        {queue.items.length === 0 ? (
-          <div className="rounded-[12px] border border-[#3DD68C]/40 bg-[#3DD68C]/10 px-5 py-4 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 status-sold shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-foreground">Everything reconciles — no open variances.</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">The bigger risk is not variance. It is missing or stale data ingestion.</div>
+        <AnimatedPanel glow={queue.items.length === 0 ? '#3DD68C' : '#E5484D'} duration={6.5}>
+          {queue.items.length === 0 ? (
+            <div className="border border-[#3DD68C]/40 bg-[#3DD68C]/10 px-5 py-4 flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 status-sold shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-foreground">Everything reconciles — no open variances.</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">The bigger risk is not variance. It is missing or stale data ingestion.</div>
+              </div>
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md status-sold-bg status-sold shrink-0">Clean</span>
             </div>
-            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md status-sold-bg status-sold shrink-0">Clean</span>
-          </div>
-        ) : (
-          <div className="rounded-[12px] border border-primary/40 bg-primary/10 px-5 py-4 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-primary shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-foreground">{queue.items.length} open {queue.items.length === 1 ? 'variance' : 'variances'} need attention.</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{queue.items.slice(0, 3).map(i => `${i.label} · ${i.name || i.note}`).join('  ·  ')}</div>
+          ) : (
+            <div className="border border-primary/40 bg-primary/10 px-5 py-4 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-foreground">{queue.items.length} open {queue.items.length === 1 ? 'variance' : 'variances'} need attention.</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{queue.items.slice(0, 3).map(i => `${i.label} · ${i.name || i.note}`).join('  ·  ')}</div>
+              </div>
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md status-error-bg status-error shrink-0 whitespace-nowrap">
+                <CountUpText value={queue.totalAtRisk} render={(n) => fmtMoney(n)} /> at risk
+              </span>
             </div>
-            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md status-error-bg status-error shrink-0 whitespace-nowrap">
-              <CountUpText value={queue.totalAtRisk} render={(n) => fmtMoney(n)} /> at risk
-            </span>
-          </div>
-        )}
+          )}
+        </AnimatedPanel>
       </Reveal>
 
       {/* Row 1: Leads by Status + Top Campaigns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <Reveal delay={0.05}>
-          <div className="bg-card border border-border rounded-[12px] overflow-hidden">
-            <PanelSectionHeader icon={PieIcon} title="Leads by Status" meta={donutMeta} />
-            <div className="p-5">
-              {donut.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={donut} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" stroke="none" animationDuration={900} animationBegin={150} paddingAngle={2}>
-                        {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2">
-                    {donut.map(d => (
-                      <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                        <span className="text-muted-foreground">{d.name} (<CountUpText value={d.value} render={(n) => int(Math.round(n))} />)</span>
-                      </div>
-                    ))}
+          <AnimatedPanel duration={6.2}>
+            <div className="overflow-hidden">
+              <PanelSectionHeader icon={PieIcon} title="Leads by Status" meta={donutMeta} />
+              <div className="p-5">
+                {donut.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={donut} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" stroke="none" animationDuration={900} animationBegin={150} paddingAngle={2}>
+                          {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2">
+                      {donut.map(d => (
+                        <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                          <span className="text-muted-foreground">{d.name} (<CountUpText value={d.value} render={(n) => int(Math.round(n))} />)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 px-4">
+                    <PieIcon className="w-7 h-7 text-muted-foreground/50" />
+                    <div className="text-[13px] text-muted-foreground">No leads in period</div>
+                    <div className="text-[11px] text-muted-foreground/70 max-w-[300px]">Likely cause: Leadbyte ingestion has never synced. Distribution and status counts depend on it.</div>
+                    <Link to="/payload-tester" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Run Payload Tester <ArrowUpRight className="w-3 h-3" /></Link>
                   </div>
-                </>
-              ) : (
-                <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 px-4">
-                  <PieIcon className="w-7 h-7 text-muted-foreground/50" />
-                  <div className="text-[13px] text-muted-foreground">No leads in period</div>
-                  <div className="text-[11px] text-muted-foreground/70 max-w-[300px]">Likely cause: Leadbyte ingestion has never synced. Distribution and status counts depend on it.</div>
-                  <Link to="/payload-tester" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Run Payload Tester <ArrowUpRight className="w-3 h-3" /></Link>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          </AnimatedPanel>
         </Reveal>
 
         <Reveal delay={0.1}>
-          <div className="bg-card border border-border rounded-[12px] overflow-hidden">
-            <PanelSectionHeader icon={Trophy} title="Top Campaigns by Cash Profit" meta={campaignsMeta} />
-            {campaigns.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[12px]">
-                  <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
-                    <th className="text-left px-4 py-2.5">Campaign</th><th className="text-right px-4 py-2.5">Leads</th>
-                    <th className="text-right px-4 py-2.5">Estimated</th><th className="text-right px-4 py-2.5">Verified</th><th className="text-center px-4 py-2.5">Action</th>
-                  </tr></thead>
-                  <motion.tbody variants={gridVariants} initial="hidden" animate="show" className="divide-y divide-border">
-                    {campaigns.map(c => (
-                      <motion.tr key={c.name} variants={itemVariants} className="hover:bg-accent/30">
-                        <td className="px-4 py-2.5 text-foreground truncate max-w-[200px]">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate">{c.name}</span>
-                            {c.falseProfit && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded status-error-bg status-error whitespace-nowrap">FALSE PROFIT</span>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono">{int(c.leads)}</td>
-                        <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={c.estimated} render={(n) => money(n)} /></td>
-                        <td className={`px-4 py-2.5 text-right font-mono ${c.verified > 0 ? 'status-sold' : 'text-muted-foreground'}`}><CountUpText value={c.verified} render={(n) => money(n)} /></td>
-                        <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${CAMPAIGN_TAG_TONE[c.tag]}`}>{c.tag}</Badge></td>
-                      </motion.tr>
-                    ))}
-                  </motion.tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 p-5">
-                <Trophy className="w-7 h-7 text-muted-foreground/50" />
-                <div className="text-[13px] text-muted-foreground">No campaign economics yet</div>
-                <div className="text-[11px] text-muted-foreground/70 max-w-[320px]">Profitability needs three feeds: leads in, buyer revenue booked, and ad spend. All three are currently silent.</div>
-                <Link to="/settings?tab=integrations" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Connect ad platforms <ArrowUpRight className="w-3 h-3" /></Link>
-              </div>
-            )}
-          </div>
+          <AnimatedPanel duration={5.8}>
+            <div className="overflow-hidden">
+              <PanelSectionHeader icon={Trophy} title="Top Campaigns by Cash Profit" meta={campaignsMeta} />
+              {campaigns.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
+                      <th className="text-left px-4 py-2.5">Campaign</th><th className="text-right px-4 py-2.5">Leads</th>
+                      <th className="text-right px-4 py-2.5">Estimated</th><th className="text-right px-4 py-2.5">Verified</th><th className="text-center px-4 py-2.5">Action</th>
+                    </tr></thead>
+                    <motion.tbody variants={gridVariants} initial="hidden" animate="show" className="divide-y divide-border">
+                      {campaigns.map(c => (
+                        <motion.tr key={c.name} variants={itemVariants} className="hover:bg-accent/30">
+                          <td className="px-4 py-2.5 text-foreground truncate max-w-[200px]">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate">{c.name}</span>
+                              {c.falseProfit && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded status-error-bg status-error whitespace-nowrap">FALSE PROFIT</span>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono">{int(c.leads)}</td>
+                          <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={c.estimated} render={(n) => money(n)} /></td>
+                          <td className={`px-4 py-2.5 text-right font-mono ${c.verified > 0 ? 'status-sold' : 'text-muted-foreground'}`}><CountUpText value={c.verified} render={(n) => money(n)} /></td>
+                          <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${CAMPAIGN_TAG_TONE[c.tag]}`}>{c.tag}</Badge></td>
+                        </motion.tr>
+                      ))}
+                    </motion.tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 p-5">
+                  <Trophy className="w-7 h-7 text-muted-foreground/50" />
+                  <div className="text-[13px] text-muted-foreground">No campaign economics yet</div>
+                  <div className="text-[11px] text-muted-foreground/70 max-w-[320px]">Profitability needs three feeds: leads in, buyer revenue booked, and ad spend. All three are currently silent.</div>
+                  <Link to="/settings?tab=integrations" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Connect ad platforms <ArrowUpRight className="w-3 h-3" /></Link>
+                </div>
+              )}
+            </div>
+          </AnimatedPanel>
         </Reveal>
       </div>
 
       {/* Row 2: Buyer Payment Risk + Data Confidence */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <Reveal delay={0.05}>
-          <div className="bg-card border border-border rounded-[12px] overflow-hidden">
-            <PanelSectionHeader icon={ShieldAlert} title="Buyer Payment Risk" meta={buyerRiskMeta} />
-            {risk.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[12px]">
-                  <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
-                    <th className="text-left px-4 py-2.5">Buyer</th><th className="text-right px-4 py-2.5">Booked</th>
-                    <th className="text-right px-4 py-2.5">Out / Short</th><th className="text-center px-4 py-2.5">Status</th>
-                  </tr></thead>
-                  <motion.tbody variants={gridVariants} initial="hidden" animate="show" className="divide-y divide-border">
-                    {risk.map(r => (
-                      <motion.tr key={r.name} variants={itemVariants} className="hover:bg-accent/30">
-                        <td className="px-4 py-2.5 text-foreground truncate max-w-[160px]">{r.name}</td>
-                        <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={r.booked} render={(n) => money(n)} /></td>
-                        <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={r.out > 0.01 ? r.out : r.short} render={(n) => money(n)} /></td>
-                        <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${RISK_TONE[r.status]}`}>{RISK_LABEL[r.status] || r.status}</Badge></td>
-                      </motion.tr>
-                    ))}
-                  </motion.tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 p-5">
-                <ShieldAlert className="w-7 h-7 text-muted-foreground/50" />
-                <div className="text-[13px] text-muted-foreground">No buyer exposure detected</div>
-                <div className="text-[11px] text-muted-foreground/70 max-w-[300px]">No buyer exposure detected for selected period.</div>
-              </div>
-            )}
-          </div>
+          <AnimatedPanel duration={6.8}>
+            <div className="overflow-hidden">
+              <PanelSectionHeader icon={ShieldAlert} title="Buyer Payment Risk" meta={buyerRiskMeta} />
+              {risk.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
+                      <th className="text-left px-4 py-2.5">Buyer</th><th className="text-right px-4 py-2.5">Booked</th>
+                      <th className="text-right px-4 py-2.5">Out / Short</th><th className="text-center px-4 py-2.5">Status</th>
+                    </tr></thead>
+                    <motion.tbody variants={gridVariants} initial="hidden" animate="show" className="divide-y divide-border">
+                      {risk.map(r => (
+                        <motion.tr key={r.name} variants={itemVariants} className="hover:bg-accent/30">
+                          <td className="px-4 py-2.5 text-foreground truncate max-w-[160px]">{r.name}</td>
+                          <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={r.booked} render={(n) => money(n)} /></td>
+                          <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={r.out > 0.01 ? r.out : r.short} render={(n) => money(n)} /></td>
+                          <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${RISK_TONE[r.status]}`}>{RISK_LABEL[r.status] || r.status}</Badge></td>
+                        </motion.tr>
+                      ))}
+                    </motion.tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 p-5">
+                  <ShieldAlert className="w-7 h-7 text-muted-foreground/50" />
+                  <div className="text-[13px] text-muted-foreground">No buyer exposure detected</div>
+                  <div className="text-[11px] text-muted-foreground/70 max-w-[300px]">No buyer exposure detected for selected period.</div>
+                </div>
+              )}
+            </div>
+          </AnimatedPanel>
         </Reveal>
 
         <Reveal delay={0.1}>
-          <DataConfidenceCard sources={confidenceSources} />
+          <AnimatedPanel duration={6.4}>
+            <DataConfidenceCard sources={confidenceSources} />
+          </AnimatedPanel>
         </Reveal>
       </div>
 
@@ -485,7 +502,9 @@ export default function Overview() {
           </div>
           <div className="text-[10px] font-mono text-muted-foreground">refreshed {refreshedAgo}s ago</div>
         </div>
-        <StatusStripBar items={stripItems} />
+        <AnimatedPanel duration={7}>
+          <StatusStripBar items={stripItems} />
+        </AnimatedPanel>
       </Reveal>
     </div>
   );

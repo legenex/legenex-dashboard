@@ -26,7 +26,7 @@ const rowVariants = {
 export default function DataConfidenceCard({ sources }) {
   const fresh = sources.filter(s => s.at && (Date.now() - new Date(s.at).getTime()) / 3600000 <= 6).length;
   return (
-    <div className="bg-card border border-border rounded-[12px] overflow-hidden">
+    <div className="overflow-hidden">
       <PanelSectionHeader
         icon={ShieldCheck}
         title="Data Confidence — Source Health"

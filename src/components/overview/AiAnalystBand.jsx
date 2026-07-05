@@ -1,6 +1,7 @@
 import React from 'react';
 import { Brain, Sparkle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import AnimatedPanel from '@/components/overview/AnimatedPanel';
 
 const CHIPS = [
   { label: 'Revenue', tone: 'neutral' },
@@ -18,7 +19,7 @@ export default function AiAnalystBand({
   feedCount = 10, onAskAi, onExplainVariance,
 }) {
   return (
-    <div className="relative bg-card border border-border rounded-[12px] p-5 overflow-hidden">
+    <div className="relative p-5 overflow-hidden">
       {/* ambient: faint red shimmer sweep */}
       <motion.div
         aria-hidden

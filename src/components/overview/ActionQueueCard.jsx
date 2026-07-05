@@ -17,7 +17,7 @@ const LABEL_TONE = {
 export default function ActionQueueCard({ queue, onResolve, onDone }) {
   const { items, totalAtRisk } = queue;
   return (
-    <div className="bg-card border border-border rounded-[12px] overflow-hidden">
+    <div className="overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <div>
           <div className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
