@@ -12,9 +12,12 @@ import SupplierPayoutsTab from '@/components/finances/SupplierPayoutsTab';
 import AdSpendTab from '@/components/finances/AdSpendTab';
 import { toast } from 'sonner';
 import { unmatched } from '@/lib/financeMetrics';
+import { usePermissions } from '@/lib/AuthContext';
 
 export default function Finances() {
   const [params, setParams] = useSearchParams();
+  const { can } = usePermissions();
+  const canBank = can('bank_feed');
   const tab = params.get('tab') || 'overview';
   const [resolved, setResolved] = useState(0);
 
@@ -37,7 +40,7 @@ export default function Finances() {
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
         <TabsList className="mb-5">
           <TabsTrigger value="overview">Financial Overview</TabsTrigger>
-          <TabsTrigger value="bank">Bank Feed</TabsTrigger>
+          {canBank && <TabsTrigger value="bank">Bank Feed</TabsTrigger>}
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="payments">Buyer Payments</TabsTrigger>
           <TabsTrigger value="payouts">Supplier Payouts</TabsTrigger>
@@ -47,7 +50,7 @@ export default function Finances() {
         <TabsContent value="overview">
           <ReconciliationTab data={reconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />
         </TabsContent>
-        <TabsContent value="bank"><BankFeedTab /></TabsContent>
+        {canBank && <TabsContent value="bank"><BankFeedTab /></TabsContent>}
         <TabsContent value="invoices"><InvoicesTab buyers={buyers} /></TabsContent>
         <TabsContent value="payments"><BuyerPaymentsTab buyers={buyers} /></TabsContent>
         <TabsContent value="payouts"><SupplierPayoutsTab suppliers={suppliers} /></TabsContent>

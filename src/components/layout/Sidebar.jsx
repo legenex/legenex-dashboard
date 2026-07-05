@@ -199,14 +199,14 @@ export default function Sidebar() {
       <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
         <button
           onClick={() => {
-            const labels = navGroups.filter(g => g.type === 'dropdown').map(g => g.label);
+            const labels = groups.filter(g => g.type === 'dropdown').map(g => g.label);
             const allOpen = labels.length > 0 && labels.every(l => openGroups.includes(l));
             setOpenGroups(allOpen ? [] : labels);
           }}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent transition-all duration-150 border border-sidebar-border"
         >
           {(() => {
-            const labels = navGroups.filter(g => g.type === 'dropdown').map(g => g.label);
+            const labels = groups.filter(g => g.type === 'dropdown').map(g => g.label);
             const allOpen = labels.length > 0 && labels.every(l => openGroups.includes(l));
             return allOpen ? (
               <><ChevronsDownUp className="w-3.5 h-3.5" /> Collapse All</>
