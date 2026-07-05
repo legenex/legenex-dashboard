@@ -129,8 +129,8 @@
 /* Scrollbar styling — light theme: thin, soft red */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #F2E5E7; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #E9D4D8; }
+::-webkit-scrollbar-thumb { background: #FA7270; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #F85653; }
 
 /* Dark theme keeps the muted grey thumb */
 .dark ::-webkit-scrollbar-thumb { background: hsl(222, 15%, 20%); }
