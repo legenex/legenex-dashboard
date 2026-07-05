@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Copy, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplierMetrics, money, pct } from '@/lib/partnerMetrics';
+import PostingSpecs from '@/components/suppliers/PostingSpecs';
 
 function parseArr(raw) {
   if (!raw) return [];
@@ -43,6 +44,22 @@ export default function SupplierDetail() {
     queryKey: ['leads-metrics'],
     queryFn: () => base44.entities.Lead.list('-created_date', 1000),
   });
+  const { data: customFields = [] } = useQuery({
+    queryKey: ['custom-fields'],
+    queryFn: () => base44.entities.CustomField.list('sort_order', 500),
+  });
+  const { data: verticals = [] } = useQuery({
+    queryKey: ['verticals'],
+    queryFn: () => base44.entities.Vertical.list(),
+  });
+  const { data: buyers = [] } = useQuery({
+    queryKey: ['buyers'],
+    queryFn: () => base44.entities.Buyer.list(),
+  });
+  const { data: appSettingsArr = [] } = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: () => base44.entities.AppSettings.list(),
+  });
 
   if (isLoading || !supplier) {
     return <div className="flex items-center justify-center py-24"><div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" /></div>;
@@ -52,6 +69,7 @@ export default function SupplierDetail() {
   const assignedCampaigns = campaigns.filter(c => parseArr(supplier.campaign_ids).includes(c.id));
   const supplierLeads = leads.filter(l => l.supplier_name === supplier.name);
   const m = supplierMetrics(leads, supplier.name);
+  const baseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
 
   const updateBrand = async (brand) => {
     await base44.entities.Supplier.update(supplier.id, { brand: brand === '__none__' ? '' : brand });
@@ -108,6 +126,7 @@ export default function SupplierDetail() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="specs">Posting Specs</TabsTrigger>
           <TabsTrigger value="portal">Portal</TabsTrigger>
           <TabsTrigger value="leads">Leads</TabsTrigger>
         </TabsList>
@@ -154,6 +173,18 @@ export default function SupplierDetail() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="specs" className="mt-4">
+          <PostingSpecs
+            supplier={supplier}
+            apiKey={key}
+            customFields={customFields}
+            campaigns={campaigns}
+            verticals={verticals}
+            buyers={buyers}
+            baseUrl={baseUrl}
+          />
         </TabsContent>
 
         <TabsContent value="portal" className="mt-4">
