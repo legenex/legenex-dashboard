@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   ChevronsUpDown, Monitor, Sun, Moon, Settings as SettingsIcon,
-  Sparkles, Compass, HelpCircle, LogOut,
+  Sparkles, Compass, HelpCircle, LogOut, BookOpen,
 } from 'lucide-react';
 import WalkthroughPanel from './WalkthroughPanel';
 import WhatsNewDialog from './WhatsNewDialog';
@@ -84,6 +84,12 @@ export default function SidebarProfile() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setWalkOpen(true)} className="text-[13px] cursor-pointer gap-2">
             <Compass className="w-4 h-4" /> Walk Through
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => window.open('https://docs.legenex.com', '_blank', 'noopener,noreferrer')}
+            className="text-[13px] cursor-pointer gap-2"
+          >
+            <BookOpen className="w-4 h-4" /> Documentation
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => window.open('https://docs.legenex.com', '_blank', 'noopener,noreferrer')}

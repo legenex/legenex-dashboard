@@ -14,6 +14,8 @@ import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 
+import DocsLayout from '@/components/docs/DocsLayout';
+import { DOCS_ROUTES } from '@/components/docs/docsConfig';
 import AppLayout from '@/components/layout/AppLayout';
 import DistributionLayout from '@/components/distribution/DistributionLayout';
 import LeadsLayout from '@/components/leads/LeadsLayout';
@@ -50,8 +52,38 @@ import SupplierPortalReturns from '@/pages/supplierportal/SupplierPortalReturns'
 import SupplierPortalApi from '@/pages/supplierportal/SupplierPortalApi';
 import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSettings';
 
+// Public documentation routes — rendered with no auth. Reused both on the
+// docs subdomain (as the entire app) and under /docs on the main app.
+const DocsRoutes = () => (
+  <Route path="/docs" element={<DocsLayout />}>
+    {DOCS_ROUTES.map((r) => (
+      <Route
+        key={r.slug || 'index'}
+        {...(r.slug ? { path: r.slug } : { index: true })}
+        element={<r.Component />}
+      />
+    ))}
+  </Route>
+);
+
+// True when the app is being served on the public docs subdomain.
+const isDocsHost = () =>
+  typeof window !== 'undefined' && /(^|\.)docs\./i.test(window.location.hostname);
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  // Docs subdomain: never gate on auth, never redirect to login. Route the
+  // root and every path into the docs so anonymous visitors can read them.
+  if (isDocsHost()) {
+    return (
+      <Routes>
+        <Route path="/" element={<Navigate to="/docs" replace />} />
+        {DocsRoutes()}
+        <Route path="*" element={<Navigate to="/docs" replace />} />
+      </Routes>
+    );
+  }
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -61,7 +93,10 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (authError) {
+  // /docs is public on the main host too — render it without redirecting to login.
+  const onDocsPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/docs');
+
+  if (authError && !onDocsPath) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
@@ -76,6 +111,9 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Public documentation — no auth, outside ProtectedRoute and AppLayout */}
+      {DocsRoutes()}
 
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         {/* Buyer portal: separate shell, its own sidebar, buyer-scoped. Not wrapped by the operator AppLayout. */}
