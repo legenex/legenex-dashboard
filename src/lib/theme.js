@@ -10,7 +10,7 @@ function systemPrefersDark() {
 }
 
 export function getStoredTheme() {
-  try { return localStorage.getItem(KEY) || 'system'; } catch { return 'system'; }
+  try { return localStorage.getItem(KEY) || 'dark'; } catch { return 'dark'; }
 }
 
 export function applyTheme(theme) {

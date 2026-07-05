@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeader from '@/components/shared/PageHeader';
 import ReconciliationTab from '@/components/finances/ReconciliationTab';
 import BankFeedTab from '@/components/finances/BankFeedTab';
@@ -15,7 +14,7 @@ import { unmatched } from '@/lib/financeMetrics';
 import { usePermissions } from '@/lib/AuthContext';
 
 export default function Finances() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const { can } = usePermissions();
   const canBank = can('bank_feed');
   const tab = params.get('tab') || 'overview';
@@ -37,25 +36,12 @@ export default function Finances() {
   return (
     <div>
       <PageHeader title="Finances" subtitle="Financial overview, reconciliation, invoices, payments and ad spend" />
-      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
-        <TabsList className="mb-5">
-          <TabsTrigger value="overview">Financial Overview</TabsTrigger>
-          {canBank && <TabsTrigger value="bank">Bank Feed</TabsTrigger>}
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="payments">Buyer Payments</TabsTrigger>
-          <TabsTrigger value="payouts">Supplier Payouts</TabsTrigger>
-          <TabsTrigger value="adspend">Ad Spend</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <ReconciliationTab data={reconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />
-        </TabsContent>
-        {canBank && <TabsContent value="bank"><BankFeedTab /></TabsContent>}
-        <TabsContent value="invoices"><InvoicesTab buyers={buyers} /></TabsContent>
-        <TabsContent value="payments"><BuyerPaymentsTab buyers={buyers} /></TabsContent>
-        <TabsContent value="payouts"><SupplierPayoutsTab suppliers={suppliers} /></TabsContent>
-        <TabsContent value="adspend"><AdSpendTab /></TabsContent>
-      </Tabs>
+      {tab === 'overview' && <ReconciliationTab data={reconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />}
+      {tab === 'bank' && canBank && <BankFeedTab />}
+      {tab === 'invoices' && <InvoicesTab buyers={buyers} />}
+      {tab === 'payments' && <BuyerPaymentsTab buyers={buyers} />}
+      {tab === 'payouts' && <SupplierPayoutsTab suppliers={suppliers} />}
+      {tab === 'adspend' && <AdSpendTab />}
     </div>
   );
 }

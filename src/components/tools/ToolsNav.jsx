@@ -1,16 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, Send, Zap } from 'lucide-react';
+import { Bell, Calculator, ShieldCheck, FlaskConical } from 'lucide-react';
 
 const ITEMS = [
-  { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard },
-  { label: 'Campaigns', path: '/campaigns', icon: Megaphone },
-  { label: 'Deliveries', path: '/deliveries', icon: Send },
-  { label: 'Conversion Events', path: '/conversion-events', icon: Zap },
+  { label: 'Notifications', path: '/notifications', icon: Bell },
+  { label: 'Calculated Fields', path: '/calculated-fields', icon: Calculator },
+  { label: 'Verification', path: '/verification', icon: ShieldCheck },
+  { label: 'Payload Tester', path: '/payload-tester', icon: FlaskConical },
 ];
 
-// Left sub-sidebar for the Lead Distribution section (mirrors the Reports pattern).
-export default function DistributionNav() {
+// Left sub-sidebar for the Tools section.
+export default function ToolsNav() {
   const location = useLocation();
 
   return (

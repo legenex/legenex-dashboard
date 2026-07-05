@@ -1,16 +1,18 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, Send, Zap } from 'lucide-react';
+import { List, CheckCircle2, XCircle, Ban, Slash, Clock } from 'lucide-react';
 
 const ITEMS = [
-  { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard },
-  { label: 'Campaigns', path: '/campaigns', icon: Megaphone },
-  { label: 'Deliveries', path: '/deliveries', icon: Send },
-  { label: 'Conversion Events', path: '/conversion-events', icon: Zap },
+  { label: 'All Leads', path: '/leads', icon: List },
+  { label: 'Sold', path: '/leads/sold', icon: CheckCircle2 },
+  { label: 'Unsold', path: '/leads/unsold', icon: XCircle },
+  { label: 'Disqualified', path: '/leads/disqualified', icon: Ban },
+  { label: 'Rejected', path: '/leads/rejected', icon: Slash },
+  { label: 'Queued', path: '/leads/queued', icon: Clock },
 ];
 
-// Left sub-sidebar for the Lead Distribution section (mirrors the Reports pattern).
-export default function DistributionNav() {
+// Left sub-sidebar for the Leads section.
+export default function LeadsNav() {
   const location = useLocation();
 
   return (

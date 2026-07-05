@@ -26,7 +26,6 @@ export default function ReportSidebar({ active, onSelect, customReports = [], on
 
   return (
     <div className="w-56 shrink-0 border-r border-border pr-3">
-      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">Standard</div>
       <div className="space-y-0.5 mb-5">
         {STANDARD.map(s => <Item key={s.key} id={`std:${s.key}`} label={s.label} />)}
       </div>

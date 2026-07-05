@@ -16,6 +16,9 @@ import ResetPassword from '@/pages/ResetPassword';
 
 import AppLayout from '@/components/layout/AppLayout';
 import DistributionLayout from '@/components/distribution/DistributionLayout';
+import LeadsLayout from '@/components/leads/LeadsLayout';
+import FinancesLayout from '@/components/finances/FinancesLayout';
+import ToolsLayout from '@/components/tools/ToolsLayout';
 import Overview from '@/pages/Overview';
 import DistributionDashboard from '@/pages/DistributionDashboard';
 import LeadsView from '@/pages/LeadsView';
@@ -65,12 +68,14 @@ const AuthenticatedApp = () => {
         <Route element={<AppLayout />}>
           <Route element={<PermissionRoute />}>
           <Route path="/" element={<Overview />} />
-          <Route path="/leads" element={<LeadsView view="all" />} />
-          <Route path="/leads/sold" element={<LeadsView view="sold" />} />
-          <Route path="/leads/unsold" element={<LeadsView view="unsold" />} />
-          <Route path="/leads/disqualified" element={<LeadsView view="disqualified" />} />
-          <Route path="/leads/rejected" element={<LeadsView view="rejected" />} />
-          <Route path="/leads/queued" element={<LeadsView view="queued" />} />
+          <Route element={<LeadsLayout />}>
+            <Route path="/leads" element={<LeadsView view="all" />} />
+            <Route path="/leads/sold" element={<LeadsView view="sold" />} />
+            <Route path="/leads/unsold" element={<LeadsView view="unsold" />} />
+            <Route path="/leads/disqualified" element={<LeadsView view="disqualified" />} />
+            <Route path="/leads/rejected" element={<LeadsView view="rejected" />} />
+            <Route path="/leads/queued" element={<LeadsView view="queued" />} />
+          </Route>
           <Route path="/leads/rejections" element={<Navigate to="/leads/rejected" replace />} />
           <Route path="/queue-recovery" element={<QueueRecovery />} />
           <Route path="/errors" element={<Navigate to="/settings?tab=errors" replace />} />
@@ -85,12 +90,16 @@ const AuthenticatedApp = () => {
           <Route path="/buyers" element={<Navigate to="/campaigns?tab=buyers" replace />} />
           <Route path="/suppliers" element={<Navigate to="/campaigns?tab=suppliers" replace />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/finances" element={<Finances />} />
+          <Route element={<FinancesLayout />}>
+            <Route path="/finances" element={<Finances />} />
+          </Route>
           <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/verification" element={<Verification />} />
-          <Route path="/calculated-fields" element={<CustomCalculations />} />
-          <Route path="/payload-tester" element={<PayloadTester />} />
+          <Route element={<ToolsLayout />}>
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/verification" element={<Verification />} />
+            <Route path="/calculated-fields" element={<CustomCalculations />} />
+            <Route path="/payload-tester" element={<PayloadTester />} />
+          </Route>
           <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>

@@ -14,7 +14,7 @@ export default function SettingsGeneral() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
 
-  const { data: settingsArr = [] } = useQuery({
+  const { data: settingsArr = [], isSuccess } = useQuery({
     queryKey: ['app-settings'],
     queryFn: () => base44.entities.AppSettings.list(),
   });
@@ -23,7 +23,7 @@ export default function SettingsGeneral() {
   const [form, setForm] = useState(null);
 
   useEffect(() => {
-    if (settingsArr.length > 0 && !form) {
+    if (isSuccess && !form) {
       setForm({
         brand_name: settings.brand_name || '',
         brand_tagline: settings.brand_tagline || '',
@@ -34,7 +34,7 @@ export default function SettingsGeneral() {
         fb_api_version_auto: settings.fb_api_version_auto ?? true,
       });
     }
-  }, [settingsArr]);
+  }, [isSuccess]);
 
   const handleSave = async () => {
     setSaving(true);
