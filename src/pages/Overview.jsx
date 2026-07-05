@@ -270,7 +270,7 @@ export default function Overview() {
       </Reveal>
 
       {/* Grouped KPI cards */}
-      <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+      <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-2 xl:grid-cols-4 gap-4 mt-4">
         {[
           { key: 'revenue', label: 'Revenue', subLabel: 'Verified', icon: DollarSign, cmp: 'Booked' },
           { key: 'profit', label: 'Profit', subLabel: 'Cash', icon: TrendingUp, cmp: 'Reported' },
