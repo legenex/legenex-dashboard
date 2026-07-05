@@ -19,63 +19,68 @@ import {
   Target, Phone, Mail, MessageSquare, Brain, Sparkles, ArrowUpRight, RefreshCw,
 } from 'lucide-react';
 
-/* Design tokens (Legenex Performance framework) */
-const C = {
-  bg: '#0A0E15', panel: '#131924', panel2: '#182030', border: '#243044', borderSoft: '#1C2536',
-  red: '#E5484D', redSoft: 'rgba(229,72,77,0.12)', green: '#3DD68C', greenSoft: 'rgba(61,214,140,0.12)',
-  amber: '#E8A33D', amberSoft: 'rgba(232,163,61,0.12)', blue: '#5B8DEF', blueSoft: 'rgba(91,141,239,0.12)',
-  text: '#EEF2F8', mut: '#8B95A8', dim: '#5A6478',
-};
-
 const rise = {
   hidden: { opacity: 0, y: 14 },
   show: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: 0.05 * i, duration: 0.5, ease: [0.22, 1, 0.36, 1] } }),
 };
 
-const toneColor = (t) =>
-  t === 'green' ? C.green : t === 'red' ? C.red : t === 'amber' ? C.amber : t === 'blue' ? C.blue : C.mut;
+// Recharts needs concrete color strings, so resolve chart series colors from the
+// status helper palette (kept in sync with the theme's status tokens).
+const CHART = { amber: '#E8A33D', green: '#3DD68C', gridStroke: 'hsl(var(--border))' };
 
-const Panel = ({ children, className = '', glow, style = {} }) => (
+// Tone -> theme helper classes for stage tiles (text color for value + icon).
+const toneText = {
+  green: 'status-sold',
+  red: 'text-primary',
+  amber: 'status-unsold',
+  blue: 'status-duplicate',
+  slate: 'text-muted-foreground',
+};
+const toneValueText = {
+  green: 'status-sold',
+  red: 'text-primary',
+  amber: 'status-unsold',
+  blue: 'status-duplicate',
+  slate: 'text-foreground',
+};
+const toneBar = {
+  green: 'bg-status-sold',
+  red: 'bg-primary',
+  amber: 'bg-status-unsold',
+  blue: 'bg-status-duplicate',
+  slate: 'bg-muted-foreground',
+};
+
+const Panel = ({ children, className = '', glow = false, style = {} }) => (
   <div
-    className={`relative rounded-xl border ${className}`}
-    style={{
-      background: `linear-gradient(180deg, ${C.panel2} 0%, ${C.panel} 100%)`,
-      borderColor: C.border,
-      boxShadow: glow
-        ? `0 0 0 1px ${glow}22, 0 8px 40px -12px ${glow}33, 0 12px 32px -16px rgba(0,0,0,0.6)`
-        : '0 12px 32px -16px rgba(0,0,0,0.6)',
-      ...style,
-    }}
+    className={`relative rounded-xl border border-border bg-card ${glow ? 'shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_8px_40px_-12px_hsl(var(--primary)/0.25)]' : 'shadow-[0_12px_32px_-16px_rgba(0,0,0,0.4)]'} ${className}`}
+    style={style}
   >
     {children}
   </div>
 );
 
-const PulseDot = ({ color = C.green, size = 7 }) => (
+const PulseDot = ({ className = 'bg-[hsl(152_65%_54%)]', size = 7 }) => (
   <span className="relative inline-flex" style={{ width: size, height: size }}>
     <motion.span
-      className="absolute inset-0 rounded-full"
-      style={{ background: color }}
+      className={`absolute inset-0 rounded-full ${className}`}
       animate={{ scale: [1, 2.4], opacity: [0.5, 0] }}
       transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
     />
-    <span className="relative rounded-full w-full h-full" style={{ background: color }} />
+    <span className={`relative rounded-full w-full h-full ${className}`} />
   </span>
 );
 
 const Tag = ({ children, tone = 'slate', mono }) => {
   const map = {
-    slate: { bg: 'rgba(139,149,168,0.10)', fg: C.mut, bd: C.border },
-    red: { bg: C.redSoft, fg: '#F2777B', bd: 'rgba(229,72,77,0.35)' },
-    green: { bg: C.greenSoft, fg: C.green, bd: 'rgba(61,214,140,0.35)' },
-    amber: { bg: C.amberSoft, fg: C.amber, bd: 'rgba(232,163,61,0.35)' },
-    blue: { bg: C.blueSoft, fg: C.blue, bd: 'rgba(91,141,239,0.35)' },
+    slate: 'tag-neutral border-border',
+    red: 'bg-primary/10 text-primary border-primary/35',
+    green: 'bg-status-sold status-sold border-[hsl(152_65%_54%/0.35)]',
+    amber: 'bg-status-unsold status-unsold border-[hsl(38_78%_58%/0.35)]',
+    blue: 'bg-status-duplicate status-duplicate border-[hsl(220_82%_65%/0.35)]',
   }[tone];
   return (
-    <span
-      className={`px-2 py-0.5 rounded-md text-[10.5px] font-medium tracking-wide border ${mono ? 'font-mono' : ''}`}
-      style={{ background: map.bg, color: map.fg, borderColor: map.bd }}
-    >
+    <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-medium tracking-wide border ${mono ? 'font-mono' : ''} ${map}`}>
       {children}
     </span>
   );
@@ -84,12 +89,11 @@ const Tag = ({ children, tone = 'slate', mono }) => {
 const Btn = ({ icon: Icon, children, primary, onClick }) => (
   <button
     onClick={onClick}
-    className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11.5px] font-medium border shrink-0"
-    style={
+    className={`flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11.5px] font-medium border shrink-0 transition-colors ${
       primary
-        ? { background: C.red, color: '#fff', borderColor: C.red, boxShadow: `0 0 16px ${C.red}44` }
-        : { borderColor: C.border, background: 'rgba(10,14,21,0.5)', color: C.mut }
-    }
+        ? 'bg-primary text-primary-foreground border-primary shadow-[0_0_16px_hsl(var(--primary)/0.3)]'
+        : 'border-border bg-background/50 text-muted-foreground hover:bg-accent hover:text-foreground'
+    }`}
   >
     {Icon && <Icon size={12} />} {children}
   </button>
@@ -190,24 +194,23 @@ export default function DistributionDashboard() {
         {/* Endpoint + verification stack */}
         <Panel className="overflow-hidden">
           <motion.div
-            className="absolute top-0 bottom-0 w-[120px] pointer-events-none"
-            style={{ background: `linear-gradient(90deg, transparent, ${C.green}0A 50%, transparent)` }}
+            className="absolute top-0 bottom-0 w-[120px] pointer-events-none bg-gradient-to-r from-transparent via-status-sold to-transparent opacity-40"
             animate={{ left: ['-12%', '112%'] }}
             transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
           />
           <div className="relative flex flex-col xl:flex-row xl:items-center gap-4 px-5 py-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg grid place-items-center shrink-0" style={{ background: C.greenSoft, border: '1px solid rgba(61,214,140,0.3)' }}>
-                <Link2 size={15} style={{ color: C.green }} />
+              <div className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-status-sold border border-[hsl(152_65%_54%/0.3)]">
+                <Link2 size={15} className="status-sold" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold tracking-[0.14em]" style={{ color: C.dim }}>SUPPLIER ENDPOINT</span>
-                  <span className="flex items-center gap-1 text-[10px]" style={{ color: C.green }}>
+                  <span className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/70">SUPPLIER ENDPOINT</span>
+                  <span className="flex items-center gap-1 text-[10px] status-sold">
                     <PulseDot size={4} /> accepting POSTs
                   </span>
                 </div>
-                <code className="block text-[13px] font-mono truncate mt-0.5" style={{ color: '#F2777B' }}>{endpointUrl}</code>
+                <code className="block text-[13px] font-mono truncate mt-0.5 text-primary">{endpointUrl}</code>
               </div>
               <Btn icon={Copy} onClick={copyEndpoint}>Copy</Btn>
             </div>
@@ -216,12 +219,11 @@ export default function DistributionDashboard() {
               {verifications.map((v) => (
                 <div
                   key={v.name}
-                  className="flex items-center gap-2 px-3 h-9 rounded-lg border"
-                  style={{ borderColor: v.ok ? 'rgba(61,214,140,0.3)' : 'rgba(229,72,77,0.3)', background: v.ok ? C.greenSoft : C.redSoft }}
+                  className={`flex items-center gap-2 px-3 h-9 rounded-lg border ${v.ok ? 'bg-status-sold border-[hsl(152_65%_54%/0.3)]' : 'bg-primary/10 border-primary/30'}`}
                 >
-                  <v.icon size={13} style={{ color: v.ok ? C.green : '#F2777B' }} />
-                  <span className="text-[11.5px] font-medium" style={{ color: C.text }}>{v.name}</span>
-                  <span className="text-[10.5px]" style={{ color: v.ok ? C.green : '#F2777B' }}>{v.status}</span>
+                  <v.icon size={13} className={v.ok ? 'status-sold' : 'text-primary'} />
+                  <span className="text-[11.5px] font-medium text-foreground">{v.name}</span>
+                  <span className={`text-[10.5px] ${v.ok ? 'status-sold' : 'text-primary'}`}>{v.status}</span>
                 </div>
               ))}
             </div>
@@ -232,15 +234,15 @@ export default function DistributionDashboard() {
         <Panel>
           <div className="flex items-center justify-between px-5 pt-4 pb-2">
             <div className="flex items-center gap-2">
-              <Workflow size={15} style={{ color: C.mut }} />
-              <h3 className="text-[13px] font-semibold" style={{ color: C.text }}>Pipeline · {PERIOD_LABELS[period]}</h3>
+              <Workflow size={15} className="text-muted-foreground" />
+              <h3 className="text-[13px] font-semibold text-foreground">Pipeline · {PERIOD_LABELS[period]}</h3>
             </div>
             {m.unsold > 0 && <Tag tone="amber">{m.unsold} unsold in flight</Tag>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 px-5 pb-5">
             {stages.map((s, i) => {
-              const col = toneColor(s.tone);
               const barW = m.total > 0 && s.value > 0 ? `${Math.max(6, Math.round((s.value / m.total) * 100))}%` : '3%';
+              const highlightAmber = s.value > 0 && s.tone === 'amber';
               return (
                 <motion.div
                   key={s.label}
@@ -249,16 +251,15 @@ export default function DistributionDashboard() {
                   animate="show"
                   custom={i}
                   whileHover={{ y: -3 }}
-                  className="p-3.5 rounded-lg border"
-                  style={{ borderColor: s.value > 0 && s.tone === 'amber' ? 'rgba(232,163,61,0.4)' : C.borderSoft, background: 'rgba(10,14,21,0.45)' }}
+                  className={`p-3.5 rounded-lg border bg-background/40 ${highlightAmber ? 'border-[hsl(38_78%_58%/0.4)]' : 'border-border/60'}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[9.5px] font-semibold tracking-[0.1em] uppercase" style={{ color: C.mut }}>{s.label}</span>
-                    <s.icon size={13} style={{ color: col, opacity: 0.85 }} />
+                    <span className="text-[9.5px] font-semibold tracking-[0.1em] uppercase text-muted-foreground">{s.label}</span>
+                    <s.icon size={13} className={`${toneText[s.tone]} opacity-85`} />
                   </div>
-                  <div className="text-[26px] font-bold tabular-nums mt-1.5" style={{ color: s.tone === 'slate' ? C.text : col }}>{s.value}</div>
-                  <div className="h-0.5 rounded-full mt-2" style={{ background: C.borderSoft }}>
-                    <div className="h-full rounded-full" style={{ background: col, width: barW, opacity: 0.7 }} />
+                  <div className={`text-[26px] font-bold tabular-nums mt-1.5 ${toneValueText[s.tone]}`}>{s.value}</div>
+                  <div className="h-0.5 rounded-full mt-2 bg-border/60">
+                    <div className={`h-full rounded-full opacity-70 ${toneBar[s.tone]}`} style={{ width: barW }} />
                   </div>
                 </motion.div>
               );
@@ -270,14 +271,14 @@ export default function DistributionDashboard() {
         <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4">
           <Panel className="flex flex-col">
             <div className="flex items-center justify-between px-5 pt-4 pb-2">
-              <h3 className="text-[13px] font-semibold" style={{ color: C.text }}>Leads Over Time</h3>
+              <h3 className="text-[13px] font-semibold text-foreground">Leads Over Time</h3>
               <Tag>{PERIOD_LABELS[period]}</Tag>
             </div>
             <div className="relative flex-1 min-h-[240px] px-2 pb-3">
               <div
                 className="absolute inset-x-5 inset-y-0 pointer-events-none opacity-40"
                 style={{
-                  backgroundImage: `linear-gradient(${C.border}2E 1px, transparent 1px), linear-gradient(90deg, ${C.border}2E 1px, transparent 1px)`,
+                  backgroundImage: 'linear-gradient(hsl(var(--border) / 0.18) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.18) 1px, transparent 1px)',
                   backgroundSize: '48px 44px',
                 }}
               />
@@ -285,35 +286,34 @@ export default function DistributionDashboard() {
                 <ComposedChart data={chartData} margin={{ top: 12, right: 16, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="volFill2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={C.amber} stopOpacity="0.25" />
-                      <stop offset="100%" stopColor={C.amber} stopOpacity="0" />
+                      <stop offset="0%" stopColor={CHART.amber} stopOpacity="0.25" />
+                      <stop offset="100%" stopColor={CHART.amber} stopOpacity="0" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke={`${C.border}40`} vertical={false} />
-                  <XAxis dataKey="day" tick={{ fill: C.dim, fontSize: 10.5 }} axisLine={{ stroke: C.borderSoft }} tickLine={false} />
-                  <YAxis tick={{ fill: C.dim, fontSize: 10.5 }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: C.panel2, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, color: C.text }} />
-                  <ReferenceLine y={0} stroke={`${C.mut}55`} strokeDasharray="4 4" />
-                  <Area type="monotone" dataKey="volume" stroke={C.amber} strokeWidth={1.5} fill="url(#volFill2)" name="Volume" />
-                  <Line type="monotone" dataKey="sold" stroke={C.green} strokeWidth={1.5} dot={false} name="Sold" />
+                  <CartesianGrid stroke={CHART.gridStroke} strokeOpacity={0.25} vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10.5 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                  <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10.5 }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, color: 'hsl(var(--foreground))' }} />
+                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.33} strokeDasharray="4 4" />
+                  <Area type="monotone" dataKey="volume" stroke={CHART.amber} strokeWidth={1.5} fill="url(#volFill2)" name="Volume" />
+                  <Line type="monotone" dataKey="sold" stroke={CHART.green} strokeWidth={1.5} dot={false} name="Sold" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </Panel>
 
-          <Panel glow={C.red} className="flex flex-col overflow-hidden">
+          <Panel glow className="flex flex-col overflow-hidden">
             <motion.div
-              className="absolute top-0 left-0 right-0 h-[2px]"
-              style={{ background: `linear-gradient(90deg, transparent, ${C.red}, transparent)` }}
+              className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent"
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 2.4, repeat: Infinity }}
             />
             <div className="flex items-center justify-between px-5 pt-4">
               <div className="flex items-center gap-2">
-                <Brain size={15} style={{ color: '#F2777B' }} />
-                <h3 className="text-[13px] font-semibold" style={{ color: C.text }}>AI Insights</h3>
+                <Brain size={15} className="text-primary" />
+                <h3 className="text-[13px] font-semibold text-foreground">AI Insights</h3>
               </div>
-              <button onClick={runAi} disabled={aiLoading} className="flex items-center gap-1.5 text-[11.5px]" style={{ color: C.mut }}>
+              <button onClick={runAi} disabled={aiLoading} className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground hover:text-foreground transition-colors">
                 <RefreshCw size={12} className={aiLoading ? 'animate-spin' : ''} /> {aiText ? 'Refresh' : 'Generate'}
               </button>
             </div>
@@ -321,22 +321,22 @@ export default function DistributionDashboard() {
               {aiBullets.length > 0 ? (
                 <ul className="space-y-2">
                   {aiBullets.map((b, i) => (
-                    <li key={i} className="flex gap-2 text-[12.5px]" style={{ color: C.text }}>
-                      <span style={{ color: '#F2777B' }}>•</span><span>{b}</span>
+                    <li key={i} className="flex gap-2 text-[12.5px] text-foreground">
+                      <span className="text-primary">•</span><span>{b}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[12.5px] leading-relaxed" style={{ color: C.text }}>{defaultNarrative}</p>
+                <p className="text-[12.5px] leading-relaxed text-foreground">{defaultNarrative}</p>
               )}
-              <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: C.borderSoft, background: 'rgba(10,14,21,0.5)' }}>
-                <Sparkles size={13} style={{ color: '#F2777B' }} className="shrink-0" />
-                <p className="text-[11.5px]" style={{ color: C.mut }}>
-                  <span className="font-semibold" style={{ color: C.text }}>Top recommendation:</span>{' '}
+              <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border/60 bg-background/50">
+                <Sparkles size={13} className="text-primary shrink-0" />
+                <p className="text-[11.5px] text-muted-foreground">
+                  <span className="font-semibold text-foreground">Top recommendation:</span>{' '}
                   {m.unsold > 0 ? 'route unsold leads by configuring a buyer for this campaign.' : 'keep supplier feeds fresh so status counts stay reliable.'}
                 </p>
               </div>
-              <button onClick={() => navigate('/campaigns?tab=buyers')} className="text-[12px] font-medium inline-flex items-center gap-1" style={{ color: '#F2777B' }}>
+              <button onClick={() => navigate('/campaigns?tab=buyers')} className="text-[12px] font-medium inline-flex items-center gap-1 text-primary hover:underline">
                 Open Buyers <ArrowUpRight size={12} />
               </button>
             </div>
