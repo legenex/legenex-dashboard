@@ -101,7 +101,7 @@ export default function Overview() {
 
   return (
     <div>
-      <PageHeader title="Financial Overview" subtitle="Source of financial truth — profit, revenue, cost and reconciliation health">
+      <PageHeader title="Overview" subtitle="Source of financial truth — profit, revenue, cost and reconciliation health">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="text-[11px] text-muted-foreground whitespace-nowrap">
             Period: <span className="text-foreground font-medium">{PERIOD_LABELS[period]}</span>

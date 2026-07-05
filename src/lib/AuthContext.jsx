@@ -21,8 +21,13 @@ export function resolvePermissions(user) {
   return { role, perms: sanitizePermissions(role, perms) };
 }
 
+const PREVIEW_ROLE_KEY = 'legenex_preview_role';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [previewRole, setPreviewRoleState] = useState(() => {
+    try { return localStorage.getItem(PREVIEW_ROLE_KEY) || null; } catch { return null; }
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -148,6 +153,15 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin(window.location.href);
   };
 
+  // View-As: temporarily preview the app as another role (Owner/Admin only).
+  const setPreviewRole = (role) => {
+    setPreviewRoleState(role);
+    try {
+      if (role) localStorage.setItem(PREVIEW_ROLE_KEY, role);
+      else localStorage.removeItem(PREVIEW_ROLE_KEY);
+    } catch {}
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -157,6 +171,8 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       authChecked,
+      previewRole,
+      setPreviewRole,
       logout,
       navigateToLogin,
       checkUserAuth,
@@ -177,13 +193,24 @@ export const useAuth = () => {
 
 // Access control hook: returns the current user's role and a can(key) checker.
 // Owner always passes. No user yet -> deny everything.
+// When an Owner/Admin has a preview role active, can() is evaluated as that role.
 export const usePermissions = () => {
-  const { user } = useAuth();
-  const { role, perms } = resolvePermissions(user);
+  const { user, previewRole } = useAuth();
+  const real = resolvePermissions(user);
+  const canPreview = real.role === 'owner' || real.role === 'admin';
+  const previewing = canPreview && previewRole && previewRole !== real.role;
+
+  const preview = previewing
+    ? { role: previewRole, perms: sanitizePermissions(previewRole, { ...(ROLE_PRESETS[previewRole]?.permissions || {}) }) }
+    : null;
+
+  const role = preview ? preview.role : real.role;
+  const perms = preview ? preview.perms : real.perms;
+
   const can = (key) => {
     if (!user) return false;
     if (role === 'owner') return true;
     return !!perms[key];
   };
-  return { role, perms, can };
+  return { role, perms, can, realRole: real.role, previewing: !!previewing, canPreview };
 };
