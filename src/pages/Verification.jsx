@@ -96,6 +96,7 @@ export default function Verification() {
       passthrough_fields: settings.passthrough_fields || '["lh_hlr_response","summary_score","first_name_match","last_name_match","country_code"]',
       min_summary_score: settings.min_summary_score || 0,
       phone_verified_source: settings.phone_verified_source || 'lh_hlr_response',
+      phone_verified_fallback: settings.phone_verified_fallback ?? 'Not Verified',
       filter_suppliers: parseJsonArray(settings.filter_suppliers),
       filter_supplier_types: parseJsonArray(settings.filter_supplier_types),
       filter_routes: parseJsonArray(settings.filter_routes),
@@ -236,6 +237,11 @@ export default function Verification() {
                     ]}
                   />
                   <p className="text-[12px] text-muted-foreground leading-relaxed">{phoneVerifiedSourceDescriptions[form.phone_verified_source]}</p>
+                  <div className="pt-1">
+                    <Label className="text-[12px]">Static Fallback Value</Label>
+                    <p className="text-[11px] text-muted-foreground mb-1">Sent as phone_verified when there is no HLR result and the inbound payload has no phone_verified. Ensures LeadByte always receives a non-empty value.</p>
+                    <Input value={form.phone_verified_fallback} onChange={e => setForm(p => ({ ...p, phone_verified_fallback: e.target.value }))} placeholder="Not Verified" className="mt-1 bg-background" />
+                  </div>
                 </CardContent>
               </Card>
 

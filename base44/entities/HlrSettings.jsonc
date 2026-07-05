@@ -46,6 +46,11 @@
       ],
       "default": "lh_hlr_response"
     },
+    "phone_verified_fallback": {
+      "type": "string",
+      "default": "Not Verified",
+      "description": "Static value sent as phone_verified when there is no HLR result and no inbound phone_verified value, so LeadByte always receives a non-empty phone_verified."
+    },
     "filter_suppliers": {
       "type": "string",
       "description": "JSON array of supplier names or SIDs to run HLR for. Empty = all suppliers."

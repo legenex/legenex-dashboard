@@ -877,6 +877,37 @@ function isQueueableRejection(reasonText) {
   return QUEUE_REJECTION_PATTERNS.some(p => lower.includes(p));
 }
 
+// ── Response envelope ──────────────────────────────────────────────────────
+// Builds the layered response returned to suppliers. Keeps the legacy `Response`
+// field as a mirror so existing suppliers keep working. The `Response` value is
+// whatever the legacy flow returns today (Sold/Unsold/Queued/Duplicate/Error).
+function buildEnvelope(traceId, {
+  ok, acceptance, lead_id = null, lead_status, sold = false,
+  revenue = null, code, reason = null, message, Response,
+}) {
+  return {
+    ok,
+    trace_id: traceId,
+    received_at: new Date().toISOString(),
+    acceptance,
+    lead_id: lead_id != null ? String(lead_id) : null,
+    lead_status,
+    sold,
+    revenue: revenue != null && !isNaN(revenue) ? Number(revenue) : null,
+    currency: 'USD',
+    code,
+    reason: reason || null,
+    message,
+    Response,
+  };
+}
+
+// Map an inbound-status-bypass final_status to the envelope lead_status.
+function bypassLeadStatus(finalForBypass) {
+  const map = { Disqualified: 'disqualified', Returned: 'returned', Sold: 'sold' };
+  return map[finalForBypass] || 'sold';
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -885,7 +916,16 @@ Deno.serve(async (req) => {
   const method = req.method;
 
   if (method === 'GET') return Response.json({ status: 'ok' }, { status: 200 });
-  if (method !== 'POST') return Response.json({ Response: 'Error', reason: 'Method not allowed' }, { status: 405 });
+
+  const traceId = (globalThis.crypto?.randomUUID?.() || `t_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+
+  if (method !== 'POST') {
+    return Response.json(buildEnvelope(traceId, {
+      ok: false, acceptance: 'rejected', lead_status: 'rejected',
+      code: 'METHOD_NOT_ALLOWED', reason: 'Method not allowed',
+      message: 'Method not allowed', Response: 'Error',
+    }), { status: 405 });
+  }
 
   const startTime = Date.now();
   let leadId = null;
@@ -931,7 +971,11 @@ Deno.serve(async (req) => {
         detail: JSON.stringify({ key_provided: supplierKeyRaw ? 'yes' : 'no' }),
         supplier_name: 'Unknown',
       });
-      return Response.json({ Response: 'Error', reason: 'Invalid or missing API key' }, { status: 401 });
+      return Response.json(buildEnvelope(traceId, {
+        ok: false, acceptance: 'unauthorized', lead_status: 'rejected',
+        code: 'BAD_KEY', reason: 'Invalid or missing API key',
+        message: 'Invalid or missing API key', Response: 'Error',
+      }), { status: 401 });
     }
 
     const supplierAttribution = apiKeyRecord.type === 'master'
@@ -1086,7 +1130,11 @@ Deno.serve(async (req) => {
 
     // TEST route: save only - no processing, no triggers
     if (routeIs.test) {
-      const testResponse = { Response: 'Queued', reason: 'Test route - lead saved for testing only' };
+      const testResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'queued',
+        code: 'TEST_ROUTE', reason: 'Test route - lead saved for testing only',
+        message: 'Test route - lead saved for testing only', Response: 'Queued',
+      });
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
         queue_reason: 'Test route - no downstream processing',
@@ -1102,7 +1150,11 @@ Deno.serve(async (req) => {
       fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
       if (!routeIs.event) fireDeliveries(db, allDestinations, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
       await evaluateNotifications(db, ['lead_queued'], { id: leadId, queue_reason: 'Queue route - held for manual processing' }, supplierAttribution, { queue_reason: 'Queue route' });
-      const queueResponse = { Response: 'Queued', reason: 'Queue route - held for manual processing' };
+      const queueResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'queued', lead_id: systemLeadId, lead_status: 'queued',
+        code: 'QUEUE_ROUTE', reason: 'Queue route - held for manual processing',
+        message: 'Queue route - held for manual processing', Response: 'Queued',
+      });
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
         queue_reason: 'Queue route - held for manual processing',
@@ -1194,20 +1246,27 @@ Deno.serve(async (req) => {
       }
 
       // Build the supplier response from the actual destination response.
-      let bypassResponse;
+      let responseLabel;
+      let bypassReason;
       if (deliveryResults.length > 0) {
         const primary = deliveryResults[0];
         const respBody = (primary.response || '').trim();
-        let responseLabel = primary.success ? 'Sent' : 'Error';
+        responseLabel = primary.success ? 'Sent' : 'Error';
         if (respBody) {
           try { const j = JSON.parse(respBody); responseLabel = j.Response || j.response || j.status || j.message || respBody; }
           catch { responseLabel = respBody; }
         }
-        bypassResponse = { Response: responseLabel, reason: `${inboundLeadStatus} lead - delivered to ${primary.connector} (HTTP ${primary.http_status || 'n/a'})` };
+        bypassReason = `${inboundLeadStatus} lead - delivered to ${primary.connector} (HTTP ${primary.http_status || 'n/a'})`;
       } else {
-        bypassResponse = { Response: 'Sent', reason: `${inboundLeadStatus} lead - no matching delivery destination` };
+        responseLabel = 'Sent';
+        bypassReason = `${inboundLeadStatus} lead - no matching delivery destination`;
       }
       const finalForBypass = inboundLeadStatus === 'Disqualified' ? 'Disqualified' : (inboundLeadStatus === 'Returned' ? 'Returned' : 'Sold');
+      const bypassResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId,
+        lead_status: bypassLeadStatus(finalForBypass), code: 'INBOUND_STATUS_BYPASS',
+        reason: bypassReason, message: bypassReason, Response: responseLabel,
+      });
       await db.entities.Lead.update(leadId, {
         final_status: finalForBypass,
         processed_at: new Date().toISOString(),
@@ -1273,7 +1332,11 @@ Deno.serve(async (req) => {
           supplier_name: supplierAttribution,
         });
         if (failMode === 'fail_closed') {
-          const hlrFailResponse = { Response: 'Error', reason: 'HLR lookup failed' };
+          const hlrFailResponse = buildEnvelope(traceId, {
+            ok: false, acceptance: 'error', lead_id: systemLeadId, lead_status: 'error',
+            code: 'HLR_FAILED', reason: 'HLR lookup failed',
+            message: 'HLR lookup failed', Response: 'Error',
+          });
           await db.entities.Lead.update(leadId, {
             final_status: 'Error', error_stage: 'hlr',
             processed_at: new Date().toISOString(),
@@ -1319,8 +1382,13 @@ Deno.serve(async (req) => {
       enrichedData.hlr_score = hlrResult.summary_score != null ? String(hlrResult.summary_score) : '';
       enrichedData.country_code = hlrResult.country_code || '';
     }
-    if (inboundPhoneVerified && !hlrResult) {
-      enrichedData[phoneVerifiedFieldName] = inboundPhoneVerified;
+    // Precedence: HLR result (already set by runCalculations) > inbound phone_verified > configured static fallback.
+    if (!hlrResult) {
+      if (inboundPhoneVerified) {
+        enrichedData[phoneVerifiedFieldName] = inboundPhoneVerified;
+      } else if (String(enrichedData[phoneVerifiedFieldName] ?? '').trim() === '') {
+        enrichedData[phoneVerifiedFieldName] = hlrSettings?.phone_verified_fallback ?? 'Not Verified';
+      }
     }
     if (emailValidResult !== null) {
       enrichedData[emailValidFieldName] = emailValidResult;
@@ -1341,7 +1409,11 @@ Deno.serve(async (req) => {
       await evaluateNotifications(db, ['lead_queued'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
 
       const mapped = await resolveResponseMapping(db, {}, { Response: 'Queued', reason: queueReason }, 'Queued');
-      const queueResponse = mapped.response;
+      const queueResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'queued', lead_id: systemLeadId, lead_status: 'queued',
+        code: 'MISSING_CERT', reason: mapped.response?.reason || queueReason,
+        message: queueReason, Response: mapped.response?.Response || 'Queued',
+      });
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
         queue_reason: queueReason,
@@ -1361,7 +1433,11 @@ Deno.serve(async (req) => {
       await evaluateNotifications(db, ['lead_queued', 'missing_fields'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
 
       const mapped = await resolveResponseMapping(db, {}, { Response: 'Queued', reason: queueReason }, 'Queued');
-      const queueResponse = mapped.response;
+      const queueResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'queued', lead_id: systemLeadId, lead_status: 'queued',
+        code: 'MISSING_FIELDS', reason: mapped.response?.reason || queueReason,
+        message: queueReason, Response: mapped.response?.Response || 'Queued',
+      });
       await db.entities.Lead.update(leadId, {
         final_status: 'Queued',
         queue_reason: queueReason,
@@ -1394,7 +1470,11 @@ Deno.serve(async (req) => {
       if (!routeIs.event) {
         fireDeliveries(db, allDestinations, 'on_sold', soldData, leadId, supplierAttribution, supplierRecord);
       }
-      const soldResponse = { Response: 'Sold' };
+      const soldResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'sold',
+        sold: true, revenue: 0, code: 'SOLD', reason: null,
+        message: 'Lead sold', Response: 'Sold',
+      });
       await db.entities.Lead.update(leadId, {
         final_status: 'Sold',
         revenue: 0,
@@ -1407,7 +1487,11 @@ Deno.serve(async (req) => {
 
     // ── e. FORWARD TO LEADBYTE (standard route) ────────────────────────
     if (!leadByteConnector) {
-      const noConnResponse = { Response: 'Error', reason: 'No active LeadByte connector configured' };
+      const noConnResponse = buildEnvelope(traceId, {
+        ok: false, acceptance: 'error', lead_id: systemLeadId, lead_status: 'error',
+        code: 'LB_ERROR', reason: 'No active LeadByte connector configured',
+        message: 'No active LeadByte connector configured', Response: 'Error',
+      });
       await db.entities.Lead.update(leadId, {
         final_status: 'Error', error_stage: 'leadbyte',
         processed_at: new Date().toISOString(),
@@ -1433,7 +1517,12 @@ Deno.serve(async (req) => {
       const effTrigger = effStatus ? triggerKeyForStatus(effStatus) : 'on_received';
       const allowLeadByte = lbTriggers.length === 0 || lbTriggers.includes(effTrigger);
       if (!allowLeadByte) {
-        const skipResponse = { Response: 'Unsold', reason: `Lead status "${effStatus}" not eligible for LeadByte` };
+        const notEligibleReason = `Lead status "${effStatus}" not eligible for LeadByte`;
+        const skipResponse = buildEnvelope(traceId, {
+          ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'unsold',
+          code: 'NOT_ELIGIBLE', reason: notEligibleReason,
+          message: notEligibleReason, Response: 'Unsold',
+        });
         if (effTrigger !== 'on_received') {
           fireConnectors(db, apiConnectors, effTrigger, enrichedData, leadId, supplierAttribution, supplierRecord);
           if (!routeIs.event) fireDeliveries(db, allDestinations, effTrigger, enrichedData, leadId, supplierAttribution, supplierRecord);
@@ -1444,7 +1533,7 @@ Deno.serve(async (req) => {
         }[effStatus] || 'Unsold';
         await db.entities.Lead.update(leadId, {
           final_status: finalForStatus,
-          queue_reason: finalForStatus === 'Queued' ? skipResponse.reason : '',
+          queue_reason: finalForStatus === 'Queued' ? notEligibleReason : '',
           processed_at: new Date().toISOString(),
           process_time_ms: Date.now() - startTime,
           response_returned: JSON.stringify(skipResponse),
@@ -1456,7 +1545,12 @@ Deno.serve(async (req) => {
     // Check LeadByte connector filters - route to DQ destinations instead of dropping
     if (!connectorMatchesFilters(leadByteConnector, enrichedData, supplierAttribution, supplierRecord) ||
         !connectorMatchesConditions(leadByteConnector, enrichedData)) {
-      const skipResponse = { Response: 'Unsold', reason: 'Did not match LeadByte filters - routed to DQ destinations' };
+      const filterDqReason = 'Did not match LeadByte filters - routed to DQ destinations';
+      const skipResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'disqualified',
+        code: 'FILTER_DQ', reason: filterDqReason,
+        message: filterDqReason, Response: 'Unsold',
+      });
       // Fire Disqualified then Unsold triggers so these leads still reach their destinations
       fireConnectors(db, apiConnectors, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
       fireDeliveries(db, allDestinations, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
@@ -1504,6 +1598,11 @@ Deno.serve(async (req) => {
     // ── f. PARSE LEADBYTE RESPONSE ──────────────────────────────────────
     let finalStatus = 'Error';
     let supplierResponse = { Response: 'Error', reason: 'Unexpected LeadByte response' };
+    // Envelope metadata tracked alongside the legacy supplierResponse.
+    let envAcceptance = 'error';
+    let envLeadStatus = 'error';
+    let envCode = 'LB_ERROR';
+    let envSold = false;
 
     if (lbResult.status === 'Success' && lbResult.records && lbResult.records.length > 0) {
       const record = lbResult.records[0];
@@ -1521,6 +1620,7 @@ Deno.serve(async (req) => {
         // ── f. Approved => Sold + FIRE ON SOLD ──────────────────────────
         finalStatus = 'Sold';
         supplierResponse = { Response: 'Sold' };
+        envAcceptance = 'accepted'; envLeadStatus = 'sold'; envCode = 'SOLD'; envSold = true;
 
         // Capture revenue from LeadByte response: sum across ALL buyers with status "Sold"
         const buyers = recordResponse.buyers || record.buyers || lbResult.buyers || [];
@@ -1556,6 +1656,7 @@ Deno.serve(async (req) => {
           const queueReason = `LeadByte rejection (possible missing/invalid field): ${rejectionReason}`;
           await db.entities.Lead.update(leadId, { queue_reason: queueReason });
           supplierResponse = { Response: 'Unsold', reason: rejectionReason };
+          envAcceptance = 'queued'; envLeadStatus = 'queued'; envCode = 'MISSING_FIELDS';
           // Fire on_queued connectors + evaluate rules
           fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
           fireDeliveries(db, allDestinations, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
@@ -1563,6 +1664,7 @@ Deno.serve(async (req) => {
         } else {
           finalStatus = 'Unsold';
           supplierResponse = { Response: 'Unsold', reason: rejectionReason };
+          envAcceptance = 'accepted'; envLeadStatus = 'unsold'; envCode = 'UNSOLD';
           // Fire on_unsold + on_dq connectors
           fireConnectors(db, apiConnectors, 'on_unsold', leadPayload, leadId, supplierAttribution, supplierRecord);
           fireDeliveries(db, allDestinations, 'on_unsold', leadPayload, leadId, supplierAttribution, supplierRecord);
@@ -1574,6 +1676,7 @@ Deno.serve(async (req) => {
       } else {
         finalStatus = 'Error';
         supplierResponse = { Response: 'Error', reason: `LeadByte record status: ${recordStatus}` };
+        envAcceptance = 'error'; envLeadStatus = 'error'; envCode = 'LB_ERROR';
         await db.entities.ErrorLog.create({
           lead_id: leadId, stage: 'leadbyte', severity: 'error',
           message: `Unexpected LeadByte record status: ${recordStatus}`,
@@ -1592,6 +1695,7 @@ Deno.serve(async (req) => {
       if (/duplicate/i.test(firstError)) {
         finalStatus = 'Duplicate';
         supplierResponse = { Response: 'Duplicate', reason: firstError };
+        envAcceptance = 'duplicate'; envLeadStatus = 'duplicate'; envCode = 'DUPLICATE';
         await db.entities.Lead.update(leadId, { queue_reason: `Duplicate: ${firstError}` });
         fireConnectors(db, apiConnectors, 'on_duplicates', leadPayload, leadId, supplierAttribution, supplierRecord);
         fireDeliveries(db, allDestinations, 'on_duplicates', leadPayload, leadId, supplierAttribution, supplierRecord);
@@ -1600,12 +1704,14 @@ Deno.serve(async (req) => {
         const queueReason = `LeadByte error (missing/invalid field): ${firstError || topStatus}`;
         await db.entities.Lead.update(leadId, { queue_reason: queueReason });
         supplierResponse = { Response: 'Unsold', reason: firstError || topStatus };
+        envAcceptance = 'queued'; envLeadStatus = 'queued'; envCode = 'MISSING_FIELDS';
         fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
         fireDeliveries(db, allDestinations, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
         await evaluateNotifications(db, ['lead_queued', 'missing_fields'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
       } else {
         finalStatus = 'Error';
         supplierResponse = { Response: 'Error', reason: firstError || lbResult.message || 'LeadByte returned non-success' };
+        envAcceptance = 'error'; envLeadStatus = 'error'; envCode = 'LB_ERROR';
         await db.entities.ErrorLog.create({
           lead_id: leadId, stage: 'leadbyte', severity: 'error',
           message: firstError || lbResult.message || 'LeadByte returned non-success',
