@@ -2,9 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import PageHeader from '@/components/shared/PageHeader';
-import PeriodTabs from '@/components/shared/PeriodTabs';
-import RefreshButton from '@/components/shared/RefreshButton';
+import { motion } from 'framer-motion';
+import OverviewHeader from '@/components/overview/OverviewHeader';
 import GroupedKpiCard from '@/components/overview/GroupedKpiCard';
 import StatCard from '@/components/overview/StatCard';
 import ActionQueueCard from '@/components/overview/ActionQueueCard';
@@ -19,7 +18,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 import {
-  DollarSign, TrendingUp, Megaphone, Users, GitCompareArrows, ArrowUpRight,
+  DollarSign, TrendingUp, Megaphone, Users, ArrowUpRight,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { resolvePeriod, PERIOD_LABELS } from '@/lib/periodRange';
@@ -175,69 +174,121 @@ export default function Overview() {
     { label: 'Unmatched income', value: fmtMoney(unmatchedIncome), tone: unmatchedIncome > 0 ? 'warn' : 'good' },
   ];
 
+  // ---- Header / AI band derived values ----
+  const feedCount = confidenceSources.length;
+  const verifiedFeeds = confidenceSources.filter(s => s.at && (Date.now() - new Date(s.at).getTime()) < 86400000).length;
+  const analystConfidence = Math.round(stats.dataQuality || 0);
+  const totalAtRisk = queue.totalAtRisk || 0;
+  const riskLevel = totalAtRisk > 5000 ? 'Elevated' : totalAtRisk > 0 ? 'Watch' : verifiedFeeds < feedCount / 2 ? 'Watch' : 'Clear';
+  const riskNote = totalAtRisk > 0 ? `${fmtMoney(totalAtRisk)} at risk` : 'stale ingestion';
+  const topRecommendation = queue.items[0]
+    ? `Resolve ${queue.items[0].label} — ${queue.items[0].name} (${fmtMoney(queue.items[0].amount)}) before it ages further.`
+    : 'Verify booked revenue against cash before scaling any campaign.';
+
+  // Per-KPI sparkline series pulled from the daily finance series.
+  const kpiSpark = {
+    revenue: daily.map(d => d.Verified ?? 0),
+    profit: daily.map(d => (d.Verified ?? 0) - (d.Spend ?? 0)),
+    adSpend: daily.map(d => d.Spend ?? 0),
+    supplierCost: daily.map(d => (d.Booked ?? 0) * 0.4),
+  };
+
+  // Delta vs prior window per KPI (independent of Compare toggle, using briefPrior).
+  const deltaPct = (cur, prev) => {
+    if (prev == null || prev === 0) return 0;
+    return ((cur - prev) / Math.abs(prev)) * 100;
+  };
+  const kpiDelta = {
+    revenue: deltaPct(kpis.revenue.headline, briefPrior.kpis.revenue.headline),
+    profit: deltaPct(kpis.profit.headline, briefPrior.kpis.profit.headline),
+    adSpend: deltaPct(kpis.adSpend.headline, briefPrior.kpis.adSpend.headline),
+    supplierCost: deltaPct(kpis.supplierCost.headline, briefPrior.kpis.supplierCost.headline),
+  };
+
+  const KPI_NOTES = {
+    revenue: 'Awaiting booked events',
+    profit: 'Margin not computable',
+    adSpend: 'No platform sync',
+    supplierCost: 'No statements ingested',
+  };
+
+  // Framer-motion staggered rise variants for card grids.
+  const gridVariants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+  const itemVariants = {
+    hidden: { opacity: 0, y: 16 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
+  };
+
   return (
     <div>
       <ActivityStreamBar events={activityEvents} />
 
-      <PageHeader title="Overview" subtitle="One truth: what was booked, what cash is verified, and the gap.">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-            Period: <span className="text-foreground font-medium">{PERIOD_LABELS[period]}</span>
-          </div>
-          <PeriodTabs
-            value={period}
-            onChange={setPeriod}
-            custom={custom}
-            onCustomChange={setCustom}
-            extra={
-              <button
-                onClick={() => setCompare(c => !c)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${compare ? 'bg-primary/15 text-primary border-primary/30' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}
-              >
-                <GitCompareArrows className="w-3.5 h-3.5" /> Compare
-              </button>
-            }
-          />
-          <RefreshButton onClick={() => qc.invalidateQueries()} />
-        </div>
-      </PageHeader>
+      <OverviewHeader
+        period={period}
+        onPeriodChange={setPeriod}
+        custom={custom}
+        onCustomChange={setCustom}
+        compare={compare}
+        onToggleCompare={() => setCompare(c => !c)}
+        onRefresh={() => qc.invalidateQueries()}
+      />
 
       {/* AI Analyst summary band */}
       <Reveal>
-        <AiAnalystBand text={briefing.text} loading={briefing.loading} error={briefing.error} onRefresh={briefing.refresh} />
+        <AiAnalystBand
+          text={briefing.text}
+          loading={briefing.loading}
+          error={briefing.error}
+          onRefresh={briefing.refresh}
+          confidence={analystConfidence}
+          riskLevel={riskLevel}
+          riskNote={riskNote}
+          topRecommendation={topRecommendation}
+          feedCount={feedCount}
+        />
       </Reveal>
 
       {/* Grouped KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+      <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         {[
           { key: 'revenue', label: 'Revenue', subLabel: 'Verified', icon: DollarSign, cmp: 'Booked' },
           { key: 'profit', label: 'Profit', subLabel: 'Cash', icon: TrendingUp, cmp: 'Reported' },
           { key: 'adSpend', label: 'Ad Spend', subLabel: 'Paid', icon: Megaphone, cmp: 'Tracked' },
           { key: 'supplierCost', label: 'Supplier Cost', subLabel: 'Paid', icon: Users, cmp: 'Accrued' },
-        ].map((c, i) => (
-          <Reveal key={c.key} delay={0.05 * i}>
-            <GroupedKpiCard label={c.label} headline={kpis[c.key].headline} subLabel={c.subLabel} sub={kpis[c.key].sub} gap={kpis[c.key].gap} icon={c.icon} />
+        ].map((c) => (
+          <motion.div key={c.key} variants={itemVariants}>
+            <GroupedKpiCard
+              label={c.label}
+              headline={kpis[c.key].headline}
+              subLabel={c.subLabel}
+              sub={kpis[c.key].sub}
+              gap={kpis[c.key].gap}
+              icon={c.icon}
+              delta={kpiDelta[c.key]}
+              spark={kpiSpark[c.key]}
+              note={KPI_NOTES[c.key]}
+            />
             {compare && <div className="text-[11px] text-muted-foreground mt-1 px-1">{c.cmp} {cmpChip(kpis[c.key].headline, priorTruth?.kpis[c.key].headline)}</div>}
-          </Reveal>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Small stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
+      <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
         {[
-          { label: 'Outstanding', count: stats.outstanding, render: (n) => money(n) },
-          { label: 'Due 7 Days', count: stats.due7, render: (n) => money(n) },
-          { label: 'Overdue', count: stats.overdue, render: (n) => money(n) },
-          { label: 'Short-Paid', count: stats.shortPaid, render: (n) => money(n) },
-          { label: 'True CPL', count: stats.trueCpl, render: (n) => money(n) },
-          { label: 'Cash Margin', count: stats.cashMargin, render: (n) => `${Math.round(n)}%` },
-          { label: 'Data Quality', count: stats.dataQuality, render: (n) => `${Math.round(n)}/100` },
-        ].map((s, i) => (
-          <Reveal key={s.label} delay={0.03 * i}>
-            <StatCard label={s.label} count={s.count} render={s.render} />
-          </Reveal>
+          { label: 'Outstanding', count: stats.outstanding, render: (n) => money(n), note: 'no invoices open', tone: stats.outstanding > 0 ? 'warn' : 'good' },
+          { label: 'Due 7 Days', count: stats.due7, render: (n) => money(n), note: 'nothing maturing', tone: stats.due7 > 0 ? 'warn' : 'good' },
+          { label: 'Overdue', count: stats.overdue, render: (n) => money(n), note: 'clean', tone: stats.overdue > 0 ? 'bad' : 'good' },
+          { label: 'Short-Paid', count: stats.shortPaid, render: (n) => money(n), note: 'clean', tone: stats.shortPaid > 0 ? 'bad' : 'good' },
+          { label: 'True CPL', count: stats.trueCpl, render: (n) => money(n), note: 'no spend basis', tone: 'neutral' },
+          { label: 'Cash Margin', count: stats.cashMargin, render: (n) => `${Math.round(n)}%`, note: 'no cash flow', tone: stats.cashMargin > 0 ? 'good' : 'neutral' },
+          { label: 'Data Quality', count: stats.dataQuality, render: (n) => `${Math.round(n)}/100`, note: 'unverified, feeds stale', tone: stats.dataQuality >= 80 ? 'good' : stats.dataQuality >= 50 ? 'warn' : 'bad' },
+        ].map((s) => (
+          <motion.div key={s.label} variants={itemVariants}>
+            <StatCard label={s.label} count={s.count} render={s.render} note={s.note} dotTone={s.tone} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Daily finance chart */}
       <Reveal delay={0.05}>
