@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import {
   Mail, MessageCircle, HardDrive, FileSpreadsheet, Hash, CheckCircle2, Plug, Zap, ShieldAlert,
   Send, Save, Megaphone, Music2, BarChart3, Facebook, Phone, PhoneCall, ShieldCheck,
-  CreditCard, Receipt, Webhook, Settings2,
+  CreditCard, Receipt, Webhook, Settings2, Landmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MetaAdSpend from '@/components/settings/MetaAdSpend';
@@ -42,6 +42,7 @@ const CATALOG = [
 
   { type: 'stripe', category: 'billing', name: 'Stripe', icon: CreditCard, desc: 'Buyer payments & subscription billing', comingSoon: true },
   { type: 'xero', category: 'billing', name: 'Xero', icon: Receipt, desc: 'Sync invoices & payments to Xero', comingSoon: true },
+  { type: 'mercury', category: 'billing', name: 'Mercury', icon: Landmark, desc: 'Bank feed sync into transactions for reconciliation', supported: true },
 
   { type: 'trustedform', category: 'validation', name: 'TrustedForm', icon: ShieldCheck, desc: 'Cert validation passthrough on inbound leads', link: '/verification', action: 'Configure' },
   { type: 'jornaya', category: 'validation', name: 'Jornaya', icon: ShieldCheck, desc: 'LeadiD token passthrough validation', comingSoon: true },
@@ -130,6 +131,7 @@ export default function SettingsIntegrations() {
     if (it.type === 'whatsapp') return openWhatsapp();
     if (it.gmail) return openGmail();
     if (it.link) { window.location.href = it.link; return; }
+    if (it.type === 'mercury') { window.location.href = '/finances'; return; }
     setPending(it);
   };
 

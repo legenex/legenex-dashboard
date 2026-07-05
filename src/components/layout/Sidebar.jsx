@@ -55,7 +55,7 @@ const navGroups = [
       { label: 'API Keys', path: '/settings', tab: 'apikeys', permKey: 'set_api_keys' },
       { label: 'Error Logs', path: '/settings', tab: 'errors', permKey: 'set_error_logs' },
       { label: 'Knowledge Base', path: '/settings', tab: 'knowledge', permKey: 'set_knowledge_base' },
-      { label: 'Billing', path: '/settings', tab: 'billing', permKey: 'set_billing' },
+      { label: 'Financial', path: '/settings', tab: 'billing', permKey: 'set_billing' },
     ],
   },
 ];

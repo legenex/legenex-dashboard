@@ -31,6 +31,12 @@ Deno.serve(async (req) => {
     } catch {
       status['whatsapp'] = false;
     }
+    try {
+      const mc = await base44.asServiceRole.entities.IntegrationConfig.filter({ name: 'mercury' });
+      status['mercury'] = !!mc[0];
+    } catch {
+      status['mercury'] = false;
+    }
 
     return Response.json({ status });
   } catch (error) {
