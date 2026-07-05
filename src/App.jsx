@@ -15,6 +15,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 
 import AppLayout from '@/components/layout/AppLayout';
+import DistributionLayout from '@/components/distribution/DistributionLayout';
 import Overview from '@/pages/Overview';
 import DistributionDashboard from '@/pages/DistributionDashboard';
 import LeadsView from '@/pages/LeadsView';
@@ -73,16 +74,18 @@ const AuthenticatedApp = () => {
           <Route path="/leads/rejections" element={<Navigate to="/leads/rejected" replace />} />
           <Route path="/queue-recovery" element={<QueueRecovery />} />
           <Route path="/errors" element={<Navigate to="/settings?tab=errors" replace />} />
-          <Route path="/distribution" element={<DistributionDashboard />} />
-          <Route path="/campaigns" element={<Campaigns />} />
+          <Route element={<DistributionLayout />}>
+            <Route path="/distribution" element={<DistributionDashboard />} />
+            <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/deliveries" element={<Deliveries />} />
+            <Route path="/conversion-events" element={<ConversionEvents />} />
+          </Route>
           <Route path="/suppliers/:id" element={<SupplierDetail />} />
           <Route path="/buyers/:id" element={<BuyerDetail />} />
           <Route path="/buyers" element={<Navigate to="/campaigns?tab=buyers" replace />} />
           <Route path="/suppliers" element={<Navigate to="/campaigns?tab=suppliers" replace />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/finances" element={<Finances />} />
-          <Route path="/deliveries" element={<Deliveries />} />
-          <Route path="/conversion-events" element={<ConversionEvents />} />
           <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/verification" element={<Verification />} />

@@ -5,6 +5,8 @@ import {
   LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
   BarChart3, Wallet, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
 } from 'lucide-react';
+import ViewAsSwitcher from './ViewAsSwitcher';
+import SidebarProfile from './SidebarProfile';
 
 const navGroups = [
   { label: 'Overview', icon: LayoutDashboard, path: '/', type: 'single', permKey: 'overview' },
@@ -197,6 +199,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
+        <ViewAsSwitcher />
         <button
           onClick={() => {
             const labels = groups.filter(g => g.type === 'dropdown').map(g => g.label);
@@ -215,6 +218,7 @@ export default function Sidebar() {
             );
           })()}
         </button>
+        <SidebarProfile />
         <div className="text-[11px] text-muted-foreground text-center">v1.0.0</div>
       </div>
     </aside>

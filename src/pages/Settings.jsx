@@ -12,10 +12,12 @@ import SettingsApiKeys from '@/components/settings/SettingsApiKeys';
 import SettingsKnowledgeBase from '@/components/settings/SettingsKnowledgeBase';
 import SettingsBilling from '@/components/settings/SettingsBilling';
 import SettingsIgnoreList from '@/components/settings/SettingsIgnoreList';
+import SettingsProfile from '@/components/settings/SettingsProfile';
 import ErrorLogs from '@/pages/ErrorLogs';
 
 const NAV = [
   { group: 'Account', items: [
+    { key: 'profile', label: 'Profile' },
     { key: 'general', label: 'General' },
     { key: 'users', label: 'Users and Roles' },
   ] },
@@ -32,6 +34,7 @@ const NAV = [
 ];
 
 const PANELS = {
+  profile: <SettingsProfile />,
   general: <SettingsGeneral />,
   users: <SettingsUsers />,
   integrations: <SettingsIntegrations />,

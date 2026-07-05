@@ -107,8 +107,9 @@ export const PATH_KEYS = {
   '/buyers': 'dist_buyers',
 };
 
-// Settings ?tab= value -> permission key.
+// Settings ?tab= value -> permission key. Profile is always accessible (null key).
 export const SETTINGS_TAB_KEYS = {
+  profile: null,
   general: 'set_integrations',
   users: 'set_users',
   integrations: 'set_integrations',
@@ -125,6 +126,7 @@ export const SETTINGS_TAB_KEYS = {
 export function keyForLocation(pathname, search) {
   if (pathname === '/settings') {
     const tab = new URLSearchParams(search || '').get('tab') || 'general';
+    if (tab === 'profile') return null; // Profile is always accessible.
     return SETTINGS_TAB_KEYS[tab] || 'set_integrations';
   }
   // Detail routes fall under their list permission.

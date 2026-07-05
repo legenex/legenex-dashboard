@@ -2,7 +2,6 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DataBotWidget from '@/components/databot/DataBotWidget';
-import ViewAsSwitcher from './ViewAsSwitcher';
 
 export default function AppLayout() {
   return (
@@ -14,7 +13,6 @@ export default function AppLayout() {
         </div>
       </main>
       <DataBotWidget />
-      <ViewAsSwitcher />
     </div>
   );
 }
