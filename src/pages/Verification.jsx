@@ -58,7 +58,7 @@ export default function Verification() {
   const [emailTesting, setEmailTesting] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
 
-  const { data: hlrArr = [] } = useQuery({
+  const { data: hlrArr = [], isLoading: isLoadingHlr } = useQuery({
     queryKey: ['hlr-settings'],
     queryFn: () => base44.entities.HlrSettings.list(),
   });
@@ -84,23 +84,23 @@ export default function Verification() {
   const phoneVerifiedField = customFields.find(f => f.system_role === 'phone_verified');
 
   useEffect(() => {
-    if (hlrArr.length > 0 && !form) {
-      setForm({
-        provider_name: settings.provider_name || '',
-        endpoint_url: settings.endpoint_url || '',
-        enabled: settings.enabled ?? true,
-        timeout_ms: settings.timeout_ms || 8000,
-        fail_mode: settings.fail_mode || 'fail_open',
-        request_field_map: settings.request_field_map || '{"mobile":"phone","first_name":"firstname","last_name":"lastname"}',
-        passthrough_fields: settings.passthrough_fields || '["lh_hlr_response","summary_score","first_name_match","last_name_match","country_code"]',
-        min_summary_score: settings.min_summary_score || 0,
-        phone_verified_source: settings.phone_verified_source || 'lh_hlr_response',
-        filter_suppliers: parseJsonArray(settings.filter_suppliers),
-        filter_supplier_types: parseJsonArray(settings.filter_supplier_types),
-        filter_routes: parseJsonArray(settings.filter_routes),
-      });
-    }
-  }, [hlrArr]);
+    // Initialize once loaded — works for both an existing record and a fresh app with no HlrSettings yet.
+    if (isLoadingHlr || form) return;
+    setForm({
+      provider_name: settings.provider_name || '',
+      endpoint_url: settings.endpoint_url || '',
+      enabled: settings.enabled ?? true,
+      timeout_ms: settings.timeout_ms || 8000,
+      fail_mode: settings.fail_mode || 'fail_open',
+      request_field_map: settings.request_field_map || '{"mobile":"phone","first_name":"firstname","last_name":"lastname"}',
+      passthrough_fields: settings.passthrough_fields || '["lh_hlr_response","summary_score","first_name_match","last_name_match","country_code"]',
+      min_summary_score: settings.min_summary_score || 0,
+      phone_verified_source: settings.phone_verified_source || 'lh_hlr_response',
+      filter_suppliers: parseJsonArray(settings.filter_suppliers),
+      filter_supplier_types: parseJsonArray(settings.filter_supplier_types),
+      filter_routes: parseJsonArray(settings.filter_routes),
+    });
+  }, [isLoadingHlr, hlrArr]);
 
   useEffect(() => {
     if (emailArr.length > 0 && !emailForm) {

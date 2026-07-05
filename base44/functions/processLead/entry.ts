@@ -860,6 +860,7 @@ function checkRequiredFields(customFields, leadData) {
   for (const f of customFields) {
     if (!f.required) continue;
     if (f.field_type === 'system') continue; // system fields are system-populated, not gated
+    if (f.system_role) continue; // HLR/email-derived fields (phone_verified, email_valid) are enriched, not inbound-gated
     const val = leadData[f.field_name];
     if (val === undefined || val === null || String(val).trim() === '') {
       missing.push(f.field_name);
