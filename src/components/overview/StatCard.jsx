@@ -11,7 +11,7 @@ export default function StatCard({ label, value, count, render, subtitle, icon: 
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <div className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider truncate">{label}</div>
-          <div className="text-[24px] font-bold text-foreground mt-1">{display}</div>
+          <div className="text-[24px] font-bold text-foreground mt-1 font-display">{display}</div>
           {subtitle && <div className="text-[12px] text-muted-foreground mt-1">{subtitle}</div>}
         </div>
         {Icon && (
