@@ -12,13 +12,15 @@ import AiAnalystBand from '@/components/overview/AiAnalystBand';
 import ActivityStreamBar from '@/components/overview/ActivityStreamBar';
 import StatusStripBar from '@/components/overview/StatusStripBar';
 import Reveal from '@/components/overview/Reveal';
+import PanelSectionHeader from '@/components/overview/PanelSectionHeader';
+import CountUpText from '@/components/overview/CountUpText';
 import { Badge } from '@/components/ui/badge';
 import {
   Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 import {
-  DollarSign, TrendingUp, Megaphone, Users, ArrowUpRight,
+  DollarSign, TrendingUp, Megaphone, Users, PieChart as PieIcon, Trophy, ShieldAlert, ArrowUpRight,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { resolvePeriod, PERIOD_LABELS } from '@/lib/periodRange';
@@ -168,10 +170,10 @@ export default function Overview() {
   const stripItems = [
     { label: 'Ingest endpoint', value: 'Live', tone: 'good', dot: true },
     { label: 'Last lead', value: lastLeadAt ? formatDistanceToNow(new Date(lastLeadAt), { addSuffix: true }) : '—', tone: 'neutral' },
-    { label: 'Errors today', value: int(errorsToday), tone: errorsToday > 0 ? 'bad' : 'good' },
-    { label: 'Match queue', value: int(matchQueueDepth), tone: matchQueueDepth > 0 ? 'warn' : 'good' },
-    { label: 'Open variances', value: int(queue.items.length), tone: queue.items.length > 0 ? 'warn' : 'good' },
-    { label: 'Unmatched income', value: fmtMoney(unmatchedIncome), tone: unmatchedIncome > 0 ? 'warn' : 'good' },
+    { label: 'Errors today', count: errorsToday, render: (n) => int(Math.round(n)), tone: errorsToday > 0 ? 'bad' : 'good' },
+    { label: 'Match queue', count: matchQueueDepth, render: (n) => int(Math.round(n)), tone: matchQueueDepth > 0 ? 'warn' : 'good' },
+    { label: 'Open variances', count: queue.items.length, render: (n) => int(Math.round(n)), tone: queue.items.length > 0 ? 'warn' : 'good' },
+    { label: 'Unmatched income', count: unmatchedIncome, render: (n) => fmtMoney(n), tone: unmatchedIncome > 0 ? 'warn' : 'good' },
   ];
 
   // ---- Header / AI band derived values ----
@@ -211,6 +213,12 @@ export default function Overview() {
     adSpend: 'No platform sync',
     supplierCost: 'No statements ingested',
   };
+
+  // Right-aligned meta chips for the lower panel section headers.
+  const buyerExposure = risk.reduce((a, r) => a + (r.out > 0.01 ? r.out : r.short || 0), 0);
+  const donutMeta = PERIOD_LABELS[period];
+  const campaignsMeta = campaigns.length > 0 ? `${campaigns.length} campaigns` : 'All campaigns';
+  const buyerRiskMeta = `${fmtMoney(buyerExposure)} exposure`;
 
   // Framer-motion staggered rise variants for card grids.
   const gridVariants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
@@ -318,102 +326,117 @@ export default function Overview() {
         />
       </Reveal>
 
-      {/* Donut + Top campaigns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-        <Reveal delay={0.05}>
-          <div className="bg-card border border-border rounded-[12px] p-5">
-            <div className="text-[13px] font-semibold text-foreground mb-4">Leads by Status</div>
-            {donut.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={donut} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" stroke="none" animationDuration={800} paddingAngle={2}>
-                      {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2">
-                  {donut.map(d => (
-                    <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                      <span className="text-muted-foreground">{d.name} ({d.value})</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-[13px]">No leads in period</div>
-            )}
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1} className="lg:col-span-2 block">
-          <div className="bg-card border border-border rounded-[12px] overflow-hidden">
-            <div className="px-5 py-4 border-b border-border text-[13px] font-semibold text-foreground">Top Campaigns by Cash Profit</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12px]">
-                <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
-                  <th className="text-left px-4 py-2.5">Campaign</th><th className="text-right px-4 py-2.5">Leads</th>
-                  <th className="text-right px-4 py-2.5">Estimated</th><th className="text-right px-4 py-2.5">Verified</th><th className="text-center px-4 py-2.5">Action</th>
-                </tr></thead>
-                <tbody className="divide-y divide-border">
-                  {campaigns.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No campaign data</td></tr>}
-                  {campaigns.map(c => (
-                    <tr key={c.name} className="hover:bg-accent/30">
-                      <td className="px-4 py-2.5 text-foreground truncate max-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate">{c.name}</span>
-                          {c.falseProfit && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded status-error-bg status-error whitespace-nowrap">FALSE PROFIT</span>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono">{int(c.leads)}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">{money(c.estimated)}</td>
-                      <td className={`px-4 py-2.5 text-right font-mono ${c.verified > 0 ? 'status-sold' : 'text-muted-foreground'}`}>{money(c.verified)}</td>
-                      <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${CAMPAIGN_TAG_TONE[c.tag]}`}>{c.tag}</Badge></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-
-      {/* Buyer risk + Data confidence */}
+      {/* Row 1: Leads by Status + Top Campaigns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <Reveal delay={0.05}>
           <div className="bg-card border border-border rounded-[12px] overflow-hidden">
-            <div className="px-5 py-4 border-b border-border text-[13px] font-semibold text-foreground">Buyer Payment Risk</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12px]">
-                <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
-                  <th className="text-left px-4 py-2.5">Buyer</th><th className="text-right px-4 py-2.5">Booked</th>
-                  <th className="text-right px-4 py-2.5">Out / Short</th><th className="text-center px-4 py-2.5">Status</th>
-                </tr></thead>
-                <tbody className="divide-y divide-border">
-                  {risk.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No buyers</td></tr>}
-                  {risk.map(r => (
-                    <tr key={r.name} className="hover:bg-accent/30">
-                      <td className="px-4 py-2.5 text-foreground truncate max-w-[160px]">{r.name}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">{money(r.booked)}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">{money(r.out > 0.01 ? r.out : r.short)}</td>
-                      <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${RISK_TONE[r.status]}`}>{RISK_LABEL[r.status] || r.status}</Badge></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <PanelSectionHeader icon={PieIcon} title="Leads by Status" meta={donutMeta} />
+            <div className="p-5">
+              {donut.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={donut} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" stroke="none" animationDuration={900} animationBegin={150} paddingAngle={2}>
+                        {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2">
+                    {donut.map(d => (
+                      <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                        <span className="text-muted-foreground">{d.name} (<CountUpText value={d.value} render={(n) => int(Math.round(n))} />)</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1">
+                  <div className="text-[13px] text-muted-foreground">No leads in period</div>
+                  <div className="text-[11px] text-muted-foreground/70">Adjust the period or wait for new leads to land.</div>
+                  <Link to="/leads" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">View leads <ArrowUpRight className="w-3 h-3" /></Link>
+                </div>
+              )}
             </div>
           </div>
         </Reveal>
 
         <Reveal delay={0.1}>
-          <DataConfidenceCard sources={confidenceSources} />
-          <div className="mt-2 text-right">
-            <Link to="/settings?tab=integrations" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
-              Manage sources <ArrowUpRight className="w-3 h-3" />
-            </Link>
+          <div className="bg-card border border-border rounded-[12px] overflow-hidden">
+            <PanelSectionHeader icon={Trophy} title="Top Campaigns by Cash Profit" meta={campaignsMeta} />
+            {campaigns.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
+                    <th className="text-left px-4 py-2.5">Campaign</th><th className="text-right px-4 py-2.5">Leads</th>
+                    <th className="text-right px-4 py-2.5">Estimated</th><th className="text-right px-4 py-2.5">Verified</th><th className="text-center px-4 py-2.5">Action</th>
+                  </tr></thead>
+                  <motion.tbody variants={gridVariants} initial="hidden" animate="show" className="divide-y divide-border">
+                    {campaigns.map(c => (
+                      <motion.tr key={c.name} variants={itemVariants} className="hover:bg-accent/30">
+                        <td className="px-4 py-2.5 text-foreground truncate max-w-[200px]">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{c.name}</span>
+                            {c.falseProfit && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded status-error-bg status-error whitespace-nowrap">FALSE PROFIT</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono">{int(c.leads)}</td>
+                        <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={c.estimated} render={(n) => money(n)} /></td>
+                        <td className={`px-4 py-2.5 text-right font-mono ${c.verified > 0 ? 'status-sold' : 'text-muted-foreground'}`}><CountUpText value={c.verified} render={(n) => money(n)} /></td>
+                        <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${CAMPAIGN_TAG_TONE[c.tag]}`}>{c.tag}</Badge></td>
+                      </motion.tr>
+                    ))}
+                  </motion.tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1 p-5">
+                <div className="text-[13px] text-muted-foreground">No campaign economics yet</div>
+                <div className="text-[11px] text-muted-foreground/70">Campaign profit appears once leads carry revenue and cost.</div>
+                <Link to="/campaigns" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Set up campaigns <ArrowUpRight className="w-3 h-3" /></Link>
+              </div>
+            )}
           </div>
+        </Reveal>
+      </div>
+
+      {/* Row 2: Buyer Payment Risk + Data Confidence */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        <Reveal delay={0.05}>
+          <div className="bg-card border border-border rounded-[12px] overflow-hidden">
+            <PanelSectionHeader icon={ShieldAlert} title="Buyer Payment Risk" meta={buyerRiskMeta} />
+            {risk.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
+                    <th className="text-left px-4 py-2.5">Buyer</th><th className="text-right px-4 py-2.5">Booked</th>
+                    <th className="text-right px-4 py-2.5">Out / Short</th><th className="text-center px-4 py-2.5">Status</th>
+                  </tr></thead>
+                  <motion.tbody variants={gridVariants} initial="hidden" animate="show" className="divide-y divide-border">
+                    {risk.map(r => (
+                      <motion.tr key={r.name} variants={itemVariants} className="hover:bg-accent/30">
+                        <td className="px-4 py-2.5 text-foreground truncate max-w-[160px]">{r.name}</td>
+                        <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={r.booked} render={(n) => money(n)} /></td>
+                        <td className="px-4 py-2.5 text-right font-mono"><CountUpText value={r.out > 0.01 ? r.out : r.short} render={(n) => money(n)} /></td>
+                        <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${RISK_TONE[r.status]}`}>{RISK_LABEL[r.status] || r.status}</Badge></td>
+                      </motion.tr>
+                    ))}
+                  </motion.tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1 p-5">
+                <div className="text-[13px] text-muted-foreground">No buyer exposure detected</div>
+                <div className="text-[11px] text-muted-foreground/70">Every buyer is on track — nothing outstanding or short-paid.</div>
+                <Link to="/campaigns?tab=buyers" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">View buyers <ArrowUpRight className="w-3 h-3" /></Link>
+              </div>
+            )}
+          </div>
+        </Reveal>
+
+        <Reveal delay={0.1}>
+          <DataConfidenceCard sources={confidenceSources} />
         </Reveal>
       </div>
 
