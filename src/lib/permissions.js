@@ -98,6 +98,7 @@ export const PATH_KEYS = {
   '/conversion-events': 'dist_conversion_events',
   '/reports': 'reports',
   '/finances': 'finances',
+  '/tools': 'tools',
   '/notifications': 'tools',
   '/calculated-fields': 'tools',
   '/verification': 'tools',

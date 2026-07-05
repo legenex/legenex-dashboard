@@ -38,6 +38,7 @@ import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
 import CustomCalculations from '@/pages/CustomCalculations';
 import PayloadTester from '@/pages/PayloadTester';
+import ToolsDashboard from '@/pages/ToolsDashboard';
 
 import PortalLayout from '@/components/portal/PortalLayout';
 import PortalDashboard from '@/pages/portal/PortalDashboard';
@@ -161,6 +162,7 @@ const AuthenticatedApp = () => {
           </Route>
           <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />
           <Route element={<ToolsLayout />}>
+            <Route path="/tools" element={<ToolsDashboard />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/verification" element={<Verification />} />
             <Route path="/calculated-fields" element={<CustomCalculations />} />

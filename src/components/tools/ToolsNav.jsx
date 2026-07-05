@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Calculator, ShieldCheck, FlaskConical } from 'lucide-react';
+import { Bell, Calculator, ShieldCheck, FlaskConical, LayoutGrid } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
+  { label: 'Dashboard', path: '/tools', icon: LayoutGrid },
   { label: 'Notifications', path: '/notifications', icon: Bell },
   { label: 'Calculated Fields', path: '/calculated-fields', icon: Calculator },
   { label: 'Verification', path: '/verification', icon: ShieldCheck },

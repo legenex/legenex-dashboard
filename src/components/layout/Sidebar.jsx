@@ -34,8 +34,9 @@ const navGroups = [
   { label: 'Reports', icon: BarChart3, path: '/reports', type: 'single', permKey: 'reports' },
   { label: 'Finances', icon: Wallet, path: '/finances', type: 'single', permKey: 'finances' },
   {
-    label: 'Tools', icon: Wrench, type: 'dropdown',
+    label: 'Tools', icon: Wrench, type: 'dropdown', path: '/tools', permKey: 'tools',
     children: [
+      { label: 'Dashboard', path: '/tools', permKey: 'tools' },
       { label: 'Notifications', path: '/notifications', permKey: 'tools' },
       { label: 'Calculated Fields', path: '/calculated-fields', permKey: 'tools' },
       { label: 'Verification', path: '/verification', permKey: 'tools' },
@@ -228,7 +229,7 @@ export default function Sidebar() {
           })()}
         </button>
         <SidebarProfile />
-        <div className="text-[11px] text-muted-foreground text-center">v1.0.0</div>
+        <div className="text-[11px] text-muted-foreground text-center">v1.0.1</div>
       </div>
 
       {/* Resize handle — grip fixed at the bottom of the sidebar edge */}
