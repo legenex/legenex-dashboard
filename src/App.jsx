@@ -14,6 +14,7 @@ import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 
+import ApiStatus from '@/pages/ApiStatus';
 import DocsLayout from '@/components/docs/DocsLayout';
 import { DOCS_ROUTES } from '@/components/docs/docsConfig';
 import AppLayout from '@/components/layout/AppLayout';
@@ -71,8 +72,23 @@ const DocsRoutes = () => (
 const isDocsHost = () =>
   typeof window !== 'undefined' && /(^|\.)docs\./i.test(window.location.hostname);
 
+// True when served on the API host (api.legenex.com). This domain exists only
+// to serve backend functions, so the frontend just shows a status page and
+// never gates on auth or redirects to the login page.
+const isApiHost = () =>
+  typeof window !== 'undefined' && /(^|\.)api\./i.test(window.location.hostname);
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  // API host: never gate on auth. Every path renders the API status page.
+  if (isApiHost()) {
+    return (
+      <Routes>
+        <Route path="*" element={<ApiStatus />} />
+      </Routes>
+    );
+  }
 
   // Docs subdomain: never gate on auth, never redirect to login. Route the
   // root and every path into the docs so anonymous visitors can read them.
