@@ -37,6 +37,12 @@ import Settings from '@/pages/Settings';
 import CustomCalculations from '@/pages/CustomCalculations';
 import PayloadTester from '@/pages/PayloadTester';
 
+import PortalLayout from '@/components/portal/PortalLayout';
+import PortalDashboard from '@/pages/portal/PortalDashboard';
+import PortalLeads from '@/pages/portal/PortalLeads';
+import PortalReturns from '@/pages/portal/PortalReturns';
+import PortalSettings from '@/pages/portal/PortalSettings';
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
@@ -65,6 +71,13 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+        {/* Buyer portal: separate shell, its own sidebar, buyer-scoped. Not wrapped by the operator AppLayout. */}
+        <Route element={<PortalLayout />}>
+          <Route path="/portal" element={<PortalDashboard />} />
+          <Route path="/portal/leads" element={<PortalLeads />} />
+          <Route path="/portal/returns" element={<PortalReturns />} />
+          <Route path="/portal/settings" element={<PortalSettings />} />
+        </Route>
         <Route element={<AppLayout />}>
           <Route element={<PermissionRoute />}>
           <Route path="/" element={<Overview />} />

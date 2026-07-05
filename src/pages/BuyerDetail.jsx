@@ -152,7 +152,7 @@ export default function BuyerDetail() {
               <Switch checked={!!buyer.portal_enabled} onCheckedChange={v => { update({ portal_enabled: v }); toast.success(`Portal ${v ? 'enabled' : 'disabled'}`); }} />
             </div>
             <div className="mt-4 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" className="gap-1.5" disabled={!buyer.portal_enabled} onClick={() => toast.info('Portal preview coming soon')}>
+              <Button variant="outline" size="sm" className="gap-1.5" disabled={!buyer.portal_enabled} onClick={() => navigate(`/portal?buyer_id=${buyer.id}`)}>
                 <ExternalLink className="w-3.5 h-3.5" /> Preview Portal
               </Button>
             </div>

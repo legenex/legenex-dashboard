@@ -153,6 +153,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
                   ['Process Time', lead.process_time_ms ? `${lead.process_time_ms}ms` : '-'],
                   ['TrustedForm Valid', lead.trustedform_valid === true ? 'Yes' : lead.trustedform_valid === false ? 'No' : '-'],
                   ['Queue Reason', lead.queue_reason || '-'],
+                  ['Buyer Feedback', lead.buyer_feedback || '-'],
                 ].map(([label, val]) => (
                   <div key={label}>
                     <div className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</div>
