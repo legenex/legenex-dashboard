@@ -8,7 +8,7 @@ export default function AppLayout() {
     <div className="h-screen bg-background overflow-hidden">
       <Sidebar />
       <main className="h-screen" style={{ marginLeft: 'var(--sidebar-width, 248px)' }}>
-        <div className="h-full overflow-y-auto p-6 lg:p-8 max-w-[1400px]">
+        <div className="h-full overflow-y-auto p-6 lg:p-8">
           <Outlet />
         </div>
       </main>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Megaphone, Send, Zap } from 'lucide-react';
+import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
   { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard },
@@ -14,7 +15,7 @@ export default function DistributionNav() {
   const location = useLocation();
 
   return (
-    <nav className="w-56 shrink-0 border-r border-border pr-3">
+    <SubNavShell storageKey="legenex_subnav_distribution">
       <div className="space-y-0.5">
         {ITEMS.map(item => {
           const active = location.pathname === item.path;
@@ -33,6 +34,6 @@ export default function DistributionNav() {
           );
         })}
       </div>
-    </nav>
+    </SubNavShell>
   );
 }

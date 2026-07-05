@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { List, CheckCircle2, XCircle, Ban, Slash, Clock } from 'lucide-react';
+import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
   { label: 'All Leads', path: '/leads', icon: List },
@@ -16,7 +17,7 @@ export default function LeadsNav() {
   const location = useLocation();
 
   return (
-    <nav className="w-56 shrink-0 border-r border-border pr-3">
+    <SubNavShell storageKey="legenex_subnav_leads">
       <div className="space-y-0.5">
         {ITEMS.map(item => {
           const active = location.pathname === item.path;
@@ -35,6 +36,6 @@ export default function LeadsNav() {
           );
         })}
       </div>
-    </nav>
+    </SubNavShell>
   );
 }

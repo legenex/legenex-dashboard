@@ -2,6 +2,7 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Landmark, FileText, CreditCard, Wallet, Megaphone } from 'lucide-react';
 import { usePermissions } from '@/lib/AuthContext';
+import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
   { label: 'Overview', tab: 'overview', icon: LayoutDashboard },
@@ -19,7 +20,7 @@ export default function FinancesNav() {
   const active = params.get('tab') || 'overview';
 
   return (
-    <nav className="w-56 shrink-0 border-r border-border pr-3">
+    <SubNavShell storageKey="legenex_subnav_finances">
       <div className="space-y-0.5">
         {ITEMS.filter(item => !item.perm || can(item.perm)).map(item => {
           const isActive = active === item.tab;
@@ -38,6 +39,6 @@ export default function FinancesNav() {
           );
         })}
       </div>
-    </nav>
+    </SubNavShell>
   );
 }
