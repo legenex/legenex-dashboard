@@ -61,24 +61,41 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
 }
 
 // Action queue: open financial variances.
+// Each item carries a label chip, counterparty, amount, and a one-line
+// explanation of why it matters + what to do (the "AI-written" note).
 export function actionQueue({ reconRows, wb }, txns) {
   const items = [];
   wb.openGaps.forEach(g => {
+    const isBuyer = g.type === 'buyer';
+    const short = g.short > 0;
+    // Buyer owed but underpaid = payment overdue / short paid; supplier = cost gap.
+    const label = isBuyer
+      ? (short ? 'Payment overdue' : 'Short paid')
+      : 'Supplier cost gap';
     items.push({
       key: `gap-${g.type}-${g.name}`,
-      label: g.type === 'buyer' ? 'Revenue gap' : 'Supplier cost gap',
+      label,
+      name: g.name,
       amount: Math.abs(g.short),
-      note: `${g.name}: expected ${fmt(g.expected)}, paid ${fmt(g.paid)}`,
+      note: `${g.name}: expected ${fmt(g.expected)}, settled ${fmt(g.paid)}`,
+      why: isBuyer
+        ? (short
+          ? `${g.name} owes ${fmt(Math.abs(g.short))} against invoiced work — chase payment or issue a reminder.`
+          : `${g.name} was overpaid by ${fmt(Math.abs(g.short))} — verify the deposit and apply a credit.`)
+        : `Owed ${fmt(Math.abs(g.short))} to ${g.name} not yet cleared — schedule the payout to keep the source live.`,
     });
   });
   const unmatchedIn = unmatched(txns).filter(t => t.amount > 0);
   unmatchedIn.forEach(t => items.push({
-    key: `unmatched-${t.id}`, label: 'Unmatched income', amount: Math.abs(num(t.amount)),
+    key: `unmatched-${t.id}`, label: 'Unmatched income', name: t.description || 'Bank deposit',
+    amount: Math.abs(num(t.amount)),
     note: `${t.description || 'Bank deposit'} not matched to a buyer`,
+    why: `${fmt(Math.abs(num(t.amount)))} landed in the bank but isn't tied to a buyer — match it so revenue is proven.`,
   }));
   reconRows.filter(r => r.type === 'buyer' && r.revenue > 0 && r.invoiced === 0).forEach(r => items.push({
-    key: `missing-src-${r.name}`, label: 'Missing source', amount: r.revenue,
+    key: `missing-src-${r.name}`, label: 'Missing source', name: r.name, amount: r.revenue,
     note: `${r.name}: ${fmt(r.revenue)} booked with no invoice raised`,
+    why: `${fmt(r.revenue)} booked from ${r.name} with no invoice behind it — raise one to make the revenue collectable.`,
   }));
 
   const totalAtRisk = items.reduce((a, i) => a + i.amount, 0);
@@ -127,7 +144,12 @@ export function topCampaigns(wLeads) {
     if (l.final_status === 'Sold') groups[key].verified += num(l.revenue) - num(l.cost);
   }
   return Object.values(groups)
-    .map(g => ({ ...g, tag: g.estimated <= 0 ? 'Cut' : g.verified / (g.estimated || 1) > 0.7 ? 'Scale' : 'Watch' }))
+    .map(g => ({
+      ...g,
+      tag: g.estimated <= 0 ? 'Cut' : g.verified / (g.estimated || 1) > 0.7 ? 'Scale' : 'Watch',
+      // Reported profit with no verified income behind it.
+      falseProfit: g.estimated > 0 && g.verified <= 0.01,
+    }))
     .sort((a, b) => b.estimated - a.estimated)
     .slice(0, 6);
 }

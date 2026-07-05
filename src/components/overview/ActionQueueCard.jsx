@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { fmtMoney } from '@/lib/overviewFinance';
 
 const LABEL_TONE = {
@@ -35,19 +36,32 @@ export default function ActionQueueCard({ queue, onResolve, onDone }) {
             <CheckCircle2 className="w-4 h-4" /> Everything reconciles — no open variances.
           </div>
         )}
-        {items.map(item => (
-          <div key={item.key} className="px-5 py-3 flex items-center gap-3 hover:bg-accent/30 transition-colors">
-            <span className={`text-[10px] font-semibold px-2 py-1 rounded-md whitespace-nowrap ${LABEL_TONE[item.label] || 'tag-neutral'}`}>{item.label}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] text-foreground truncate">{item.note}</div>
-            </div>
-            <div className="text-[14px] font-bold font-mono text-destructive whitespace-nowrap">{fmtMoney(item.amount)}</div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onResolve?.(item)}>Resolve</Button>
-              <Button size="sm" variant="ghost" className="h-7 text-[11px] text-muted-foreground" onClick={() => onDone?.(item)}>Done</Button>
-            </div>
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {items.map((item, i) => (
+            <motion.div
+              key={item.key}
+              layout
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12, height: 0 }}
+              transition={{ duration: 0.35, delay: Math.min(i * 0.04, 0.3) }}
+              className="px-5 py-3 flex items-start gap-3 hover:bg-accent/30 transition-colors"
+            >
+              <span className={`text-[10px] font-semibold px-2 py-1 rounded-md whitespace-nowrap mt-0.5 ${LABEL_TONE[item.label] || 'tag-neutral'}`}>{item.label}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] text-foreground font-medium truncate">{item.name || item.note}</div>
+                {item.why && <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{item.why}</div>}
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className="text-[14px] font-bold font-mono text-destructive whitespace-nowrap">{fmtMoney(item.amount)}</div>
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onResolve?.(item)}>Resolve</Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-[11px] text-muted-foreground" onClick={() => onDone?.(item)}>Done</Button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );
