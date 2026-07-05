@@ -1,15 +1,13 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import FinancesNav from './FinancesNav';
+import SectionShell from '@/components/layout/SectionShell';
 
-// Layout route: renders the Finances sub-sidebar beside the active page.
+// Layout route: full-width header above a [ Finances sub-menu | content ] row.
 export default function FinancesLayout() {
   return (
-    <div className="h-full flex gap-3 min-h-0">
-      <FinancesNav />
-      <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <Outlet />
-      </div>
-    </div>
+    <SectionShell nav={<FinancesNav />}>
+      <Outlet />
+    </SectionShell>
   );
 }

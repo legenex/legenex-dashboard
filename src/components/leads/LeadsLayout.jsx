@@ -1,15 +1,13 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import LeadsNav from './LeadsNav';
+import SectionShell from '@/components/layout/SectionShell';
 
-// Layout route: renders the Leads sub-sidebar beside the active page.
+// Layout route: full-width header above a [ Leads sub-menu | page content ] row.
 export default function LeadsLayout() {
   return (
-    <div className="h-full flex gap-3 min-h-0">
-      <LeadsNav />
-      <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <Outlet />
-      </div>
-    </div>
+    <SectionShell nav={<LeadsNav />}>
+      <Outlet />
+    </SectionShell>
   );
 }

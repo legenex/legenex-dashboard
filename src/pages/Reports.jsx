@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import ReportSidebar, { STANDARD } from '@/components/reports/ReportSidebar';
 import ReportFilterBar from '@/components/reports/ReportFilterBar';
 import PerformanceCanvas, { makeDefaultCards, makeDefaultWidgets } from '@/components/reports/PerformanceCanvas';
+import SectionShell from '@/components/layout/SectionShell';
+import SectionHeader from '@/components/shared/SectionHeader';
 
 function safeParse(raw, fallback) {
   if (!raw) return fallback;
@@ -115,42 +117,33 @@ export default function Reports() {
   };
 
   return (
-    <div className="flex gap-3 h-full min-h-0 items-stretch">
-      <ReportSidebar active={active} onSelect={(id) => { setActive(id); setFilters({}); }} customReports={reports} onNewReport={newReport} />
+    <SectionShell nav={<ReportSidebar active={active} onSelect={(id) => { setActive(id); setFilters({}); }} customReports={reports} onNewReport={newReport} />}>
+      <SectionHeader
+        title={title}
+        subtitle={isCustom ? 'Saved report with pinned filters' : 'Build your report - add cards, widgets and filters'}
+      >
+        {isCustom && <Button variant="outline" size="sm" onClick={deleteReport} className="text-destructive">Delete</Button>}
+        {!isCustom && <Button variant="outline" size="sm" onClick={() => setSaveOpen(true)} className="gap-1.5"><Save className="w-3.5 h-3.5" /> Save View</Button>}
+        <Button variant="outline" size="sm" onClick={duplicateCurrent} className="gap-1.5"><Copy className="w-3.5 h-3.5" /> Duplicate</Button>
+        <Button size="sm" onClick={newReport} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> New Report</Button>
+      </SectionHeader>
 
-      <div className="flex-1 min-w-0 overflow-y-auto">
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <h1 className="text-[22px] font-bold text-foreground tracking-tight">{title}</h1>
-            <p className="text-[13px] text-muted-foreground mt-1">
-              {isCustom ? 'Saved report with pinned filters' : 'Build your report - add cards, widgets and filters'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isCustom && <Button variant="outline" size="sm" onClick={deleteReport} className="text-destructive">Delete</Button>}
-            {!isCustom && <Button variant="outline" size="sm" onClick={() => setSaveOpen(true)} className="gap-1.5"><Save className="w-3.5 h-3.5" /> Save View</Button>}
-            <Button variant="outline" size="sm" onClick={duplicateCurrent} className="gap-1.5"><Copy className="w-3.5 h-3.5" /> Duplicate</Button>
-            <Button size="sm" onClick={newReport} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> New Report</Button>
-          </div>
-        </div>
+      <ReportFilterBar
+        value={effectiveFilters}
+        onChange={(v) => setFilters(v)}
+        options={{ campaigns, verticals, suppliers, buyers, brands }}
+      />
 
-        <ReportFilterBar
-          value={effectiveFilters}
-          onChange={(v) => setFilters(v)}
-          options={{ campaigns, verticals, suppliers, buyers, brands }}
-        />
-
-        <PerformanceCanvas
-          leads={leads}
-          adSpend={adSpend}
-          cards={view.cards}
-          widgets={view.widgets}
-          onCardsChange={setCards}
-          onWidgetsChange={setWidgets}
-          customFields={customFields}
-          filters={effectiveFilters}
-        />
-      </div>
+      <PerformanceCanvas
+        leads={leads}
+        adSpend={adSpend}
+        cards={view.cards}
+        widgets={view.widgets}
+        onCardsChange={setCards}
+        onWidgetsChange={setWidgets}
+        customFields={customFields}
+        filters={effectiveFilters}
+      />
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="bg-popover border-border max-w-[420px]">
@@ -170,6 +163,6 @@ export default function Reports() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </SectionShell>
   );
 }

@@ -1,16 +1,13 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import DistributionNav from './DistributionNav';
+import SectionShell from '@/components/layout/SectionShell';
 
-// Layout route: renders the Distribution sub-sidebar beside the active page.
-// Full-height so pages that use h-full (e.g. Deliveries) resolve correctly.
+// Layout route: full-width header above a [ Distribution sub-menu | content ] row.
 export default function DistributionLayout() {
   return (
-    <div className="h-full flex gap-3 min-h-0">
-      <DistributionNav />
-      <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <Outlet />
-      </div>
-    </div>
+    <SectionShell nav={<DistributionNav />}>
+      <Outlet />
+    </SectionShell>
   );
 }

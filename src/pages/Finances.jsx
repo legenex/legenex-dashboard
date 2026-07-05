@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import ReconciliationTab from '@/components/finances/ReconciliationTab';
 import BankFeedTab from '@/components/finances/BankFeedTab';
 import InvoicesTab from '@/components/finances/InvoicesTab';
@@ -35,7 +35,7 @@ export default function Finances() {
 
   return (
     <div>
-      <PageHeader title="Finances" subtitle="Financial overview, reconciliation, invoices, payments and ad spend" />
+      <SectionHeader title="Finances" subtitle="Financial overview, reconciliation, invoices, payments and ad spend" />
       {tab === 'overview' && <ReconciliationTab data={reconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />}
       {tab === 'bank' && canBank && <BankFeedTab />}
       {tab === 'invoices' && <InvoicesTab buyers={buyers} />}

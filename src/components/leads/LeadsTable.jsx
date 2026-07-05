@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import ErrorStatusPill from '@/components/leads/ErrorStatusPill';
 import StatusPill from '@/components/shared/StatusPill';
 import LeadDetailModal from '@/components/leads/LeadDetailModal';
@@ -413,8 +413,7 @@ export default function LeadsTable({ view }) {
 
   return (
     <div className="h-full flex flex-col min-h-0">
-      <div className="shrink-0">
-      <PageHeader title={config.title} subtitle={config.subtitle}>
+      <SectionHeader title={config.title} subtitle={config.subtitle}>
         <RefreshButton onClick={() => qc.invalidateQueries()} />
         <ColumnManager
           config={columnConfig}
@@ -424,7 +423,8 @@ export default function LeadsTable({ view }) {
         <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
           <Download className="w-4 h-4" /> Export CSV
         </Button>
-      </PageHeader>
+      </SectionHeader>
+      <div className="shrink-0">
 
       <LeadsFilterBar
         search={search}

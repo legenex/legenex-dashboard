@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { integrationStatus } from '@/functions/integrationStatus';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import RefreshButton from '@/components/shared/RefreshButton';
 import PeriodTabs from '@/components/shared/PeriodTabs';
 import StatusStrip from '@/components/distribution/StatusStrip';
@@ -85,12 +85,12 @@ export default function DistributionDashboard() {
 
   return (
     <div>
-      <PageHeader title="Distribution Dashboard" subtitle="Operational pipeline health — volume, status mix, verification and source performance">
+      <SectionHeader title="Distribution Dashboard" subtitle="Operational pipeline health — volume, status mix, verification and source performance">
         <div className="flex items-center gap-3 flex-wrap">
           <PeriodTabs value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
           <RefreshButton onClick={() => qc.invalidateQueries()} />
         </div>
-      </PageHeader>
+      </SectionHeader>
 
       <StatusStrip
         endpointUrl={endpointUrl}

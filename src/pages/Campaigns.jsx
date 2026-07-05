@@ -1,32 +1,31 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import PageHeader from '@/components/shared/PageHeader';
+import { useState } from 'react';
+import SectionHeader from '@/components/shared/SectionHeader';
 import SettingsVerticals from '@/components/settings/SettingsVerticals';
 import CampaignBuyers from '@/components/campaigns/CampaignBuyers';
 import CampaignSuppliers from '@/components/campaigns/CampaignSuppliers';
 import CampaignBrands from '@/components/campaigns/CampaignBrands';
 import CampaignCreateModal from '@/components/campaigns/CampaignCreateModal';
 
+const TABS = ['verticals', 'buyers', 'suppliers', 'brands'];
+
 export default function Campaigns() {
-  const params = new URLSearchParams(window.location.search);
-  const initial = params.get('tab') || 'verticals';
-  const [tab, setTab] = useState(['verticals', 'buyers', 'suppliers', 'brands'].includes(initial) ? initial : 'verticals');
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('tab') || 'verticals';
+  const tab = TABS.includes(raw) ? raw : 'verticals';
   const [createOpen, setCreateOpen] = useState(false);
 
-  const onTabChange = (v) => {
-    setTab(v);
-    const p = new URLSearchParams(window.location.search);
-    p.set('tab', v);
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`);
-  };
+  const onTabChange = (v) => setParams({ tab: v }, { replace: true });
 
   return (
     <div>
-      <PageHeader title="Campaigns" subtitle="Verticals, buyers, suppliers, and brands for lead distribution">
+      <SectionHeader title="Campaigns" subtitle="Verticals, buyers, suppliers, and brands for lead distribution">
         <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5"><Plus className="w-4 h-4" /> Create Campaign</Button>
-      </PageHeader>
+      </SectionHeader>
 
       <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList>

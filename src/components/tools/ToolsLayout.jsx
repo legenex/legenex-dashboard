@@ -1,15 +1,13 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import ToolsNav from './ToolsNav';
+import SectionShell from '@/components/layout/SectionShell';
 
-// Layout route: renders the Tools sub-sidebar beside the active page.
+// Layout route: full-width header above a [ Tools sub-menu | page content ] row.
 export default function ToolsLayout() {
   return (
-    <div className="h-full flex gap-3 min-h-0">
-      <ToolsNav />
-      <div className="flex-1 min-w-0 h-full overflow-y-auto">
-        <Outlet />
-      </div>
-    </div>
+    <SectionShell nav={<ToolsNav />}>
+      <Outlet />
+    </SectionShell>
   );
 }

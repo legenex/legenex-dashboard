@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionShell from '@/components/layout/SectionShell';
+import SectionHeader from '@/components/shared/SectionHeader';
 import SettingsNav from '@/components/settings/SettingsNav';
 import SettingsGeneral from '@/components/settings/SettingsGeneral';
 import SettingsUsers from '@/components/settings/SettingsUsers';
@@ -57,16 +58,9 @@ export default function Settings() {
   const setTab = (v) => setSearchParams({ tab: v }, { replace: true });
 
   return (
-    <div className="h-full flex flex-col min-h-0">
-      <div className="shrink-0">
-        <PageHeader title="Settings" subtitle="Account, users & roles, integrations, data sources and more" />
-      </div>
-      <div className="flex-1 min-h-0 flex gap-6">
-        <SettingsNav groups={NAV} active={tab} onSelect={setTab} />
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-          {PANELS[tab]}
-        </div>
-      </div>
-    </div>
+    <SectionShell nav={<SettingsNav groups={NAV} active={tab} onSelect={setTab} />}>
+      <SectionHeader title="Settings" subtitle="Account, users & roles, integrations, data sources and more" />
+      {PANELS[tab]}
+    </SectionShell>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +65,7 @@ export default function Notifications() {
 
   return (
     <div>
-      <PageHeader title="Notifications" subtitle="Alert rules and notification history" />
+      <SectionHeader title="Notifications" subtitle="Alert rules and notification history" />
 
       <Tabs defaultValue="rules">
         <TabsList className="bg-muted mb-4">

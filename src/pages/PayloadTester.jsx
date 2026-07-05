@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import JsonViewer from '@/components/shared/JsonViewer';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import { Plus, Save, Trash2, Play, Copy, Loader2, Send, FlaskConical, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendPayloadTest } from '@/functions/sendPayloadTest';
@@ -173,7 +173,7 @@ Test data:
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      <PageHeader title="Payload Tester" description="Paste a template and sample data, let AI build the payload, then test it against buyer endpoints." />
+      <SectionHeader title="Payload Tester" subtitle="Paste a template and sample data, let AI build the payload, then test it against buyer endpoints." />
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Saved tests list */}

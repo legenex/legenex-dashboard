@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { base44 } from '@/api/base44Client';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -216,14 +216,14 @@ export default function CustomCalculations() {
 
   return (
     <div className="p-6">
-      <PageHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data. Drag to reorder.">
+      <SectionHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data. Drag to reorder.">
         <Button onClick={() => setIoOpen(true)} size="sm" variant="outline" className="gap-2">
           <ArrowDownUp className="w-4 h-4" /> Import / Export Fields
         </Button>
         <Button onClick={openNew} size="sm" className="gap-2">
           <Plus className="w-4 h-4" /> New Calculated Field
         </Button>
-      </PageHeader>
+      </SectionHeader>
 
       <ImportExportDialog
         open={ioOpen}

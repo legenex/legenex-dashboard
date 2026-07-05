@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import PageHeader from '@/components/shared/PageHeader';
+import SectionHeader from '@/components/shared/SectionHeader';
 import JsonViewer from '@/components/shared/JsonViewer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -177,7 +177,7 @@ export default function Verification() {
 
   return (
     <div>
-      <PageHeader title="Verification" subtitle="Phone and email verification services" />
+      <SectionHeader title="Verification" subtitle="Phone and email verification services" />
 
       <Tabs defaultValue="phone" className="mt-2">
         <TabsList>
