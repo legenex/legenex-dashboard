@@ -25,6 +25,10 @@
       "type": "string",
       "description": "JSON object map of permission key -> true for every section/page/function this user can access"
     },
+    "linked_buyer_id": {
+      "type": "string",
+      "description": "For buyer-role users: the id of the Buyer record their portal is scoped to"
+    },
     "timezone": {
       "type": "string",
       "description": "User's preferred timezone (IANA name), set from the Profile settings page"

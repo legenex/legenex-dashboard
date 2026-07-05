@@ -10,6 +10,14 @@
       "type": "string",
       "description": "Reference to ApiKey record"
     },
+    "buyer_id": {
+      "type": "string",
+      "description": "Reference to the Buyer record this lead was delivered to (set on sold delivery or by feedback matching)"
+    },
+    "buyer_feedback": {
+      "type": "string",
+      "description": "Latest buyer feedback disposition (from our taxonomy) for this lead, used by reporting"
+    },
     "raw_payload": {
       "type": "string",
       "description": "JSON string of the original inbound payload"
