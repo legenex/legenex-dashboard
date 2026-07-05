@@ -22,6 +22,8 @@ import { verticalColor, triggerTagClass, TAG_NEUTRAL, statusTextClass } from '@/
 import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
+import { motion } from 'framer-motion';
+import { Panel, rise } from '@/components/campaigns/campaignTable';
 
 const DEFAULT_TEST_PAYLOAD = {
   campid: "LEGAL-MVA-USA",
@@ -661,7 +663,7 @@ export default function SettingsLeadByte() {
             queryKeys={[['lb-connectors-all']]}
             title="Import / Export Destinations"
           />
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[...connectors].filter(conn => {
               if (verticalFilter === 'all') return true;
               const vs = parseJsonArray(conn.filter_verticals);
@@ -672,59 +674,57 @@ export default function SettingsLeadByte() {
               if (aLb && !bLb) return -1;
               if (!aLb && bLb) return 1;
               return 0;
-            }).map(conn => {
+            }).map((conn, i) => {
               const triggers = parseJsonArray(conn.triggers);
               const brands = parseJsonArray(conn.filter_brands);
               const verticals = parseJsonArray(conn.filter_verticals);
               const conditions = parseJsonArray(conn.filter_conditions);
               return (
-              <Card key={conn.id} className="bg-card border-border">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[14px] font-medium text-foreground">{conn.api_name}</span>
-                        <Badge variant="outline" className="text-[10px]">{KIND_OPTIONS.find(k => k.value === (conn.kind || 'leadbyte'))?.label || 'Leadbyte'}</Badge>
-                        {verticals.length > 0 ? (
-                          (() => {
-                            const vc = verticalColor(verticals[0]);
-                            return (
-                              <Badge className={`text-[10px] font-semibold inline-flex items-center gap-1 ${vc.badge}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${vc.dot}`} />
-                                {verticals.map(code => verticalList.find(v => v.code === code)?.name || code).join(', ')}
-                              </Badge>
-                            );
-                          })()
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">All Verticals</Badge>
-                        )}
-                      </div>
-                      <div className="font-mono text-[11px] text-muted-foreground mt-1 truncate max-w-[400px]">{conn.target_url}</div>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {triggers.map(t => <Badge key={t} className={`text-[9px] ${triggerTagClass(t)}`}>{statusLabelFor(t)}</Badge>)}
-                        {conn.is_default && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Default</Badge>}
-                        {brands.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Brands: {brands.join(', ')}</Badge>}
-                        {conditions.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>{conditions.length} condition(s)</Badge>}
-                        {triggers.length === 0 && brands.length === 0 && conditions.length === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
-                      </div>
+              <motion.div key={conn.id} variants={rise} initial="hidden" animate="show" custom={i}>
+                <Panel className="px-5 py-4 flex flex-col md:flex-row md:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[13.5px] font-semibold text-foreground">{conn.api_name}</span>
+                      <span className="tag-neutral border border-border px-2 py-0.5 rounded-md text-[10.5px] font-medium tracking-wide">{KIND_OPTIONS.find(k => k.value === (conn.kind || 'leadbyte'))?.label || 'Leadbyte'}</span>
+                      {verticals.length > 0 ? (
+                        (() => {
+                          const vc = verticalColor(verticals[0]);
+                          return (
+                            <Badge className={`text-[10px] font-semibold inline-flex items-center gap-1 ${vc.badge}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${vc.dot}`} />
+                              {verticals.map(code => verticalList.find(v => v.code === code)?.name || code).join(', ')}
+                            </Badge>
+                          );
+                        })()
+                      ) : (
+                        <span className="tag-neutral border border-border px-2 py-0.5 rounded-md text-[10.5px] font-medium tracking-wide">All Verticals</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={conn.enabled ? 'status-sold bg-status-sold' : 'text-muted-foreground'}>
-                        {conn.enabled ? 'Active' : 'Disabled'}
-                      </Badge>
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(conn)}>Edit</Button>
-                      <Button size="sm" variant="ghost" onClick={() => duplicateConnector(conn)} className="text-[11px]">Duplicate</Button>
-                      <Button size="sm" variant="ghost" onClick={() => toggleEnabled(conn)} className="text-[11px]">
-                        {conn.enabled ? 'Disable' : 'Enable'}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteConnector(conn.id)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    <code className="block font-mono text-[11.5px] text-muted-foreground/70 truncate mt-1">{conn.target_url}</code>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {triggers.map(t => <Badge key={t} className={`text-[9px] ${triggerTagClass(t)}`}>{statusLabelFor(t)}</Badge>)}
+                      {conn.is_default && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Default</Badge>}
+                      {brands.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Brands: {brands.join(', ')}</Badge>}
+                      {conditions.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>{conditions.length} condition(s)</Badge>}
+                      {triggers.length === 0 && brands.length === 0 && conditions.length === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex items-center gap-2 shrink-0 md:justify-end flex-wrap">
+                    <Badge variant="outline" className={conn.enabled ? 'status-sold bg-status-sold' : 'text-muted-foreground'}>
+                      {conn.enabled ? 'Active' : 'Disabled'}
+                    </Badge>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(conn)}>Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => duplicateConnector(conn)} className="text-[11px]">Duplicate</Button>
+                    <Button size="sm" variant="ghost" onClick={() => toggleEnabled(conn)} className="text-[11px]">
+                      {conn.enabled ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => deleteConnector(conn.id)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </div>
+                </Panel>
+              </motion.div>
               );
             })}
-            {connectors.length === 0 && <div className="text-center py-8 text-muted-foreground text-[13px]">No connectors configured</div>}
+            {connectors.length === 0 && <div className="text-center py-10 text-muted-foreground text-[13px]">No connectors configured</div>}
           </div>
         </div>
       )}
