@@ -15,7 +15,7 @@ export default function DistributionNav() {
   const location = useLocation();
 
   return (
-    <SubNavShell storageKey="legenex_subnav_distribution">
+    <SubNavShell>
       <div className="space-y-0.5">
         {ITEMS.map(item => {
           const active = location.pathname === item.path;

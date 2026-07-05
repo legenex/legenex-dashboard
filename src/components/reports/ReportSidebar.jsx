@@ -26,7 +26,7 @@ export default function ReportSidebar({ active, onSelect, customReports = [], on
   );
 
   return (
-    <SubNavShell storageKey="legenex_subnav_reports">
+    <SubNavShell>
       <div className="space-y-0.5 mb-5">
         {STANDARD.map(s => <Item key={s.key} id={`std:${s.key}`} label={s.label} />)}
       </div>

@@ -115,7 +115,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="flex gap-5 h-full min-h-0 items-stretch">
+    <div className="flex gap-3 h-full min-h-0 items-stretch">
       <ReportSidebar active={active} onSelect={(id) => { setActive(id); setFilters({}); }} customReports={reports} onNewReport={newReport} />
 
       <div className="flex-1 min-w-0 overflow-y-auto">

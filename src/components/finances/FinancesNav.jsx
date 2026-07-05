@@ -20,7 +20,7 @@ export default function FinancesNav() {
   const active = params.get('tab') || 'overview';
 
   return (
-    <SubNavShell storageKey="legenex_subnav_finances">
+    <SubNavShell>
       <div className="space-y-0.5">
         {ITEMS.filter(item => !item.perm || can(item.perm)).map(item => {
           const isActive = active === item.tab;

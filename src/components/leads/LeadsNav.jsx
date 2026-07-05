@@ -17,7 +17,7 @@ export default function LeadsNav() {
   const location = useLocation();
 
   return (
-    <SubNavShell storageKey="legenex_subnav_leads">
+    <SubNavShell>
       <div className="space-y-0.5">
         {ITEMS.map(item => {
           const active = location.pathname === item.path;
