@@ -22,7 +22,7 @@ const CATEGORIES = [
   { key: 'ads', label: 'Ad Platforms' },
   { key: 'delivery', label: 'Lead Delivery' },
   { key: 'notify', label: 'Notifications & Reports' },
-  { key: 'billing', label: 'Billing' },
+  { key: 'billing', label: 'Financial' },
   { key: 'validation', label: 'Lead Validation' },
 ];
 
@@ -33,8 +33,6 @@ const CATALOG = [
   { type: 'taboola', category: 'ads', name: 'Taboola', icon: BarChart3, desc: 'Native ad spend', comingSoon: true },
   { type: 'tiktok', category: 'ads', name: 'TikTok Ads', icon: Music2, desc: 'TikTok ad spend', comingSoon: true },
 
-  { type: 'leadbyte', category: 'delivery', name: 'LeadByte', icon: Send, desc: 'Deliver leads to LeadByte campaigns', link: '/deliveries', action: 'Configure' },
-  { type: 'leadshook', category: 'delivery', name: 'Leadshook', icon: Send, desc: 'Deliver leads to Leadshook funnels', comingSoon: true },
   { type: 'googlesheets', category: 'delivery', name: 'Google Sheets', icon: FileSpreadsheet, desc: 'Write delivered leads to a spreadsheet', supported: true, oauth: true },
   { type: 'ringba', category: 'delivery', name: 'Ringba', icon: PhoneCall, desc: 'Call webhook delivery to Ringba', comingSoon: true },
   { type: 'truecall', category: 'delivery', name: 'TrueCall', icon: Phone, desc: 'Call webhook delivery to TrueCall', comingSoon: true },
