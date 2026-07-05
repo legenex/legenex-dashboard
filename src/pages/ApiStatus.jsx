@@ -21,7 +21,7 @@ export default function ApiStatus() {
     return () => { alive = false; };
   }, []);
 
-  const dotColor = state.loading ? '#EAB308' : state.ok ? '#22C55E' : '#EF4444';
+  const dotColor = state.loading ? '#FACC14' : state.ok ? '#3DD68C' : '#E5484D';
   const label = state.loading ? 'Checking…' : state.ok ? 'Operational' : 'Unavailable';
 
   return (

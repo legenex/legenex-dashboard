@@ -114,7 +114,7 @@ export default function Notifications() {
                     <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{ev.created_date ? format(new Date(ev.created_date), 'MMM dd HH:mm') : ''}</td>
                     <td className="px-4 py-3 text-foreground">{ev.summary}</td>
                     <td className="px-4 py-3"><Badge variant="outline" className="text-[10px]">{ev.channel}</Badge></td>
-                    <td className="px-4 py-3">{ev.delivered ? <CheckCircle className="w-4 h-4 text-[#22C55E]" /> : <XCircle className="w-4 h-4 text-[#EF4444]" />}</td>
+                    <td className="px-4 py-3">{ev.delivered ? <CheckCircle className="w-4 h-4 text-[#3DD68C]" /> : <XCircle className="w-4 h-4 text-[#E5484D]" />}</td>
                   </tr>
                 ))}
               </tbody>

@@ -11,7 +11,7 @@ import { resolvePeriod, priorWindow, PERIOD_LABELS } from '@/lib/periodRange';
 import { operationalMetrics, statusDonut, leadsOverTime, supplierBreakdown } from '@/lib/distributionMetrics';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const TOOLTIP_STYLE = { backgroundColor: '#1A1F2B', border: '1px solid #232938', borderRadius: '8px', fontSize: 12 };
+const TOOLTIP_STYLE = { backgroundColor: '#182030', border: '1px solid #243044', borderRadius: '8px', fontSize: 12 };
 
 function MetricCard({ label, value, tone }) {
   return (
@@ -129,12 +129,12 @@ export default function DistributionDashboard() {
           <div className="text-[13px] font-semibold text-foreground mb-4">Leads Over Time · {PERIOD_LABELS[period]}</div>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={series} barGap={1}>
-              <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#E6E9F0' }} />
-              <Bar dataKey="Sold" stackId="a" fill="#22C55E" />
-              <Bar dataKey="Disqualified" stackId="a" fill="#F59E0B" />
-              <Bar dataKey="Error" stackId="a" fill="#EF4444" radius={[3, 3, 0, 0]} />
+              <XAxis dataKey="date" tick={{ fill: '#8B95A8', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#8B95A8', fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#EEF2F8' }} />
+              <Bar dataKey="Sold" stackId="a" fill="#3DD68C" />
+              <Bar dataKey="Disqualified" stackId="a" fill="#FACC14" />
+              <Bar dataKey="Error" stackId="a" fill="#E5484D" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

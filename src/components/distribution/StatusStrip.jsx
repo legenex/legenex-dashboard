@@ -3,7 +3,7 @@ import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 function Dot({ active }) {
-  return <div className={`w-2 h-2 rounded-full ${active ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />;
+  return <div className={`w-2 h-2 rounded-full ${active ? 'bg-[#3DD68C]' : 'bg-[#E5484D]'}`} />;
 }
 
 // Operational connection status: endpoint URL + verification + connected APIs.

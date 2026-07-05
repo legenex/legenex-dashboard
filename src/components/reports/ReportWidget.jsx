@@ -9,7 +9,7 @@ import { BarChart, Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveCo
 import { money, moneyShort, pct, int, dailySeries, groupBy, statusBreakdown } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
 
-const DONUT_COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#64748b', '#ec4899'];
+const DONUT_COLORS = ['#3DD68C', '#E5484D', '#FACC14', '#3182BD', '#7564CC', '#41D9C7', '#EC4899'];
 
 // Table column definitions per group widget type.
 const TABLE_DEFS = {
@@ -122,8 +122,8 @@ export default function ReportWidget({ widget, leads, adSpend, onChange }) {
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={d => d.slice(5)} />
             <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={moneyShort} width={48} />
             <Tooltip contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} formatter={v => money(v)} />
-            <Bar dataKey="revenue" fill="#22c55e" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="spend" fill="#ef4444" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="revenue" fill="#3DD68C" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="spend" fill="#E5484D" radius={[3, 3, 0, 0]} />
             <Line dataKey="profit" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
           </ComposedChart>
         </ResponsiveContainer>

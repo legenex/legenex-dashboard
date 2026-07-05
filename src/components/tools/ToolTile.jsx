@@ -6,9 +6,9 @@ import { ArrowRight } from 'lucide-react';
 // stats, and a status dot. Links straight to the tool's page.
 export default function ToolTile({ to, icon: Icon, title, description, stats = [], status = 'ok' }) {
   const dot =
-    status === 'error' ? 'bg-[#EF4444]' :
-    status === 'warn' ? 'bg-[#EAB308]' :
-    'bg-[#22C55E]';
+    status === 'error' ? 'bg-[#E5484D]' :
+    status === 'warn' ? 'bg-[#FACC14]' :
+    'bg-[#3DD68C]';
 
   return (
     <Link

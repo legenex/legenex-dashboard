@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Radio } from 'lucide-react';
 
 const DOT = {
-  green: 'bg-[#22C55E]',
-  amber: 'bg-[#EAB308]',
-  blue: 'bg-[#3B82F6]',
+  green: 'bg-[#3DD68C]',
+  amber: 'bg-[#FACC14]',
+  blue: 'bg-[#3182BD]',
   red: 'bg-destructive',
 };
 
@@ -27,8 +27,8 @@ export default function ActivityStreamBar({ events = [], right = null }) {
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-60" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3DD68C] opacity-60" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#3DD68C]" />
           </span>
           <Radio className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Live activity stream connected</span>

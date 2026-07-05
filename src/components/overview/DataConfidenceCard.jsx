@@ -6,8 +6,8 @@ import { formatDistanceToNow } from 'date-fns';
 function tone(date) {
   if (!date) return { cls: 'status-error', label: 'never', dot: 'bg-destructive' };
   const ageH = (Date.now() - new Date(date).getTime()) / 3600000;
-  if (ageH <= 6) return { cls: 'status-sold', label: formatDistanceToNow(new Date(date), { addSuffix: true }), dot: 'bg-[#22C55E]' };
-  if (ageH <= 48) return { cls: 'status-unsold', label: formatDistanceToNow(new Date(date), { addSuffix: true }), dot: 'bg-[#EAB308]' };
+  if (ageH <= 6) return { cls: 'status-sold', label: formatDistanceToNow(new Date(date), { addSuffix: true }), dot: 'bg-[#3DD68C]' };
+  if (ageH <= 48) return { cls: 'status-unsold', label: formatDistanceToNow(new Date(date), { addSuffix: true }), dot: 'bg-[#FACC14]' };
   return { cls: 'status-error', label: formatDistanceToNow(new Date(date), { addSuffix: true }), dot: 'bg-destructive' };
 }
 
