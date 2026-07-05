@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import {
   DollarSign, TrendingUp, Megaphone, Users, PieChart as PieIcon, Trophy, ShieldAlert, ArrowUpRight,
+  CheckCircle2, AlertTriangle, Activity,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { resolvePeriod, PERIOD_LABELS } from '@/lib/periodRange';
@@ -46,6 +47,15 @@ export default function Overview() {
   const [period, setPeriod] = useState('last60');
   const [custom, setCustom] = useState({ from: '', to: '' });
   const [compare, setCompare] = useState(false);
+
+  // "refreshed Xs ago" telemetry clock — resets whenever the user refreshes.
+  const [refreshedAt, setRefreshedAt] = useState(() => Date.now());
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const refreshedAgo = Math.max(0, Math.round((nowTick - refreshedAt) / 1000));
 
   const win = useMemo(() => resolvePeriod(period, custom), [period, custom]);
 
@@ -217,7 +227,7 @@ export default function Overview() {
   // Right-aligned meta chips for the lower panel section headers.
   const buyerExposure = risk.reduce((a, r) => a + (r.out > 0.01 ? r.out : r.short || 0), 0);
   const donutMeta = PERIOD_LABELS[period];
-  const campaignsMeta = campaigns.length > 0 ? `${campaigns.length} campaigns` : 'All campaigns';
+  const campaignsMeta = 'All campaigns';
   const buyerRiskMeta = `${fmtMoney(buyerExposure)} exposure`;
 
   // Framer-motion staggered rise variants for card grids.
@@ -238,7 +248,7 @@ export default function Overview() {
         onCustomChange={setCustom}
         compare={compare}
         onToggleCompare={() => setCompare(c => !c)}
-        onRefresh={() => qc.invalidateQueries()}
+        onRefresh={() => { qc.invalidateQueries(); setRefreshedAt(Date.now()); }}
       />
 
       {/* AI Analyst summary band */}
@@ -326,6 +336,31 @@ export default function Overview() {
         />
       </Reveal>
 
+      {/* Reconciliation status callout */}
+      <Reveal delay={0.05} className="mt-4 block">
+        {queue.items.length === 0 ? (
+          <div className="rounded-[12px] border border-[#3DD68C]/40 bg-[#3DD68C]/10 px-5 py-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 status-sold shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-foreground">Everything reconciles — no open variances.</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">The bigger risk is not variance. It is missing or stale data ingestion.</div>
+            </div>
+            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md status-sold-bg status-sold shrink-0">Clean</span>
+          </div>
+        ) : (
+          <div className="rounded-[12px] border border-primary/40 bg-primary/10 px-5 py-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-foreground">{queue.items.length} open {queue.items.length === 1 ? 'variance' : 'variances'} need attention.</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{queue.items.slice(0, 3).map(i => `${i.label} · ${i.name || i.note}`).join('  ·  ')}</div>
+            </div>
+            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md status-error-bg status-error shrink-0 whitespace-nowrap">
+              <CountUpText value={queue.totalAtRisk} render={(n) => fmtMoney(n)} /> at risk
+            </span>
+          </div>
+        )}
+      </Reveal>
+
       {/* Row 1: Leads by Status + Top Campaigns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <Reveal delay={0.05}>
@@ -352,10 +387,11 @@ export default function Overview() {
                   </div>
                 </>
               ) : (
-                <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1">
+                <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 px-4">
+                  <PieIcon className="w-7 h-7 text-muted-foreground/50" />
                   <div className="text-[13px] text-muted-foreground">No leads in period</div>
-                  <div className="text-[11px] text-muted-foreground/70">Adjust the period or wait for new leads to land.</div>
-                  <Link to="/leads" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">View leads <ArrowUpRight className="w-3 h-3" /></Link>
+                  <div className="text-[11px] text-muted-foreground/70 max-w-[300px]">Likely cause: Leadbyte ingestion has never synced. Distribution and status counts depend on it.</div>
+                  <Link to="/payload-tester" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Run Payload Tester <ArrowUpRight className="w-3 h-3" /></Link>
                 </div>
               )}
             </div>
@@ -391,10 +427,11 @@ export default function Overview() {
                 </table>
               </div>
             ) : (
-              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1 p-5">
+              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 p-5">
+                <Trophy className="w-7 h-7 text-muted-foreground/50" />
                 <div className="text-[13px] text-muted-foreground">No campaign economics yet</div>
-                <div className="text-[11px] text-muted-foreground/70">Campaign profit appears once leads carry revenue and cost.</div>
-                <Link to="/campaigns" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Set up campaigns <ArrowUpRight className="w-3 h-3" /></Link>
+                <div className="text-[11px] text-muted-foreground/70 max-w-[320px]">Profitability needs three feeds: leads in, buyer revenue booked, and ad spend. All three are currently silent.</div>
+                <Link to="/settings?tab=integrations" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">Connect ad platforms <ArrowUpRight className="w-3 h-3" /></Link>
               </div>
             )}
           </div>
@@ -426,10 +463,10 @@ export default function Overview() {
                 </table>
               </div>
             ) : (
-              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1 p-5">
+              <div className="h-[220px] flex flex-col items-center justify-center text-center gap-1.5 p-5">
+                <ShieldAlert className="w-7 h-7 text-muted-foreground/50" />
                 <div className="text-[13px] text-muted-foreground">No buyer exposure detected</div>
-                <div className="text-[11px] text-muted-foreground/70">Every buyer is on track — nothing outstanding or short-paid.</div>
-                <Link to="/campaigns?tab=buyers" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1">View buyers <ArrowUpRight className="w-3 h-3" /></Link>
+                <div className="text-[11px] text-muted-foreground/70 max-w-[300px]">No buyer exposure detected for selected period.</div>
               </div>
             )}
           </div>
@@ -440,8 +477,14 @@ export default function Overview() {
         </Reveal>
       </div>
 
-      {/* Bottom status strip */}
-      <Reveal delay={0.05} className="mt-4 mb-2 block">
+      {/* Bottom system telemetry strip */}
+      <Reveal delay={0.05} className="mt-6 mb-2 block">
+        <div className="flex items-center justify-between px-1 mb-2">
+          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.18em] flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-primary" /> System Telemetry
+          </div>
+          <div className="text-[10px] font-mono text-muted-foreground">refreshed {refreshedAgo}s ago</div>
+        </div>
         <StatusStripBar items={stripItems} />
       </Reveal>
     </div>
