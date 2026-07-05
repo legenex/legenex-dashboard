@@ -3,14 +3,14 @@ import { GripVertical } from 'lucide-react';
 
 // A vertical resize affordance pinned to the right edge of a column.
 // - A thin line runs the full height and brightens on hover.
-// - A grip icon is fixed near the bottom; on hover it grows and highlights,
-//   making it obvious this is how you drag to resize.
+// - A grip icon is vertically centered so every column's handle lines up
+//   with the others; on hover it grows and highlights.
 export default function ResizeHandle({ onMouseDown, title = 'Drag to resize' }) {
   return (
     <div
       onMouseDown={onMouseDown}
       title={title}
-      className="absolute top-0 right-0 h-full w-2 -mr-1 cursor-col-resize group z-20 flex items-end justify-center pb-6"
+      className="absolute top-0 right-0 h-full w-2 -mr-1 cursor-col-resize group z-20 flex items-center justify-center"
     >
       {/* Full-height guide line — subtle until hover */}
       <div className="absolute inset-y-0 right-1 w-[2px] rounded-full bg-transparent group-hover:bg-primary/60 transition-colors duration-150" />
