@@ -1,339 +1,265 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '@/components/shared/PageHeader';
-import KpiCard from '@/components/overview/KpiCard';
-import StatCard from '@/components/overview/StatCard';
-import HealthStrip from '@/components/overview/HealthStrip';
-import StatusPill from '@/components/shared/StatusPill';
-import DateRangeSelector, { RANGE_LABELS } from '@/components/overview/DateRangeSelector';
-import TopRejectionReasons from '@/components/overview/TopRejectionReasons';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Percent, AlertTriangle, Copy, Inbox, Zap, Clock, DollarSign, CheckCircle2, XCircle } from 'lucide-react';
+import PeriodTabs from '@/components/shared/PeriodTabs';
 import RefreshButton from '@/components/shared/RefreshButton';
+import GroupedKpiCard from '@/components/overview/GroupedKpiCard';
+import StatCard from '@/components/overview/StatCard';
+import ActionQueueCard from '@/components/overview/ActionQueueCard';
+import DataConfidenceCard from '@/components/overview/DataConfidenceCard';
+import { Badge } from '@/components/ui/badge';
+import {
+  Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell,
+} from 'recharts';
+import {
+  DollarSign, TrendingUp, Megaphone, Users, GitCompareArrows,
+} from 'lucide-react';
+import { resolvePeriod, PERIOD_LABELS } from '@/lib/periodRange';
+import {
+  financialTruth, actionQueue, financeDonut, dailyFinance, topCampaigns, buyerRisk, fmtMoney,
+} from '@/lib/overviewFinance';
+import { money, int } from '@/lib/reportMetrics';
 import { toast } from 'sonner';
-import { format, subDays, startOfDay, isAfter } from 'date-fns';
 
-const PIE_COLORS = ['#22C55E', '#F59E0B', '#EF4444', '#A855F7', '#06B6D4'];
+const CAMPAIGN_TAG_TONE = { Scale: 'status-sold-bg status-sold', Watch: 'status-warn-bg status-unsold', Cut: 'status-error-bg status-error' };
+const RISK_TONE = { Overdue: 'status-error-bg status-error', Outstanding: 'status-warn-bg status-unsold', Overpaid: 'bg-status-duplicate status-duplicate', Settled: 'status-sold-bg status-sold' };
 
 export default function Overview() {
   const qc = useQueryClient();
-  const [range, setRange] = useState('today');
+  const [period, setPeriod] = useState('last60');
+  const [custom, setCustom] = useState({ from: '', to: '' });
+  const [compare, setCompare] = useState(false);
 
-  // Real-time lead updates
-  useEffect(() => {
-    const unsub = base44.entities.Lead.subscribe(() => {
-      qc.invalidateQueries({ queryKey: ['leads-all'] });
-    });
-    return unsub;
-  }, [qc]);
+  const win = useMemo(() => resolvePeriod(period, custom), [period, custom]);
 
-  const { data: leads = [] } = useQuery({
-    queryKey: ['leads-all'],
-    queryFn: () => base44.entities.Lead.filter({ archived: false }, '-created_date', 500),
-  });
+  const { data: leads = [] } = useQuery({ queryKey: ['ov-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
+  const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
+  const { data: invoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
+  const { data: payments = [] } = useQuery({ queryKey: ['buyer-payments'], queryFn: () => base44.entities.BuyerPayment.list('-paid_date', 500) });
+  const { data: payouts = [] } = useQuery({ queryKey: ['supplier-payouts'], queryFn: () => base44.entities.SupplierPayout.list('-created_date', 500) });
+  const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
+  const { data: txns = [] } = useQuery({ queryKey: ['bank-txns'], queryFn: () => base44.entities.BankTransaction.list('-date', 500) });
+  const { data: integrations = [] } = useQuery({ queryKey: ['integration-configs'], queryFn: () => base44.entities.IntegrationConfig.list() });
+  const { data: spendMappings = [] } = useQuery({ queryKey: ['adspend-mappings'], queryFn: () => base44.entities.AdSpendMapping.list() });
 
-  const { data: hlrArr = [] } = useQuery({
-    queryKey: ['hlr-settings'],
-    queryFn: () => base44.entities.HlrSettings.list(),
-  });
+  const dataset = { leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns };
 
-  const { data: appSettingsArr = [] } = useQuery({
-    queryKey: ['app-settings'],
-    queryFn: () => base44.entities.AppSettings.list(),
-  });
+  const truth = useMemo(() => financialTruth(dataset, win), [leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns, win]);
+  const queue = useMemo(() => actionQueue(truth, txns), [truth, txns]);
+  const donut = useMemo(() => financeDonut(truth.wLeads), [truth]);
+  const daily = useMemo(() => dailyFinance({ wLeads: truth.wLeads, payments, adSpend }, win), [truth, payments, adSpend, win]);
+  const campaigns = useMemo(() => topCampaigns(truth.wLeads), [truth]);
+  const risk = useMemo(() => buyerRisk(truth.reconRows), [truth]);
 
-  const publicBaseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
-  const endpointUrl = `${publicBaseUrl}/functions/leads`;
+  // Compare vs prior window of equal length.
+  const priorTruth = useMemo(() => {
+    if (!compare) return null;
+    const len = win.end.getTime() - win.start.getTime();
+    const prior = { start: new Date(win.start.getTime() - len), end: new Date(win.start.getTime()) };
+    return financialTruth(dataset, prior);
+  }, [compare, win, leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns]);
 
-  const { data: errors = [] } = useQuery({
-    queryKey: ['errors-all'],
-    queryFn: () => base44.entities.ErrorLog.list('-created_date', 500),
-  });
-
-  const now = new Date();
-
-  // Range window
-  const rangeStart = range === 'today'
-    ? startOfDay(now)
-    : range === '7d'
-      ? subDays(now, 7)
-      : range === '30d'
-        ? subDays(now, 30)
-        : null; // all time
-
-  // Prior period (for trend comparisons)
-  const priorStart = range === 'today'
-    ? subDays(startOfDay(now), 1)
-    : range === '7d'
-      ? subDays(now, 14)
-      : range === '30d'
-        ? subDays(now, 60)
-        : null;
-  const priorEnd = range === 'today'
-    ? startOfDay(now)
-    : range === '7d'
-      ? subDays(now, 7)
-      : range === '30d'
-        ? subDays(now, 30)
-        : null;
-
-  const inRange = (d) => rangeStart ? isAfter(new Date(d), rangeStart) : true;
-  const inPrior = (d) => {
-    const dt = new Date(d);
-    return priorStart ? (isAfter(dt, priorStart) && !isAfter(dt, priorEnd)) : false;
+  const cmpChip = (cur, prev) => {
+    if (!compare || prev == null) return null;
+    const d = prev === 0 ? null : Math.round(((cur - prev) / Math.abs(prev)) * 100);
+    if (d == null) return null;
+    return <span className={`ml-2 text-[11px] ${d >= 0 ? 'status-sold' : 'status-error'}`}>{d >= 0 ? '+' : ''}{d}%</span>;
   };
 
-  const rangeLeads = leads.filter(l => inRange(l.created_date));
-  const priorLeads = leads.filter(l => inPrior(l.created_date));
-
-  const sumRevenue = (arr) => arr.reduce((s, l) => s + (Number(l.revenue) || 0), 0);
-  const rangeRevenue = sumRevenue(rangeLeads);
-  const priorRevenue = sumRevenue(priorLeads);
-
-  const pctTrend = (cur, prev) => prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null;
-  const leadsTrend = pctTrend(rangeLeads.length, priorLeads.length);
-  const revenueTrend = pctTrend(rangeRevenue, priorRevenue);
-
-  const soldLeads = rangeLeads.filter(l => l.final_status === 'Sold');
-  const unsoldLeads = rangeLeads.filter(l => l.final_status === 'Unsold');
-  const soldRate = rangeLeads.length > 0 ? Math.round((soldLeads.length / rangeLeads.length) * 100) : 0;
-
-  const errorsInRange = errors.filter(e => inRange(e.created_date));
-  const queuedLeads = rangeLeads.filter(l => l.final_status === 'Queued');
-  const duplicateLeads = rangeLeads.filter(l => l.final_status === 'Duplicate');
-
-  // CAPI fires in range
-  const capiFires = rangeLeads.reduce((count, l) => {
-    if (!l.capi_log) return count;
-    try { return count + JSON.parse(l.capi_log).length; } catch { return count; }
+  // Data confidence sources — freshness from stored last_synced_at / newest records.
+  const cfg = (name) => {
+    const rec = integrations.find(i => i.name === name);
+    if (!rec) return null;
+    try { return JSON.parse(rec.config || '{}').last_synced_at || null; } catch { return null; }
+  };
+  const newest = (arr, field) => arr.reduce((max, r) => {
+    const v = r[field] ? new Date(r[field]).getTime() : 0;
+    return v > max ? v : max;
   }, 0);
+  const metaSync = spendMappings.filter(m => m.platform === 'meta').reduce((m, r) => Math.max(m, r.last_synced_at ? new Date(r.last_synced_at).getTime() : 0), 0);
+  const googleSync = spendMappings.filter(m => m.platform === 'google_ads').reduce((m, r) => Math.max(m, r.last_synced_at ? new Date(r.last_synced_at).getTime() : 0), 0);
+  const tiktokSync = spendMappings.filter(m => m.platform === 'tiktok').reduce((m, r) => Math.max(m, r.last_synced_at ? new Date(r.last_synced_at).getTime() : 0), 0);
+  const leadSync = newest(leads.slice(0, 5), 'created_date');
 
-  const withTime = rangeLeads.filter(l => l.process_time_ms);
-  const avgProcessTime = withTime.length > 0
-    ? Math.round(withTime.reduce((s, l) => s + l.process_time_ms, 0) / withTime.length)
-    : 0;
+  const confidenceSources = [
+    { label: 'Lead ingestion', at: leadSync || null },
+    { label: 'Stripe', at: cfg('stripe') },
+    { label: 'Xero', at: cfg('xero') },
+    { label: 'Mercury', at: cfg('mercury') },
+    { label: 'Meta Ads', at: metaSync || null },
+    { label: 'Buyer feedback', at: newest(payments, 'paid_date') || null },
+    { label: 'Google Ads', at: googleSync || null },
+    { label: 'TikTok', at: tiktokSync || null },
+    { label: 'Supplier statements', at: newest(payouts, 'updated_date') || null },
+    { label: 'Slack', at: cfg('slack') },
+  ];
 
-  // Donut data (scoped by range)
-  const donutData = [
-    { name: 'Sold', value: rangeLeads.filter(l => l.final_status === 'Sold').length },
-    { name: 'Unsold', value: rangeLeads.filter(l => l.final_status === 'Unsold').length },
-    { name: 'Error', value: rangeLeads.filter(l => l.final_status === 'Error').length },
-    { name: 'Queued', value: rangeLeads.filter(l => l.final_status === 'Queued').length },
-    { name: 'Duplicate', value: rangeLeads.filter(l => l.final_status === 'Duplicate').length },
-  ].filter(d => d.value > 0);
-
-  // 14-day chart - always 14 days regardless of selected range
-  const chartData = [];
-  for (let i = 13; i >= 0; i--) {
-    const day = subDays(now, i);
-    const dayStr = format(day, 'MMM dd');
-    const dayStart = startOfDay(day);
-    const dayEnd = startOfDay(subDays(now, i - 1));
-    const dayLeads = leads.filter(l => {
-      const d = new Date(l.created_date);
-      return isAfter(d, dayStart) && (i === 0 || !isAfter(d, dayEnd));
-    });
-    chartData.push({
-      date: dayStr,
-      Sold: dayLeads.filter(l => l.final_status === 'Sold').length,
-      Unsold: dayLeads.filter(l => l.final_status === 'Unsold').length,
-      Error: dayLeads.filter(l => l.final_status === 'Error').length,
-      Queued: dayLeads.filter(l => l.final_status === 'Queued').length,
-      Duplicate: dayLeads.filter(l => l.final_status === 'Duplicate').length,
-    });
-  }
-
-  const recent20 = rangeLeads.slice(0, 20);
+  const { kpis, stats } = truth;
 
   return (
     <div>
-      <PageHeader title="Overview" subtitle="Daily source-of-truth dashboard - real-time pipeline health and lead metrics">
+      <PageHeader title="Financial Overview" subtitle="Source of financial truth — profit, revenue, cost and reconciliation health">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-            Showing: <span className="text-foreground font-medium">{RANGE_LABELS[range]}</span>
-            <span className="mx-2 text-border">·</span>
-            as of {format(now, 'HH:mm')}
+            Period: <span className="text-foreground font-medium">{PERIOD_LABELS[period]}</span>
           </div>
-          <DateRangeSelector value={range} onChange={setRange} />
+          <PeriodTabs
+            value={period}
+            onChange={setPeriod}
+            custom={custom}
+            onCustomChange={setCustom}
+            extra={
+              <button
+                onClick={() => setCompare(c => !c)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${compare ? 'bg-primary/15 text-primary border-primary/30' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}
+              >
+                <GitCompareArrows className="w-3.5 h-3.5" /> Compare
+              </button>
+            }
+          />
           <RefreshButton onClick={() => qc.invalidateQueries()} />
         </div>
       </PageHeader>
 
-      {/* Endpoint Card */}
-      <div className="bg-card border border-primary/20 rounded-[10px] p-4 flex items-center gap-4 mb-4">
-        <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Supplier Endpoint</div>
-        <code className="flex-1 font-mono text-[13px] text-primary truncate">{endpointUrl}</code>
-        <button
-          onClick={() => { navigator.clipboard.writeText(endpointUrl); toast.success('Endpoint URL copied'); }}
-          className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border hover:border-primary/40"
-        >
-          <Copy className="w-3.5 h-3.5" /> Copy
-        </button>
-      </div>
-
-      <HealthStrip
-        hlrProvider={hlrArr[0]?.provider_name}
-        lastLeadTime={leads[0]?.created_date}
-      />
-
-      {/* Per-Supplier Breakdown */}
-      {(() => {
-        const supplierNames = [...new Set(rangeLeads.map(l => l.supplier_name).filter(Boolean))];
-        if (supplierNames.length === 0) return null;
-        return (
-          <div className="bg-card border border-border rounded-[10px] mt-4 overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <div className="text-[13px] font-semibold text-foreground">Supplier Breakdown</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">{RANGE_LABELS[range]} · revenue by source</div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50">
-                    {['Supplier', 'Total', 'Sold', 'Revenue', 'Unsold', 'Queued', 'Dup', 'Error', 'Sold Rate', 'Avg Time'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {supplierNames.map(name => {
-                    const sl = rangeLeads.filter(l => l.supplier_name === name);
-                    const sold = sl.filter(l => l.final_status === 'Sold').length;
-                    const revenue = sumRevenue(sl);
-                    const unsold = sl.filter(l => l.final_status === 'Unsold').length;
-                    const queued = sl.filter(l => l.final_status === 'Queued').length;
-                    const dup = sl.filter(l => l.final_status === 'Duplicate').length;
-                    const err = sl.filter(l => l.final_status === 'Error').length;
-                    const rate = sl.length > 0 ? Math.round((sold / sl.length) * 100) : 0;
-                    const slWithTime = sl.filter(l => l.process_time_ms);
-                    const avgT = slWithTime.length > 0 ? Math.round(slWithTime.reduce((s, l) => s + l.process_time_ms, 0) / slWithTime.length) : 0;
-                    return (
-                      <tr key={name} className="hover:bg-accent/40 transition-colors">
-                        <td className="px-4 py-3 font-medium text-foreground">{name}</td>
-                        <td className="px-4 py-3 font-mono text-[12px]">{sl.length}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] status-sold">{sold}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] text-foreground">${revenue.toFixed(2)}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] status-unsold">{unsold}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] status-queued">{queued}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] status-duplicate">{dup}</td>
-                        <td className="px-4 py-3 font-mono text-[12px] status-error">{err}</td>
-                        <td className="px-4 py-3 font-mono text-[12px]">{rate}%</td>
-                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{avgT ? `${avgT}ms` : '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
-        <KpiCard label="Revenue" value={`$${rangeRevenue.toFixed(2)}`} trend={revenueTrend} trendLabel="vs prior period" icon={DollarSign} />
-        <KpiCard label="Leads" value={rangeLeads.length} trend={leadsTrend} trendLabel="vs prior period" icon={Inbox} />
-        <KpiCard label="Sold" value={soldLeads.length} icon={CheckCircle2} />
-        <KpiCard label="Unsold" value={unsoldLeads.length} icon={XCircle} />
-        <KpiCard label="Avg Time" value={avgProcessTime ? `${avgProcessTime}ms` : '-'} icon={Clock} />
-      </div>
-
-      <div className="mt-6 mb-3 flex items-center gap-2">
-        <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Pipeline Metrics</div>
-        <div className="flex-1 h-px bg-border" />
-      </div>
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard label="Sold Rate" value={`${soldRate}%`} icon={Percent} />
-        <StatCard label="Errors" value={errorsInRange.length} icon={AlertTriangle} />
-        <StatCard label="Queued" value={queuedLeads.length} icon={Inbox} />
-        <StatCard label="Duplicates" value={duplicateLeads.length} icon={Copy} />
-        <StatCard label="CAPI Fires" value={capiFires} icon={Zap} />
-      </div>
-
-      <div className="mt-6 mb-3 flex items-center gap-2">
-        <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Analytics</div>
-        <div className="flex-1 h-px bg-border" />
-      </div>
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-card border border-border rounded-[10px] p-5">
-          <div className="text-[13px] font-semibold text-foreground mb-4">Leads - Last 14 Days</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData} barGap={1}>
-              <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1A1F2B', border: '1px solid #232938', borderRadius: '8px', fontSize: 12 }}
-                labelStyle={{ color: '#E6E9F0' }}
-              />
-              <Bar dataKey="Sold" stackId="a" fill="#22C55E" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Unsold" stackId="a" fill="#F59E0B" />
-              <Bar dataKey="Queued" stackId="a" fill="#A855F7" />
-              <Bar dataKey="Error" stackId="a" fill="#EF4444" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* Grouped KPI cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <GroupedKpiCard label="Revenue" headline={kpis.revenue.headline} subLabel="Verified" sub={kpis.revenue.sub} gap={kpis.revenue.gap} icon={DollarSign} />
+          {compare && <div className="text-[11px] text-muted-foreground mt-1 px-1">Booked {cmpChip(kpis.revenue.headline, priorTruth?.kpis.revenue.headline)}</div>}
         </div>
-
-        <div className="bg-card border border-border rounded-[10px] p-5">
-          <div className="text-[13px] font-semibold text-foreground mb-4">Outcome Distribution</div>
-          {donutData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" stroke="none">
-                  {donutData.map((entry, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1A1F2B', border: '1px solid #232938', borderRadius: '8px', fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[220px] flex items-center justify-center text-muted-foreground text-[13px]">No data</div>
-          )}
-          <div className="flex justify-center gap-4 mt-2">
-            {donutData.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
-                <span className="text-muted-foreground">{d.name} ({d.value})</span>
-              </div>
-            ))}
-          </div>
+        <div>
+          <GroupedKpiCard label="Profit" headline={kpis.profit.headline} subLabel="Cash" sub={kpis.profit.sub} gap={kpis.profit.gap} icon={TrendingUp} />
+          {compare && <div className="text-[11px] text-muted-foreground mt-1 px-1">Reported {cmpChip(kpis.profit.headline, priorTruth?.kpis.profit.headline)}</div>}
+        </div>
+        <div>
+          <GroupedKpiCard label="Ad Spend" headline={kpis.adSpend.headline} subLabel="Paid" sub={kpis.adSpend.sub} gap={kpis.adSpend.gap} icon={Megaphone} />
+          {compare && <div className="text-[11px] text-muted-foreground mt-1 px-1">Tracked {cmpChip(kpis.adSpend.headline, priorTruth?.kpis.adSpend.headline)}</div>}
+        </div>
+        <div>
+          <GroupedKpiCard label="Supplier Cost" headline={kpis.supplierCost.headline} subLabel="Paid" sub={kpis.supplierCost.sub} gap={kpis.supplierCost.gap} icon={Users} />
+          {compare && <div className="text-[11px] text-muted-foreground mt-1 px-1">Accrued {cmpChip(kpis.supplierCost.headline, priorTruth?.kpis.supplierCost.headline)}</div>}
         </div>
       </div>
 
-      {/* Top Rejection Reasons */}
+      {/* Small stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
+        <StatCard label="Outstanding" value={money(stats.outstanding)} />
+        <StatCard label="Due 7 Days" value={money(stats.due7)} />
+        <StatCard label="Overdue" value={money(stats.overdue)} />
+        <StatCard label="Short-Paid" value={money(stats.shortPaid)} />
+        <StatCard label="True CPL" value={money(stats.trueCpl)} />
+        <StatCard label="Cash Margin" value={`${stats.cashMargin}%`} />
+        <StatCard label="Data Quality" value={`${stats.dataQuality}/100`} />
+      </div>
+
+      {/* Daily finance chart */}
+      <div className="bg-card border border-border rounded-[12px] p-5 mt-6">
+        <div className="text-[13px] font-semibold text-foreground mb-1">Booked Revenue vs Verified Income vs Ad Spend</div>
+        <div className="text-[11px] text-muted-foreground mb-4">The distance between the booked bars and the verified line is money booked but not yet proven.</div>
+        <ResponsiveContainer width="100%" height={260}>
+          <ComposedChart data={daily}>
+            <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+            <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+            <Tooltip contentStyle={{ backgroundColor: '#1A1F2B', border: '1px solid #232938', borderRadius: '8px', fontSize: 12 }} labelStyle={{ color: '#E6E9F0' }} formatter={(v) => fmtMoney(v)} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="Booked" fill="#EE5656" radius={[3, 3, 0, 0]} maxBarSize={22} />
+            <Line dataKey="Verified" stroke="#22C55E" strokeWidth={2} dot={false} />
+            <Line dataKey="Spend" stroke="#F59E0B" strokeWidth={2} strokeDasharray="4 3" dot={false} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Action queue */}
       <div className="mt-4">
-        <TopRejectionReasons leads={rangeLeads} />
+        <ActionQueueCard
+          queue={queue}
+          onResolve={(item) => toast.info(`Resolving: ${item.label} — ${item.note}`)}
+          onDone={(item) => toast.success(`Marked done: ${item.label}`)}
+        />
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-card border border-border rounded-[10px] mt-4 overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <div className="text-[13px] font-semibold text-foreground">Recent Activity</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">{RANGE_LABELS[range]}</div>
-        </div>
-        <div className="divide-y divide-border">
-          {recent20.length === 0 && (
-            <div className="px-5 py-8 text-center text-muted-foreground text-[13px]">No leads in this range</div>
+      {/* Donut + Top campaigns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+        <div className="bg-card border border-border rounded-[12px] p-5">
+          <div className="text-[13px] font-semibold text-foreground mb-4">Leads by Status</div>
+          {donut.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={donut} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" stroke="none">
+                    {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#1A1F2B', border: '1px solid #232938', borderRadius: '8px', fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-2">
+                {donut.map(d => (
+                  <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span className="text-muted-foreground">{d.name} ({d.value})</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-[13px]">No leads in period</div>
           )}
-          {recent20.map(lead => (
-            <div key={lead.id} className="px-5 py-3 flex items-center gap-4 hover:bg-accent/50 transition-colors text-[13px]">
-              <span className="text-muted-foreground font-mono text-[11px] w-[100px] shrink-0">
-                {format(new Date(lead.created_date), 'HH:mm:ss')}
-              </span>
-              <span className="text-secondary-foreground w-[120px] shrink-0 truncate">{lead.supplier_name}</span>
-              <span className="text-foreground flex-1 truncate">{lead.first_name} {lead.last_name}</span>
-              <StatusPill status={lead.final_status} />
-            </div>
-          ))}
+        </div>
+
+        <div className="lg:col-span-2 bg-card border border-border rounded-[12px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border text-[13px] font-semibold text-foreground">Top Campaigns by Cash Profit</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
+                <th className="text-left px-4 py-2.5">Campaign</th><th className="text-right px-4 py-2.5">Leads</th>
+                <th className="text-right px-4 py-2.5">Estimated</th><th className="text-right px-4 py-2.5">Verified</th><th className="text-center px-4 py-2.5">Action</th>
+              </tr></thead>
+              <tbody className="divide-y divide-border">
+                {campaigns.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-muted-foreground">No campaign data</td></tr>}
+                {campaigns.map(c => (
+                  <tr key={c.name} className="hover:bg-accent/30">
+                    <td className="px-4 py-2.5 text-foreground truncate max-w-[200px]">{c.name}</td>
+                    <td className="px-4 py-2.5 text-right font-mono">{int(c.leads)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono">{money(c.estimated)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono status-sold">{money(c.verified)}</td>
+                    <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${CAMPAIGN_TAG_TONE[c.tag]}`}>{c.tag}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* Footer note */}
-      <div className="mt-6 mb-2 text-[11px] text-muted-foreground text-center px-4">
-        System of record: Legenex Lead Gateway (go-forward). Historical pre-gateway volume still lives in LeadByte, BigQuery, and Google Sheets - reconciliation in progress.
+      {/* Buyer risk + Data confidence */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 mb-4">
+        <div className="bg-card border border-border rounded-[12px] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border text-[13px] font-semibold text-foreground">Buyer Payment Risk</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead><tr className="border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider bg-muted/40">
+                <th className="text-left px-4 py-2.5">Buyer</th><th className="text-right px-4 py-2.5">Booked</th>
+                <th className="text-right px-4 py-2.5">Out / Short</th><th className="text-center px-4 py-2.5">Status</th>
+              </tr></thead>
+              <tbody className="divide-y divide-border">
+                {risk.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">No buyers</td></tr>}
+                {risk.map(r => (
+                  <tr key={r.name} className="hover:bg-accent/30">
+                    <td className="px-4 py-2.5 text-foreground truncate max-w-[160px]">{r.name}</td>
+                    <td className="px-4 py-2.5 text-right font-mono">{money(r.booked)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono">{money(r.out > 0.01 ? r.out : r.short)}</td>
+                    <td className="px-4 py-2.5 text-center"><Badge variant="outline" className={`text-[10px] border-0 ${RISK_TONE[r.status]}`}>{r.status}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <DataConfidenceCard sources={confidenceSources} />
       </div>
     </div>
   );

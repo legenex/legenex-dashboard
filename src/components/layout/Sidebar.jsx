@@ -19,8 +19,9 @@ const navGroups = [
     ],
   },
   {
-    label: 'Lead Distribution', icon: Share2, type: 'dropdown',
+    label: 'Lead Distribution', icon: Share2, type: 'dropdown', path: '/distribution', permKey: 'dist_dashboard',
     children: [
+      { label: 'Dashboard', path: '/distribution', permKey: 'dist_dashboard' },
       { label: 'Campaigns', path: '/campaigns', permKey: 'dist_campaigns' },
       { label: 'Deliveries', path: '/deliveries', permKey: 'dist_deliveries' },
       { label: 'Conversion Events', path: '/conversion-events', permKey: 'dist_conversion_events' },

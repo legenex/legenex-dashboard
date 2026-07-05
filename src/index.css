@@ -112,6 +112,11 @@
 .bg-status-duplicate { background-color: rgba(59, 130, 246, 0.15); }
 .bg-status-processing { background-color: rgba(59, 130, 246, 0.15); }
 
+/* Aliased status backgrounds used by finance KPI gap chips */
+.status-sold-bg { background-color: rgba(34, 197, 94, 0.15); }
+.status-error-bg { background-color: rgba(239, 68, 68, 0.15); }
+.status-warn-bg { background-color: rgba(234, 179, 8, 0.15); }
+
 /* Qualification & custom lead-status colors */
 .status-qualified { color: #62b6cb; }
 .bg-status-qualified { background-color: rgba(98, 182, 203, 0.15); }
