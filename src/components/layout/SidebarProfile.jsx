@@ -4,11 +4,11 @@ import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/AuthContext';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   ChevronsUpDown, Monitor, Sun, Moon, Settings as SettingsIcon,
-  Sparkles, Compass, HelpCircle, LogOut, Check,
+  Sparkles, Compass, HelpCircle, LogOut,
 } from 'lucide-react';
 import WalkthroughPanel from './WalkthroughPanel';
 import WhatsNewDialog from './WhatsNewDialog';
@@ -54,18 +54,26 @@ export default function SidebarProfile() {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent side="top" align="start" className="w-[224px] mb-1">
-          <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase tracking-wider">Theme</DropdownMenuLabel>
-          {THEMES.map(t => {
-            const Icon = t.icon;
-            const active = theme === t.key;
-            return (
-              <DropdownMenuItem key={t.key} onClick={() => setTheme(t.key)} className="text-[13px] cursor-pointer gap-2">
-                <Icon className="w-4 h-4" />
-                <span className="flex-1">{t.label}</span>
-                {active && <Check className="w-3.5 h-3.5 text-primary" />}
-              </DropdownMenuItem>
-            );
-          })}
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Theme</span>
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-border">
+              {THEMES.map(t => {
+                const Icon = t.icon;
+                const active = theme === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={(e) => { e.preventDefault(); setTheme(t.key); }}
+                    aria-label={t.label}
+                    title={t.label}
+                    className={`p-1.5 rounded-md transition-colors ${active ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => navigate('/settings?tab=profile')} className="text-[13px] cursor-pointer gap-2">
