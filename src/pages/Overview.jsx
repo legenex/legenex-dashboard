@@ -59,6 +59,7 @@ export default function Overview() {
   const { data: errors = [] } = useQuery({ queryKey: ['ov-errors'], queryFn: () => base44.entities.ErrorLog.list('-created_date', 500) });
   const { data: integrations = [] } = useQuery({ queryKey: ['integration-configs'], queryFn: () => base44.entities.IntegrationConfig.list() });
   const { data: spendMappings = [] } = useQuery({ queryKey: ['adspend-mappings'], queryFn: () => base44.entities.AdSpendMapping.list() });
+  const { data: leadSources = [] } = useQuery({ queryKey: ['lead-sources'], queryFn: () => base44.entities.LeadSource.list('-created_date', 100) });
 
   const dataset = { leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns };
 
@@ -140,6 +141,7 @@ export default function Overview() {
     { label: 'TikTok', at: platSync('tiktok') || null },
     { label: 'Supplier statements', at: newest(payouts, 'updated_date') || null },
     { label: 'Slack', at: cfg('slack') },
+    ...leadSources.filter(s => s.enabled).map(s => ({ label: s.name, at: s.last_synced_at || null })),
   ];
 
   // ---- Live activity stream chips ----

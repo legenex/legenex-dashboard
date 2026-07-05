@@ -46,6 +46,7 @@ export default function DistributionDashboard() {
   const { data: appSettingsArr = [] } = useQuery({ queryKey: ['app-settings'], queryFn: () => base44.entities.AppSettings.list() });
   const { data: metaCfg } = useQuery({ queryKey: ['meta-config'], queryFn: async () => (await base44.entities.IntegrationConfig.filter({ name: 'meta' }))[0] || null });
   const { data: intStatus } = useQuery({ queryKey: ['integration-status'], queryFn: async () => (await integrationStatus({}))?.data?.status || {} });
+  const { data: leadSources = [] } = useQuery({ queryKey: ['lead-sources'], queryFn: () => base44.entities.LeadSource.list('-created_date', 100) });
 
   const publicBaseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
   const endpointUrl = `${publicBaseUrl}/functions/leads`;
@@ -61,6 +62,11 @@ export default function DistributionDashboard() {
   const connections = [
     { label: 'Meta', active: !!metaCfg },
     { label: 'Slack', active: !!intStatus?.slack },
+    ...leadSources.filter(s => s.enabled).map(s => ({
+      label: s.name,
+      // Fresh = synced/received within 6h (call sources fire on demand, so treat any recent event as fresh).
+      active: !!s.last_synced_at && (Date.now() - new Date(s.last_synced_at).getTime()) / 3600000 <= 6,
+    })),
   ];
 
   const insightSummary = useMemo(() => ({
