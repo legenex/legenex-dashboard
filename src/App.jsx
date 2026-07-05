@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import PermissionRoute from '@/components/PermissionRoute';
 import ScrollToTop from './components/ScrollToTop';
 
 import Login from '@/pages/Login';
@@ -15,6 +16,7 @@ import ResetPassword from '@/pages/ResetPassword';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Overview from '@/pages/Overview';
+import DistributionDashboard from '@/pages/DistributionDashboard';
 import LeadsView from '@/pages/LeadsView';
 import QueueRecovery from '@/pages/QueueRecovery';
 import Campaigns from '@/pages/Campaigns';
@@ -60,6 +62,7 @@ const AuthenticatedApp = () => {
 
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
+          <Route element={<PermissionRoute />}>
           <Route path="/" element={<Overview />} />
           <Route path="/leads" element={<LeadsView view="all" />} />
           <Route path="/leads/sold" element={<LeadsView view="sold" />} />
@@ -70,6 +73,7 @@ const AuthenticatedApp = () => {
           <Route path="/leads/rejections" element={<Navigate to="/leads/rejected" replace />} />
           <Route path="/queue-recovery" element={<QueueRecovery />} />
           <Route path="/errors" element={<Navigate to="/settings?tab=errors" replace />} />
+          <Route path="/distribution" element={<DistributionDashboard />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/suppliers/:id" element={<SupplierDetail />} />
           <Route path="/buyers/:id" element={<BuyerDetail />} />
@@ -85,6 +89,7 @@ const AuthenticatedApp = () => {
           <Route path="/calculated-fields" element={<CustomCalculations />} />
           <Route path="/payload-tester" element={<PayloadTester />} />
           <Route path="/settings" element={<Settings />} />
+          </Route>
         </Route>
       </Route>
 

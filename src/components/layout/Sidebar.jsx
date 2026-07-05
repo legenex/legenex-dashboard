@@ -1,57 +1,83 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { usePermissions } from '@/lib/AuthContext';
 import {
   LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
   BarChart3, Wallet, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
 } from 'lucide-react';
 
 const navGroups = [
-  { label: 'Overview', icon: LayoutDashboard, path: '/', type: 'single' },
+  { label: 'Overview', icon: LayoutDashboard, path: '/', type: 'single', permKey: 'overview' },
   {
-    label: 'Leads', icon: FileText, type: 'dropdown', path: '/leads',
+    label: 'Leads', icon: FileText, type: 'dropdown', path: '/leads', permKey: 'leads_all',
     children: [
-      { label: 'Sold Leads', path: '/leads/sold' },
-      { label: 'Unsold Leads', path: '/leads/unsold' },
-      { label: 'Disqualified Leads', path: '/leads/disqualified' },
-      { label: 'Rejected Leads', path: '/leads/rejected' },
-      { label: 'Queued Leads', path: '/leads/queued' },
+      { label: 'Sold Leads', path: '/leads/sold', permKey: 'leads_sold' },
+      { label: 'Unsold Leads', path: '/leads/unsold', permKey: 'leads_unsold' },
+      { label: 'Disqualified Leads', path: '/leads/disqualified', permKey: 'leads_disqualified' },
+      { label: 'Rejected Leads', path: '/leads/rejected', permKey: 'leads_rejected' },
+      { label: 'Queued Leads', path: '/leads/queued', permKey: 'leads_queued' },
     ],
   },
   {
     label: 'Lead Distribution', icon: Share2, type: 'dropdown',
     children: [
-      { label: 'Campaigns', path: '/campaigns' },
-      { label: 'Deliveries', path: '/deliveries' },
-      { label: 'Conversion Events', path: '/conversion-events' },
+      { label: 'Campaigns', path: '/campaigns', permKey: 'dist_campaigns' },
+      { label: 'Deliveries', path: '/deliveries', permKey: 'dist_deliveries' },
+      { label: 'Conversion Events', path: '/conversion-events', permKey: 'dist_conversion_events' },
     ],
   },
-  { label: 'Reports', icon: BarChart3, path: '/reports', type: 'single' },
-  { label: 'Finances', icon: Wallet, path: '/finances', type: 'single' },
+  { label: 'Reports', icon: BarChart3, path: '/reports', type: 'single', permKey: 'reports' },
+  { label: 'Finances', icon: Wallet, path: '/finances', type: 'single', permKey: 'finances' },
   {
     label: 'Tools', icon: Wrench, type: 'dropdown',
     children: [
-      { label: 'Notifications', path: '/notifications' },
-      { label: 'Calculated Fields', path: '/calculated-fields' },
-      { label: 'Verification', path: '/verification' },
-      { label: 'Payload Tester', path: '/payload-tester' },
+      { label: 'Notifications', path: '/notifications', permKey: 'tools' },
+      { label: 'Calculated Fields', path: '/calculated-fields', permKey: 'tools' },
+      { label: 'Verification', path: '/verification', permKey: 'tools' },
+      { label: 'Payload Tester', path: '/payload-tester', permKey: 'tools' },
     ],
   },
   {
     label: 'Settings', icon: SettingsIcon, type: 'dropdown', path: '/settings',
     children: [
-      { label: 'General', path: '/settings', tab: 'general' },
-      { label: 'Users and Roles', path: '/settings', tab: 'users' },
-      { label: 'Integrations', path: '/settings', tab: 'integrations' },
-      { label: 'Data Sources', path: '/settings', tab: 'data-sources' },
-      { label: 'Custom Fields', path: '/settings', tab: 'fields' },
-      { label: 'Field Mapping', path: '/settings', tab: 'field-mapping' },
-      { label: 'API Keys', path: '/settings', tab: 'apikeys' },
-      { label: 'Error Logs', path: '/settings', tab: 'errors' },
-      { label: 'Knowledge Base', path: '/settings', tab: 'knowledge' },
-      { label: 'Billing', path: '/settings', tab: 'billing' },
+      { label: 'General', path: '/settings', tab: 'general', permKey: 'set_integrations' },
+      { label: 'Users and Roles', path: '/settings', tab: 'users', permKey: 'set_users' },
+      { label: 'Integrations', path: '/settings', tab: 'integrations', permKey: 'set_integrations' },
+      { label: 'Data Sources', path: '/settings', tab: 'data-sources', permKey: 'set_data_sources' },
+      { label: 'Custom Fields', path: '/settings', tab: 'fields', permKey: 'set_custom_fields' },
+      { label: 'Field Mapping', path: '/settings', tab: 'field-mapping', permKey: 'set_field_mapping' },
+      { label: 'API Keys', path: '/settings', tab: 'apikeys', permKey: 'set_api_keys' },
+      { label: 'Error Logs', path: '/settings', tab: 'errors', permKey: 'set_error_logs' },
+      { label: 'Knowledge Base', path: '/settings', tab: 'knowledge', permKey: 'set_knowledge_base' },
+      { label: 'Billing', path: '/settings', tab: 'billing', permKey: 'set_billing' },
     ],
   },
 ];
+
+// Filter groups + children down to what the current user can access.
+// A dropdown whose Settings parent link (General) is hidden still opens on its first visible child.
+function filterNav(groups, can) {
+  return groups
+    .map(group => {
+      if (group.type === 'single') {
+        return group.permKey && !can(group.permKey) ? null : group;
+      }
+      const children = (group.children || []).filter(c => !c.permKey || can(c.permKey));
+      if (children.length === 0) return null;
+      const next = { ...group, children };
+      // If the parent has a direct path (Leads -> /leads, Settings -> /settings)
+      // but the user can't access that exact target, route the parent to the first visible child.
+      if (next.path) {
+        if (next.permKey && !can(next.permKey)) {
+          next.path = children[0].tab ? `${children[0].path}?tab=${children[0].tab}` : children[0].path;
+        } else if (next.label === 'Settings') {
+          next.path = children[0].tab ? `${children[0].path}?tab=${children[0].tab}` : children[0].path;
+        }
+      }
+      return next;
+    })
+    .filter(Boolean);
+}
 
 function isChildActive(location, child) {
   if (child.tab) {
@@ -81,6 +107,8 @@ function loadOpenGroups(location) {
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const groups = filterNav(navGroups, can);
   const [openGroups, setOpenGroups] = useState(() => loadOpenGroups(location));
 
   useEffect(() => {
@@ -100,7 +128,7 @@ export default function Sidebar() {
       </Link>
 
       <nav className="flex-1 px-3 space-y-0.5 mt-2 overflow-y-auto">
-        {navGroups.map(group => {
+        {groups.map(group => {
           const Icon = group.icon;
 
           if (group.type === 'single') {

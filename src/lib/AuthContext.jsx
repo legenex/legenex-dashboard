@@ -2,8 +2,24 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { ROLE_PRESETS, sanitizePermissions } from '@/lib/permissions';
 
 const AuthContext = createContext();
+
+// Resolve the effective permission map for a user record.
+// Falls back to their base_role preset when no explicit permissions object is stored.
+export function resolvePermissions(user) {
+  if (!user) return { role: null, perms: {} };
+  const role = user.base_role || (user.role === 'admin' ? 'admin' : 'manager');
+  let perms = {};
+  if (user.permissions) {
+    try { perms = JSON.parse(user.permissions) || {}; } catch { perms = {}; }
+  }
+  if (!perms || Object.keys(perms).length === 0) {
+    perms = { ...(ROLE_PRESETS[role]?.permissions || {}) };
+  }
+  return { role, perms: sanitizePermissions(role, perms) };
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -157,4 +173,17 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+// Access control hook: returns the current user's role and a can(key) checker.
+// Owner always passes. No user yet -> deny everything.
+export const usePermissions = () => {
+  const { user } = useAuth();
+  const { role, perms } = resolvePermissions(user);
+  const can = (key) => {
+    if (!user) return false;
+    if (role === 'owner') return true;
+    return !!perms[key];
+  };
+  return { role, perms, can };
 };

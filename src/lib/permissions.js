@@ -22,6 +22,7 @@ export const PERMISSION_GROUPS = [
   {
     group: 'Lead Distribution',
     items: [
+      { key: 'dist_dashboard', label: 'Dashboard' },
       { key: 'dist_campaigns', label: 'Campaigns' },
       { key: 'dist_verticals', label: 'Verticals' },
       { key: 'dist_buyers', label: 'Buyers' },
@@ -80,6 +81,73 @@ export const ROLE_PRESETS = {
   supplier: { label: 'Supplier', description: 'Own data only. No Lead Distribution, no Finances.', canDeleteOwner: false, permissions: only(['overview', 'leads_all', 'leads_sold', 'leads_unsold', 'reports', 'portal_access']) },
   buyer: { label: 'Buyer', description: 'Own data only. No Lead Distribution, no Finances.', canDeleteOwner: false, permissions: only(['overview', 'leads_all', 'leads_sold', 'reports', 'portal_access']) },
 };
+
+// Maps a route path to the permission key that gates it.
+// Settings tabs are gated by their ?tab= value (see PATH_TAB_KEYS below).
+export const PATH_KEYS = {
+  '/': 'overview',
+  '/leads': 'leads_all',
+  '/leads/sold': 'leads_sold',
+  '/leads/unsold': 'leads_unsold',
+  '/leads/disqualified': 'leads_disqualified',
+  '/leads/rejected': 'leads_rejected',
+  '/leads/queued': 'leads_queued',
+  '/distribution': 'dist_dashboard',
+  '/campaigns': 'dist_campaigns',
+  '/deliveries': 'dist_deliveries',
+  '/conversion-events': 'dist_conversion_events',
+  '/reports': 'reports',
+  '/finances': 'finances',
+  '/notifications': 'tools',
+  '/calculated-fields': 'tools',
+  '/verification': 'tools',
+  '/payload-tester': 'tools',
+  '/queue-recovery': 'leads_queued',
+  '/suppliers': 'dist_suppliers',
+  '/buyers': 'dist_buyers',
+};
+
+// Settings ?tab= value -> permission key.
+export const SETTINGS_TAB_KEYS = {
+  general: 'set_integrations',
+  users: 'set_users',
+  integrations: 'set_integrations',
+  'data-sources': 'set_data_sources',
+  fields: 'set_custom_fields',
+  'field-mapping': 'set_field_mapping',
+  apikeys: 'set_api_keys',
+  errors: 'set_error_logs',
+  knowledge: 'set_knowledge_base',
+  billing: 'set_billing',
+};
+
+// Resolve the permission key required for a given pathname + search string.
+export function keyForLocation(pathname, search) {
+  if (pathname === '/settings') {
+    const tab = new URLSearchParams(search || '').get('tab') || 'general';
+    return SETTINGS_TAB_KEYS[tab] || 'set_integrations';
+  }
+  // Detail routes fall under their list permission.
+  if (pathname.startsWith('/suppliers/')) return 'dist_suppliers';
+  if (pathname.startsWith('/buyers/')) return 'dist_buyers';
+  return PATH_KEYS[pathname] || null;
+}
+
+// First path a user with the given can(key) checker is allowed to land on.
+export function firstAllowedPath(can) {
+  const order = ['/', '/leads', '/leads/sold', '/leads/unsold', '/leads/disqualified',
+    '/leads/rejected', '/leads/queued', '/reports', '/distribution', '/campaigns', '/deliveries',
+    '/conversion-events', '/finances', '/notifications'];
+  for (const p of order) {
+    const key = PATH_KEYS[p];
+    if (key && can(key)) return p;
+  }
+  // Settings tabs as a last resort.
+  for (const [tab, key] of Object.entries(SETTINGS_TAB_KEYS)) {
+    if (can(key)) return `/settings?tab=${tab}`;
+  }
+  return null;
+}
 
 // Enforce partner restrictions regardless of ticked boxes.
 export function sanitizePermissions(baseRole, perms) {
