@@ -43,6 +43,13 @@ import PortalLeads from '@/pages/portal/PortalLeads';
 import PortalReturns from '@/pages/portal/PortalReturns';
 import PortalSettings from '@/pages/portal/PortalSettings';
 
+import SupplierPortalLayout from '@/components/supplierportal/SupplierPortalLayout';
+import SupplierPortalDashboard from '@/pages/supplierportal/SupplierPortalDashboard';
+import SupplierPortalLeads from '@/pages/supplierportal/SupplierPortalLeads';
+import SupplierPortalReturns from '@/pages/supplierportal/SupplierPortalReturns';
+import SupplierPortalApi from '@/pages/supplierportal/SupplierPortalApi';
+import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSettings';
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
@@ -77,6 +84,14 @@ const AuthenticatedApp = () => {
           <Route path="/portal/leads" element={<PortalLeads />} />
           <Route path="/portal/returns" element={<PortalReturns />} />
           <Route path="/portal/settings" element={<PortalSettings />} />
+        </Route>
+        {/* Supplier (Source) portal: separate shell, supplier-scoped. Not wrapped by the operator AppLayout. */}
+        <Route element={<SupplierPortalLayout />}>
+          <Route path="/supplier-portal" element={<SupplierPortalDashboard />} />
+          <Route path="/supplier-portal/leads" element={<SupplierPortalLeads />} />
+          <Route path="/supplier-portal/returns" element={<SupplierPortalReturns />} />
+          <Route path="/supplier-portal/api" element={<SupplierPortalApi />} />
+          <Route path="/supplier-portal/settings" element={<SupplierPortalSettings />} />
         </Route>
         <Route element={<AppLayout />}>
           <Route element={<PermissionRoute />}>

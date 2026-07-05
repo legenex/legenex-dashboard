@@ -166,7 +166,7 @@ export default function SupplierDetail() {
               <Switch checked={!!supplier.portal_enabled} onCheckedChange={togglePortal} />
             </div>
             <div className="mt-4 pt-4 border-t border-border">
-              <Button variant="outline" size="sm" className="gap-1.5" disabled={!supplier.portal_enabled} onClick={() => toast.info('Portal preview coming soon')}>
+              <Button variant="outline" size="sm" className="gap-1.5" disabled={!supplier.portal_enabled} onClick={() => navigate(`/supplier-portal?supplier_id=${supplier.id}`)}>
                 <ExternalLink className="w-3.5 h-3.5" /> Preview Portal
               </Button>
             </div>

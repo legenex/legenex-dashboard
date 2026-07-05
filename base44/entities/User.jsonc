@@ -29,6 +29,10 @@
       "type": "string",
       "description": "For buyer-role users: the id of the Buyer record their portal is scoped to"
     },
+    "linked_supplier_id": {
+      "type": "string",
+      "description": "For supplier-role users: the id of the Supplier record their portal is scoped to"
+    },
     "timezone": {
       "type": "string",
       "description": "User's preferred timezone (IANA name), set from the Profile settings page"
