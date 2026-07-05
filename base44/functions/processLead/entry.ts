@@ -1740,12 +1740,36 @@ Deno.serve(async (req) => {
       supplierResponse = { ...supplierResponse, revenue: capturedRevenue.toFixed(2) };
     }
 
+    // ── Build the layered envelope from the resolved legacy response ──────
+    // resolveResponseMapping may have changed the Response label and, for an
+    // Error, the finalStatus. Keep envelope lead_status/acceptance in sync.
+    if (finalStatus === 'Sold') { envLeadStatus = 'sold'; envAcceptance = 'accepted'; envSold = true; envCode = 'SOLD'; }
+    else if (finalStatus === 'Unsold') { envLeadStatus = 'unsold'; envAcceptance = 'accepted'; if (envCode === 'LB_ERROR') envCode = 'UNSOLD'; }
+    else if (finalStatus === 'Duplicate') { envLeadStatus = 'duplicate'; envAcceptance = 'duplicate'; envCode = 'DUPLICATE'; }
+    else if (finalStatus === 'Queued') { envLeadStatus = 'queued'; envAcceptance = 'queued'; }
+    else if (finalStatus === 'Error') { envLeadStatus = 'error'; envAcceptance = 'error'; envCode = 'LB_ERROR'; }
+
+    const finalEnvelope = buildEnvelope(traceId, {
+      ok: envAcceptance === 'accepted' || envAcceptance === 'queued' || envAcceptance === 'duplicate',
+      acceptance: envAcceptance,
+      lead_id: systemLeadId,
+      lead_status: envLeadStatus,
+      sold: envSold,
+      revenue: envSold ? capturedRevenue : null,
+      code: envCode,
+      reason: supplierResponse.reason || null,
+      message: supplierResponse.reason || supplierResponse.Response || finalStatus,
+      Response: supplierResponse.Response,
+    });
+    // Preserve the exposed revenue string on the envelope when present.
+    if (supplierResponse.revenue != null) finalEnvelope.revenue_exposed = supplierResponse.revenue;
+
     // ── FINALIZE ─────────────────────────────────────────────────────────
     await db.entities.Lead.update(leadId, {
       final_status: finalStatus,
       processed_at: new Date().toISOString(),
       process_time_ms: Date.now() - startTime,
-      response_returned: JSON.stringify(supplierResponse),
+      response_returned: JSON.stringify(finalEnvelope),
     });
 
     // Fire outbound webhooks async (non-blocking)
@@ -1765,17 +1789,22 @@ Deno.serve(async (req) => {
       });
     } catch {}
 
-    return Response.json(supplierResponse, { status: 200 });
+    return Response.json(finalEnvelope, { status: 200 });
 
   } catch (err) {
     console.error('processLead uncaught error:', err);
+    const errorEnvelope = buildEnvelope(traceId, {
+      ok: false, acceptance: 'error', lead_id: null, lead_status: 'error',
+      code: 'INTERNAL_ERROR', reason: 'Internal processing error',
+      message: 'Internal processing error', Response: 'Error',
+    });
     if (leadId) {
       try {
         await db.entities.Lead.update(leadId, {
           final_status: 'Error', error_stage: 'system',
           processed_at: new Date().toISOString(),
           process_time_ms: Date.now() - startTime,
-          response_returned: JSON.stringify({ Response: 'Error', reason: 'Internal processing error' }),
+          response_returned: JSON.stringify(errorEnvelope),
         });
       } catch {}
     }
@@ -1787,6 +1816,6 @@ Deno.serve(async (req) => {
         supplier_name: 'Unknown',
       });
     } catch {}
-    return Response.json({ Response: 'Error', reason: 'Internal processing error' }, { status: 200 });
+    return Response.json(errorEnvelope, { status: 200 });
   }
 });
