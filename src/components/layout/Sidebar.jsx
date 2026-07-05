@@ -209,7 +209,6 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
-        <ViewAsSwitcher />
         <button
           onClick={() => {
             const labels = groups.filter(g => g.type === 'dropdown').map(g => g.label);
@@ -228,6 +227,7 @@ export default function Sidebar() {
             );
           })()}
         </button>
+        <ViewAsSwitcher />
         <SidebarProfile />
         <div className="text-[11px] text-muted-foreground text-center">v1.0.1</div>
       </div>
