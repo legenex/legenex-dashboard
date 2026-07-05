@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import ViewAsSwitcher from './ViewAsSwitcher';
 import SidebarProfile from './SidebarProfile';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 const navGroups = [
   { label: 'Overview', icon: LayoutDashboard, path: '/', type: 'single', permKey: 'overview' },
@@ -117,6 +118,7 @@ export default function Sidebar() {
     ? 'https://media.base44.com/images/public/6a363ed8bf1b77641238d41d/f9cc21785_LogoWideLightClear.png'
     : 'https://media.base44.com/images/public/6a4957e7b03e9b10c170d29e/9eecce577_Logo-Wide-Dark-Clear.png';
   const groups = filterNav(navGroups, can);
+  const { width, startResize } = useSidebarWidth();
   const [openGroups, setOpenGroups] = useState(() => loadOpenGroups(location));
 
   useEffect(() => {
@@ -128,8 +130,8 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[248px] bg-sidebar flex flex-col border-r border-sidebar-border z-50"
-      style={{ borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}>
+    <aside className="fixed left-0 top-0 bottom-0 bg-sidebar flex flex-col border-r border-sidebar-border z-50"
+      style={{ width: `${width}px`, borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}>
 
       <Link to="/" className="flex items-center px-5 py-6">
         <img src={logoSrc} alt="Legenex DashFlo" className="h-10 w-auto max-w-full object-contain" />
@@ -226,6 +228,15 @@ export default function Sidebar() {
         </button>
         <SidebarProfile />
         <div className="text-[11px] text-muted-foreground text-center">v1.0.0</div>
+      </div>
+
+      {/* Drag handle — hover the right edge to resize the sidebar */}
+      <div
+        onMouseDown={startResize}
+        title="Drag to resize"
+        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize group z-10"
+      >
+        <div className="absolute inset-y-0 right-0 w-px bg-transparent group-hover:bg-primary/60 transition-colors" />
       </div>
     </aside>
   );
