@@ -33,8 +33,8 @@ export default function ReportFilterBar({ value, onChange, options }) {
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mb-5 p-3 bg-card border border-border rounded-[10px]">
-      <Filter className="w-4 h-4 text-muted-foreground" />
+    <div className="flex flex-wrap items-center gap-2 mb-5 px-4 py-3 rounded-xl border border-border bg-card shadow-[0_12px_32px_-16px_rgba(0,0,0,0.4)]">
+      <Filter className="w-4 h-4 text-muted-foreground/70" />
       <Input type="date" value={value.date_from || ''} onChange={e => set('date_from', e.target.value)} className="h-8 w-[140px] bg-background text-[12px]" />
       <span className="text-muted-foreground text-[12px]">to</span>
       <Input type="date" value={value.date_to || ''} onChange={e => set('date_to', e.target.value)} className="h-8 w-[140px] bg-background text-[12px]" />
@@ -58,7 +58,7 @@ export default function ReportFilterBar({ value, onChange, options }) {
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button size="sm" variant="outline" className="h-8 gap-1 text-[12px]"><Plus className="w-3.5 h-3.5" /> Add Filter</Button>
+          <Button size="sm" variant="ghost" className="h-8 gap-1 text-[12px] text-primary hover:text-primary"><Plus className="w-3.5 h-3.5" /> Add Filter</Button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-1 bg-popover border-border" align="end">
           {OPTIONAL_FILTERS.filter(f => !extra.includes(f.key)).map(f => (

@@ -90,7 +90,7 @@ export default function PerformanceCanvas({
               ))}
               {prov.placeholder}
               <button onClick={() => setPickCard(true)}
-                className="border border-dashed border-border rounded-[10px] flex flex-col items-center justify-center gap-1 min-h-[104px] text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+                className="border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 min-h-[104px] text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors">
                 <Plus className="w-5 h-5" /><span className="text-[12px]">Add Card</span>
               </button>
             </div>
@@ -116,7 +116,7 @@ export default function PerformanceCanvas({
           />
         ))}
         <button onClick={() => setPickWidget(true)}
-          className="border border-dashed border-border rounded-[10px] flex flex-col items-center justify-center gap-1 min-h-[160px] text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+          className="border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 min-h-[160px] text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors">
           <Plus className="w-6 h-6" /><span className="text-[13px]">Add Widget</span>
         </button>
       </div>
