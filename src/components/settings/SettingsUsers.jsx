@@ -60,9 +60,10 @@ export default function SettingsUsers() {
     setInviting(true);
     const finalPerms = sanitizePermissions(baseRole, perms);
     await base44.users.inviteUser(email, baseRole === 'owner' || baseRole === 'admin' ? 'admin' : 'user');
-    // Provision the User record immediately with the service role so invited
-    // users appear in the table before they accept and log in.
-    await base44.functions.invoke('upsertInvitedUser', {
+    // Record a pending Invitation row so the invited person shows in the table
+    // as "Pending" before they accept and log in. Once they log in they get a
+    // real User record and the row flips to "Active" automatically.
+    await base44.functions.invoke('recordInvitation', {
       email,
       base_role: baseRole,
       permissions: JSON.stringify(finalPerms),
@@ -87,8 +88,13 @@ export default function SettingsUsers() {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    await base44.entities.User.delete(deleteTarget.id);
-    toast.success('User removed');
+    if (deleteTarget.status === 'pending') {
+      await base44.functions.invoke('cancelInvitation', { invitation_id: deleteTarget.invitation_id });
+      toast.success('Invitation cancelled');
+    } else {
+      await base44.entities.User.delete(deleteTarget.id);
+      toast.success('User removed');
+    }
     setDeleteTarget(null);
     qc.invalidateQueries({ queryKey: ['users'] });
   };
