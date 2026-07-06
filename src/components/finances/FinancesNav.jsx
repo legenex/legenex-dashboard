@@ -2,7 +2,7 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { LayoutDashboard, Landmark, FileText, CreditCard, Wallet, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Landmark, FileText, CreditCard, Wallet, Megaphone, Settings2 } from 'lucide-react';
 import { usePermissions } from '@/lib/AuthContext';
 import SubNavShell from '@/components/layout/SubNavShell';
 
@@ -13,6 +13,7 @@ const ITEMS = [
   { label: 'Buyer Payments', tab: 'payments', icon: CreditCard },
   { label: 'Supplier Payouts', tab: 'payouts', icon: Wallet },
   { label: 'Ad Spend', tab: 'adspend', icon: Megaphone },
+  { label: 'Settings', tab: 'settings', icon: Settings2 },
 ];
 
 // Left sub-sidebar for the Finances section. Drives the ?tab= query param.
