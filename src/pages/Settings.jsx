@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import SectionShell from '@/components/layout/SectionShell';
 import SettingsNav from '@/components/settings/SettingsNav';
 import SettingsShell from '@/components/settings/SettingsShell';
+import SettingsErrorBoundary from '@/components/settings/SettingsErrorBoundary';
 import SettingsGeneral from '@/components/settings/SettingsGeneral';
 import SettingsUsers from '@/components/settings/SettingsUsers';
 import SettingsIntegrations from '@/components/settings/SettingsIntegrations';
@@ -63,7 +64,9 @@ export default function Settings() {
   return (
     <SectionShell nav={<SettingsNav groups={NAV} active={tab} onSelect={setTab} />}>
       <SettingsShell title={panel.title} subtitle={panel.subtitle}>
-        {panel.node}
+        <SettingsErrorBoundary key={tab}>
+          {panel.node}
+        </SettingsErrorBoundary>
       </SettingsShell>
     </SectionShell>
   );
