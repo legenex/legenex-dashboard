@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { isWithinInterval } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -17,12 +18,16 @@ import { StatChip } from '@/components/finances/financeUi';
 
 const n = (v) => { const x = Number(v); return isNaN(x) ? 0 : x; };
 
-export default function SupplierPayoutsTab({ suppliers = [], leads = [], adSpend = [] }) {
+export default function SupplierPayoutsTab({ suppliers = [], leads = [], adSpend = [], win }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ supplier_name: '', amount: '', lead_count: '', status: 'draft' });
 
-  const { data: payouts = [] } = useQuery({ queryKey: ['supplier-payouts'], queryFn: () => base44.entities.SupplierPayout.list('-created_date', 500) });
+  const { data: allPayouts = [] } = useQuery({ queryKey: ['supplier-payouts'], queryFn: () => base44.entities.SupplierPayout.list('-created_date', 500) });
+  const inWin = (d) => !win || (d && isWithinInterval(new Date(d), { start: win.start, end: win.end }));
+  const payouts = useMemo(() => allPayouts.filter(p => inWin(p.created_date)), [allPayouts, win]);
+  const winLeads = useMemo(() => leads.filter(l => inWin(l.created_date)), [leads, win]);
+  const winSpend = useMemo(() => adSpend.filter(a => inWin(a.date)), [adSpend, win]);
 
   // Per-supplier reconciliation: declared cost (lead cost), ad spend, true cost, payouts issued/paid/owing.
   const rows = useMemo(() => {
@@ -31,15 +36,15 @@ export default function SupplierPayoutsTab({ suppliers = [], leads = [], adSpend
       ...payouts.map(p => p.supplier_name),
     ].filter(Boolean));
     return Array.from(names).map(name => {
-      const sLeads = leads.filter(l => l.supplier_name === name);
+      const sLeads = winLeads.filter(l => l.supplier_name === name);
       const declaredCost = sLeads.reduce((a, l) => a + n(l.cost), 0);
-      const spend = adSpend.filter(a => a.supplier_name === name).reduce((a, r) => a + n(r.spend), 0);
+      const spend = winSpend.filter(a => a.supplier_name === name).reduce((a, r) => a + n(r.spend), 0);
       const sPayouts = payouts.filter(p => p.supplier_name === name);
       const issued = sPayouts.reduce((a, p) => a + n(p.amount), 0);
       const paid = sPayouts.reduce((a, p) => a + n(p.paid_amount), 0);
       return { name, declaredCost, spend, trueCost: declaredCost + spend, issued, paid, owing: Math.max(0, issued - paid) };
     }).filter(r => r.declaredCost > 0 || r.spend > 0 || r.issued > 0).sort((a, b) => b.trueCost - a.trueCost);
-  }, [suppliers, leads, adSpend, payouts]);
+  }, [suppliers, winLeads, winSpend, payouts]);
 
   const owing = rows.reduce((a, r) => a + r.owing, 0);
   const paidTotal = rows.reduce((a, r) => a + r.paid, 0);
