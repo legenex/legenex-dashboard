@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { isWithinInterval } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,14 +29,15 @@ const STATUS_STYLE = {
   overdue: 'bg-status-unsold status-unsold', paid: 'bg-status-sold status-sold', void: 'text-muted-foreground',
 };
 
-export default function InvoicesTab({ buyers }) {
+export default function InvoicesTab({ buyers, win }) {
   const qc = useQueryClient();
   const fileRef = useRef();
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ buyer_id: '', amount: '', lead_count: '', status: 'draft', period_end: '' });
 
-  const { data: invoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
+  const { data: allInvoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
+  const invoices = useMemo(() => (win ? allInvoices.filter(i => i.created_date && isWithinInterval(new Date(i.created_date), { start: win.start, end: win.end })) : allInvoices), [allInvoices, win]);
 
   const buyerName = (id) => buyers.find(b => b.id === id)?.company_name || '-';
   const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter);
@@ -55,7 +57,7 @@ export default function InvoicesTab({ buyers }) {
 
   const create = async () => {
     if (!form.buyer_id || !form.amount) { toast.error('Buyer and amount are required'); return; }
-    const num = invoices.length + 1;
+    const num = allInvoices.length + 1;
     await base44.entities.Invoice.create({
       buyer_id: form.buyer_id, invoice_number: `INV-${String(num).padStart(4, '0')}`,
       amount: Number(form.amount) || 0, lead_count: Number(form.lead_count) || 0, status: form.status, period_end: form.period_end || undefined,
@@ -77,7 +79,7 @@ export default function InvoicesTab({ buyers }) {
         } } } } },
       });
       const rows = res?.output?.rows || res?.output || [];
-      let n = invoices.length;
+      let n = allInvoices.length;
       const clean = (Array.isArray(rows) ? rows : []).map(r => {
         n++;
         const b = buyers.find(x => x.company_name?.toLowerCase() === String(r.buyer_name || '').toLowerCase());
