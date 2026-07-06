@@ -384,14 +384,31 @@ export default function CustomCalculations() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-2">
             <div className="lg:col-span-2 space-y-4">
             <div className="space-y-1.5">
-              <Label>Input Field</Label>
+              <Label>Calculated Field Type</Label>
               <SearchableSelect
-                value={form.input_field}
-                onValueChange={v => setF('input_field', v)}
-                options={inboundFields.map(f => ({ value: f.field_name, label: f.label || f.field_name }))}
-                placeholder="Select field…"
+                value={form.transform_type}
+                onValueChange={v => setF('transform_type', v)}
+                options={[
+                  { value: 'date_age_bucket', label: 'Date Transformer' },
+                  { value: 'conditional', label: 'Conditional' },
+                  { value: 'value_map', label: 'Value Map' },
+                  { value: 'clone', label: 'Clone' },
+                  { value: 'script', label: 'Script' },
+                ]}
               />
             </div>
+
+            {['date_age_bucket', 'value_map', 'clone', 'script'].includes(form.transform_type) && (
+              <div className="space-y-1.5">
+                <Label>Input Field</Label>
+                <SearchableSelect
+                  value={form.input_field}
+                  onValueChange={v => setF('input_field', v)}
+                  options={inboundFields.map(f => ({ value: f.field_name, label: f.label || f.field_name }))}
+                  placeholder="Select field…"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -409,19 +426,13 @@ export default function CustomCalculations() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Transform Type</Label>
-              <SearchableSelect
-                value={form.transform_type}
-                onValueChange={v => setF('transform_type', v)}
-                options={[
-                  { value: 'date_age_bucket', label: 'Date Transformer' },
-                  { value: 'value_map', label: 'Value Map' },
-                  { value: 'clone', label: 'Clone' },
-                  { value: 'script', label: 'Script' },
-                ]}
-              />
-            </div>
+            {form.transform_type === 'conditional' && (
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="text-[13px] text-muted-foreground leading-relaxed">
+                  Conditional rules builder is set up in the next step.
+                </p>
+              </div>
+            )}
 
             {form.transform_type === 'date_age_bucket' && (
               <div className="space-y-3">
