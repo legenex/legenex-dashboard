@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fmtMoney } from '@/lib/overviewFinance';
 
@@ -16,6 +16,9 @@ const LABEL_TONE = {
 // Financial variance queue built from workbench.openGaps + unmatched income.
 export default function ActionQueueCard({ queue, onResolve, onDone }) {
   const { items, totalAtRisk } = queue;
+  const [expanded, setExpanded] = useState(false);
+  const PREVIEW = 5;
+  const visibleItems = expanded ? items : items.slice(0, PREVIEW);
   return (
     <div className="overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
@@ -37,7 +40,7 @@ export default function ActionQueueCard({ queue, onResolve, onDone }) {
           </div>
         )}
         <AnimatePresence initial={false}>
-          {items.map((item, i) => (
+          {visibleItems.map((item, i) => (
             <motion.div
               key={item.key}
               layout
@@ -63,6 +66,16 @@ export default function ActionQueueCard({ queue, onResolve, onDone }) {
           ))}
         </AnimatePresence>
       </div>
+      {items.length > PREVIEW && (
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          className="w-full px-5 py-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors border-t border-border flex items-center justify-center gap-1.5"
+        >
+          {expanded ? 'Show less' : `Show all ${items.length} variances`}
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
     </div>
   );
 }
