@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Panel } from '@/components/settings/settingsUi';
 import { Search, Filter, Plus, X, Save, Trash2 } from 'lucide-react';
 
 const DATE_RANGES = [
@@ -99,7 +100,7 @@ export default function LeadsFilterBar({
 
   return (
     <div className="mb-4 space-y-3">
-      <div className="flex items-center gap-3 flex-wrap">
+      <Panel className="p-3 flex items-center gap-3 flex-wrap" i={0}>
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -191,7 +192,7 @@ export default function LeadsFilterBar({
         )}
 
         <div className="text-[12px] text-muted-foreground ml-auto">{resultCount} leads</div>
-      </div>
+      </Panel>
 
       {showFilters && (
         <div className="bg-card border border-border rounded-[10px] p-4 space-y-2">

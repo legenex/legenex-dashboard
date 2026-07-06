@@ -1,18 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import SectionHeader from '@/components/shared/SectionHeader';
 import ErrorStatusPill from '@/components/leads/ErrorStatusPill';
 import StatusPill from '@/components/shared/StatusPill';
 import LeadDetailModal from '@/components/leads/LeadDetailModal';
 import LeadsFilterBar from '@/components/leads/LeadsFilterBar';
+import LeadsShell from '@/components/leads/LeadsShell';
 import BulkActionBar from '@/components/leads/BulkActionBar';
-import ColumnManager from '@/components/leads/ColumnManager';
-import { Button } from '@/components/ui/button';
+import { Panel, Tag, riseIn } from '@/components/settings/settingsUi';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import RefreshButton from '@/components/shared/RefreshButton';
-import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfMonth, subDays, subMonths, isAfter } from 'date-fns';
 import { processLead } from '@/functions/processLead';
@@ -303,6 +301,15 @@ export default function LeadsTable({ view }) {
     });
   }, [leads, view, dateRange, customDate, customFilters, search, statusFilter, supplierFilter, sourceFilter]);
 
+  // Real telemetry for the shell footer, computed across all loaded leads.
+  const telemetry = useMemo(() => ({
+    total: leads.length,
+    sold: leads.filter(l => l.final_status === 'Sold').length,
+    queued: leads.filter(l => l.final_status === 'Queued').length,
+    errors: leads.filter(l => l.final_status === 'Error').length,
+    lastLeadAt: leads[0]?.created_date || null,
+  }), [leads]);
+
   const exportCSV = () => {
     const cols = columns;
     const headers = cols.map(c => getColumnDef(c.key, customFields)?.header || c.key);
@@ -433,18 +440,17 @@ export default function LeadsTable({ view }) {
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0">
-      <SectionHeader title={config.title} subtitle={config.subtitle}>
-        <RefreshButton onClick={() => qc.invalidateQueries()} />
-        <ColumnManager
-          config={columnConfig}
-          availableColumns={availableColumns}
-          onChange={setColumnConfig}
-        />
-        <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
-          <Download className="w-4 h-4" /> Export CSV
-        </Button>
-      </SectionHeader>
+    <LeadsShell
+      title={config.title}
+      subtitle={config.subtitle}
+      count={filtered.length}
+      onRefresh={() => qc.invalidateQueries()}
+      onExport={exportCSV}
+      columnConfig={columnConfig}
+      availableColumns={availableColumns}
+      onColumnChange={setColumnConfig}
+      telemetry={telemetry}
+    >
       <div className="shrink-0">
 
       <LeadsFilterBar
@@ -485,7 +491,7 @@ export default function LeadsTable({ view }) {
       />
       </div>
 
-      <div className="flex-1 min-h-0 bg-card border border-border rounded-[10px] overflow-auto">
+      <Panel className="flex-1 min-h-0 overflow-auto" i={1}>
           <table className="w-full text-[13px]">
             <thead>
               <tr className="border-b border-border bg-muted sticky top-0 z-10">
@@ -524,9 +530,13 @@ export default function LeadsTable({ view }) {
               {!isLoading && filtered.length === 0 && (
                 <tr><td colSpan={columns.length + 1} className="px-4 py-8 text-center text-muted-foreground">No leads found</td></tr>
               )}
-              {filtered.map(lead => (
-                <tr
+              {filtered.map((lead, idx) => (
+                <motion.tr
                   key={lead.id}
+                  variants={riseIn}
+                  initial="hidden"
+                  animate="show"
+                  custom={Math.min(idx, 20)}
                   className="hover:bg-accent/50 transition-colors cursor-pointer"
                   onClick={() => openLeadDetail(lead)}
                 >
@@ -541,6 +551,14 @@ export default function LeadsTable({ view }) {
                     const def = getColumnDef(col.key, customFields);
                     const widthStyle = col.width ? { width: `${col.width}px`, minWidth: `${col.width}px` } : undefined;
                     if (!def) return <td key={col.key} className="px-4 py-3" style={widthStyle}>-</td>;
+                    if (col.key === 'vertical') {
+                      const v = def.accessor(lead);
+                      return (
+                        <td key={col.key} className="px-4 py-3" style={widthStyle}>
+                          {v && v !== '-' ? <Tag tone="good">{v}</Tag> : <span className="text-muted-foreground">-</span>}
+                        </td>
+                      );
+                    }
                     if (col.key === 'finalStatus') {
                       return (
                         <td key={col.key} className="px-4 py-3" style={widthStyle}>
@@ -574,11 +592,11 @@ export default function LeadsTable({ view }) {
                       </td>
                     );
                   })}
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
-      </div>
+      </Panel>
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent className="bg-popover border-border">
@@ -603,6 +621,6 @@ export default function LeadsTable({ view }) {
         onClose={() => setSelectedLead(null)}
         initialTab={initialTab}
       />
-    </div>
+    </LeadsShell>
   );
 }
