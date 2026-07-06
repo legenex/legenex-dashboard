@@ -12,6 +12,7 @@ import ReportFilterBar from '@/components/reports/ReportFilterBar';
 import PerformanceCanvas, { makeDefaultCards, makeDefaultWidgets } from '@/components/reports/PerformanceCanvas';
 import DailyReport from '@/components/reports/views/DailyReport';
 import PnlReport from '@/components/reports/views/PnlReport';
+import AdReport from '@/components/reports/views/AdReport';
 import SectionShell from '@/components/layout/SectionShell';
 import SectionHeader from '@/components/shared/SectionHeader';
 
@@ -34,6 +35,8 @@ export default function Reports() {
   const { data: leads = [] } = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
   const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
   const { data: bankTx = [] } = useQuery({ queryKey: ['report-banktx'], queryFn: () => base44.entities.BankTransaction.list('-date', 2000) });
+  const { data: adMappings = [] } = useQuery({ queryKey: ['report-admappings'], queryFn: () => base44.entities.AdSpendMapping.list() });
+  const { data: integrations = [] } = useQuery({ queryKey: ['report-integrations'], queryFn: () => base44.entities.IntegrationConfig.list() });
   const { data: reports = [] } = useQuery({ queryKey: ['reports'], queryFn: () => base44.entities.Report.filter({ group: 'custom' }, 'sort_order') });
   const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('sort_order') });
   const { data: campaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list() });
@@ -141,6 +144,8 @@ export default function Reports() {
         <DailyReport leads={leads} adSpend={adSpend} filters={effectiveFilters} />
       ) : active === 'std:pnl' ? (
         <PnlReport leads={leads} adSpend={adSpend} bankTx={bankTx} filters={effectiveFilters} />
+      ) : active === 'std:ad' ? (
+        <AdReport adSpend={adSpend} adMappings={adMappings} integrations={integrations} leads={leads} filters={effectiveFilters} />
       ) : (
         <PerformanceCanvas
           leads={leads}
