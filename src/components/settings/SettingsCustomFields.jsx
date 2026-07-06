@@ -11,7 +11,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Copy, Trash2, Edit2, Wand2, GripVertical, Sparkles, CheckCheck, Ban, ArrowDownUp } from 'lucide-react';
+import { Plus, Copy, Trash2, Edit2, Wand2, GripVertical, Sparkles, CheckCheck, Ban, ArrowDownUp, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportFieldsDialog from '@/components/settings/ImportExportFieldsDialog';
 
@@ -46,6 +46,7 @@ export default function SettingsCustomFields() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [importExportOpen, setImportExportOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   const { data: fields = [] } = useQuery({
     queryKey: ['custom-fields'],
@@ -75,6 +76,15 @@ export default function SettingsCustomFields() {
   }, [fields]);
 
   const autoCount = fields.filter(f => f.auto_created).length;
+
+  const q = search.trim().toLowerCase();
+  const visibleFields = q
+    ? orderedFields.filter(f =>
+        (f.label || '').toLowerCase().includes(q) ||
+        (f.field_name || '').toLowerCase().includes(q) ||
+        (f.leadbyte_field_name || '').toLowerCase().includes(q)
+      )
+    : orderedFields;
 
   const openCreate = () => { setForm(BLANK_FIELD); setEditingId(null); setEditModal(true); };
 
@@ -262,6 +272,16 @@ export default function SettingsCustomFields() {
         </div>
       </div>
 
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search fields by label, token or LB key..."
+          className="pl-9 bg-background"
+        />
+      </div>
+
       {autoCount > 0 && (
         <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
           <Sparkles className="w-4 h-4 text-primary shrink-0" />
@@ -299,11 +319,13 @@ export default function SettingsCustomFields() {
                   {...provided.droppableProps}
                   className="divide-y divide-border"
                 >
-                  {orderedFields.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No fields yet. Add fields manually or detect from a sample payload.</td></tr>
+                  {visibleFields.length === 0 && (
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                      {q ? `No fields match "${search.trim()}".` : 'No fields yet. Add fields manually or detect from a sample payload.'}
+                    </td></tr>
                   )}
-                  {orderedFields.map((f, index) => (
-                    <Draggable key={f.id} draggableId={f.id} index={index}>
+                  {visibleFields.map((f, index) => (
+                    <Draggable key={f.id} draggableId={f.id} index={index} isDragDisabled={!!q}>
                       {(provided, snapshot) => (
                         <tr
                           ref={provided.innerRef}
@@ -314,7 +336,7 @@ export default function SettingsCustomFields() {
                             <Checkbox checked={selectedIds.has(f.id)} onCheckedChange={() => toggleSelect(f.id)} />
                           </td>
                           <td className="px-2 py-2.5 w-8">
-                            <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
+                            <div {...provided.dragHandleProps} className={`text-muted-foreground hover:text-foreground ${q ? 'opacity-30 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}>
                               <GripVertical className="w-4 h-4" />
                             </div>
                           </td>
