@@ -12,6 +12,9 @@ import SupplierPayoutsTab from '@/components/finances/SupplierPayoutsTab';
 import AdSpendTab from '@/components/finances/AdSpendTab';
 import { unmatched, reconcile, workbench } from '@/lib/financeMetrics';
 import { usePermissions } from '@/lib/AuthContext';
+import DateRangeFilter from '@/components/shared/DateRangeFilter';
+import { resolvePeriod } from '@/lib/periodRange';
+import { isWithinInterval } from 'date-fns';
 
 // Per-tab title + subtitle for the FinanceShell header.
 const TAB_META = {
