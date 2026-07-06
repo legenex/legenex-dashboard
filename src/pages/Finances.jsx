@@ -98,13 +98,19 @@ export default function Finances() {
   };
 
   return (
-    <FinanceShell tabName={meta.name} subtitle={meta.subtitle} telemetry={telemetry} onRefresh={refresh}>
-      {tab === 'overview' && <ReconciliationTab data={reconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />}
-      {tab === 'bank' && canBank && <BankFeedTab />}
-      {tab === 'invoices' && <InvoicesTab buyers={buyers} />}
-      {tab === 'payments' && <BuyerPaymentsTab buyers={buyers} />}
-      {tab === 'payouts' && <SupplierPayoutsTab suppliers={suppliers} leads={leads} adSpend={adSpend} />}
-      {tab === 'adspend' && <AdSpendTab />}
+    <FinanceShell
+      tabName={meta.name}
+      subtitle={meta.subtitle}
+      telemetry={telemetry}
+      onRefresh={refresh}
+      filter={<DateRangeFilter period={period} custom={custom} onPeriodChange={setPeriod} onCustomChange={setCustom} />}
+    >
+      {tab === 'overview' && <ReconciliationTab data={scopedReconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />}
+      {tab === 'bank' && canBank && <BankFeedTab win={win} />}
+      {tab === 'invoices' && <InvoicesTab buyers={buyers} win={win} />}
+      {tab === 'payments' && <BuyerPaymentsTab buyers={buyers} win={win} />}
+      {tab === 'payouts' && <SupplierPayoutsTab suppliers={suppliers} leads={leads} adSpend={adSpend} win={win} />}
+      {tab === 'adspend' && <AdSpendTab win={win} />}
     </FinanceShell>
   );
 }
