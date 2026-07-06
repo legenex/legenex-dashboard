@@ -232,6 +232,17 @@ export default function Leads() {
             ...suppliers.map(s => ({ value: s, label: s })),
           ]}
         />
+        {brands.length > 0 && (
+          <SearchableSelect
+            value={brandFilter}
+            onValueChange={setBrandFilter}
+            className="w-[140px] bg-card border-border"
+            options={[
+              { value: 'all', label: 'All Brands' },
+              ...brands.map(b => ({ value: b, label: b })),
+            ]}
+          />
+        )}
         <div className="text-[12px] text-muted-foreground">{filtered.length} leads</div>
       </div>
 
@@ -270,7 +281,7 @@ export default function Leads() {
               {!isLoading && filtered.length === 0 && (
                 <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No leads found</td></tr>
               )}
-              {filtered.map(lead => {
+              {paged.map(lead => {
                 const isSelected = visibleSelectedIds.has(lead.id);
                 return (
                   <tr
@@ -310,6 +321,30 @@ export default function Leads() {
           </table>
         </div>
       </div>
+
+      {/* Pagination (client-side over the filtered set) */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+          <div className="text-[12px] text-muted-foreground">
+            Showing {(safePage - 1) * pageSize + 1}-{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
+          </div>
+          <div className="flex items-center gap-2">
+            <SearchableSelect
+              value={String(pageSize)}
+              onValueChange={(v) => setPageSize(Number(v))}
+              className="w-[120px] bg-card border-border"
+              options={[{ value: '25', label: '25 / page' }, { value: '50', label: '50 / page' }, { value: '100', label: '100 / page' }, { value: '200', label: '200 / page' }]}
+            />
+            <Button variant="outline" size="sm" className="gap-1" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+              <ChevronLeft className="w-4 h-4" /> Prev
+            </Button>
+            <span className="text-[12px] text-muted-foreground tabular-nums">Page {safePage} of {totalPages}</span>
+            <Button variant="outline" size="sm" className="gap-1" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+              Next <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <LeadDetailModal
         lead={selectedLead}
