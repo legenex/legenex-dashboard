@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '@/components/shared/PageHeader';
@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Download, Search, Inbox } from 'lucide-react';
+import { Download, Search, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { processLead } from '@/functions/processLead';
@@ -30,10 +30,13 @@ export default function Leads() {
   const [progress, setProgress] = useState(null);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [viewMode, setViewMode] = useState('all');
+  const [brandFilter, setBrandFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
-    queryFn: () => base44.entities.Lead.filter({ archived: false }, '-created_date', 500),
+    queryFn: () => base44.entities.Lead.filter({ archived: false }, '-created_date', 2000),
   });
 
   // Fetch error log entries to enrich error pills
@@ -52,11 +55,13 @@ export default function Leads() {
   }, [errorLogs]);
 
   const suppliers = [...new Set(leads.map(l => l.supplier_name).filter(Boolean))];
+  const brands = [...new Set(leads.map(l => l.brand || l.brand_code).filter(Boolean))];
 
   const filtered = leads.filter(l => {
     if (viewMode === 'queue' && l.final_status !== 'Queued' && l.final_status !== 'Duplicate') return false;
     if (statusFilter !== 'all' && l.final_status !== statusFilter) return false;
     if (supplierFilter !== 'all' && l.supplier_name !== supplierFilter) return false;
+    if (brandFilter !== 'all' && (l.brand || l.brand_code) !== brandFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       return (l.first_name || '').toLowerCase().includes(q)
@@ -67,6 +72,12 @@ export default function Leads() {
     }
     return true;
   });
+
+  // Pagination over the filtered set. Selection and bulk actions still span the full filtered set.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  useEffect(() => { setPage(1); }, [search, statusFilter, supplierFilter, brandFilter, viewMode, pageSize]);
 
   // Keep selection within the current filtered view
   const filteredIds = useMemo(() => new Set(filtered.map(l => l.id)), [filtered]);
