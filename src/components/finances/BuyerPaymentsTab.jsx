@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Plus, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
+import { Panel, THead, rise } from '@/components/finances/financeAtoms';
 
 export default function BuyerPaymentsTab({ buyers }) {
   const qc = useQueryClient();
@@ -36,24 +38,22 @@ export default function BuyerPaymentsTab({ buyers }) {
         ], payments)}><Download className="w-3.5 h-3.5" /> Export</Button>
         <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="w-3.5 h-3.5" /> Record Payment</Button>
       </div>
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
+      <Panel className="overflow-hidden">
         <table className="w-full text-[12px]">
-          <thead><tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase tracking-wider">
-            <th className="text-left px-4 py-2.5">Buyer</th><th className="text-left px-4 py-2.5">Method</th><th className="text-left px-4 py-2.5">Date</th><th className="text-right px-4 py-2.5">Amount</th>
-          </tr></thead>
-          <tbody className="divide-y divide-border">
+          <thead><THead cols={['Buyer', 'Method', 'Date', 'Amount']} alignRight={[3]} /></thead>
+          <tbody className="divide-y divide-border/60">
             {payments.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No payments recorded</td></tr>}
-            {payments.map(p => (
-              <tr key={p.id} className="hover:bg-accent/30">
-                <td className="px-4 py-2.5 text-foreground">{p.buyer_name}</td>
+            {payments.map((p, i) => (
+              <motion.tr key={p.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
+                <td className="px-4 py-2.5 text-foreground">{p.buyer_name || '-'}</td>
                 <td className="px-4 py-2.5"><Badge variant="outline" className="text-[10px]">{p.method}</Badge></td>
                 <td className="px-4 py-2.5 font-mono text-muted-foreground">{p.paid_date}</td>
-                <td className="px-4 py-2.5 text-right font-mono status-sold">{money(p.amount)}</td>
-              </tr>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums status-sold">{money(p.amount)}</td>
+              </motion.tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-popover border-border max-w-[400px]">

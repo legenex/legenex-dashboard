@@ -10,8 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Upload, Sparkles, Link2, ArrowDownUp, RefreshCw, CheckCircle2, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import { money } from '@/lib/reportMetrics';
 import { unmatched } from '@/lib/financeMetrics';
+import { StatChip, Panel, THead, rise } from '@/components/finances/financeAtoms';
 
 const CAT_STYLE = {
   tech: 'bg-status-qualified status-qualified', media: 'bg-status-queued status-queued',
@@ -52,7 +54,7 @@ export default function BankFeedTab() {
       const payload = JSON.stringify({ api_token: mForm.api_token.trim(), account_id: mForm.account_id.trim() || undefined });
       if (mercuryCfg?.id) await base44.entities.IntegrationConfig.update(mercuryCfg.id, { config: payload });
       else await base44.entities.IntegrationConfig.create({ name: 'mercury', config: payload });
-      toast.success('Mercury connected — pulling transactions…');
+      toast.success('Mercury connected, pulling transactions...');
       qc.invalidateQueries({ queryKey: ['mercury-config'] });
       setMercuryOpen(false);
       await runMercurySync();
@@ -128,19 +130,10 @@ export default function BankFeedTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div className="flex gap-3">
-          <div className="bg-card border border-border rounded-[10px] px-4 py-3">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Money In</div>
-            <div className="text-[18px] font-bold status-sold font-mono">{money(moneyIn)}</div>
-          </div>
-          <div className="bg-card border border-border rounded-[10px] px-4 py-3">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Money Out</div>
-            <div className="text-[18px] font-bold text-destructive font-mono">{money(moneyOut)}</div>
-          </div>
-          <div className="bg-card border border-border rounded-[10px] px-4 py-3">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Net</div>
-            <div className="text-[18px] font-bold text-foreground font-mono">{money(moneyIn + moneyOut)}</div>
-          </div>
+        <div className="grid grid-cols-3 gap-3 w-[420px]">
+          <StatChip label="Money In" value={money(moneyIn)} tone="good" i={0} />
+          <StatChip label="Money Out" value={money(moneyOut)} tone="risk" i={1} />
+          <StatChip label="Net" value={money(moneyIn + moneyOut)} i={2} />
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={importCsv} />
@@ -174,27 +167,23 @@ export default function BankFeedTab() {
         </div>
       )}
 
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
+      <Panel className="overflow-hidden">
         <table className="w-full text-[12px]">
-          <thead><tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase tracking-wider">
-            <th className="text-left px-4 py-2.5">Date</th><th className="text-left px-4 py-2.5">Description</th>
-            <th className="text-left px-4 py-2.5">Category</th><th className="text-left px-4 py-2.5">Matched</th>
-            <th className="text-right px-4 py-2.5">Amount</th>
-          </tr></thead>
-          <tbody className="divide-y divide-border">
+          <thead><THead cols={['Date', 'Description', 'Category', 'Matched', 'Amount']} alignRight={[4]} /></thead>
+          <tbody className="divide-y divide-border/60">
             {txns.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">No transactions yet. Connect Mercury or import a CSV.</td></tr>}
-            {txns.map(t => (
-              <tr key={t.id} className="hover:bg-accent/30">
+            {txns.map((t, i) => (
+              <motion.tr key={t.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
                 <td className="px-4 py-2.5 font-mono text-muted-foreground">{t.date}</td>
                 <td className="px-4 py-2.5 text-foreground truncate max-w-[280px]">{t.description || '-'}</td>
-                <td className="px-4 py-2.5">{t.category ? <Badge variant="outline" className={`text-[10px] ${CAT_STYLE[t.category] || ''}`}>{t.category}{t.ai_categorized ? ' ✦' : ''}</Badge> : <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{t.matched_entity_name || '—'}</td>
-                <td className={`px-4 py-2.5 text-right font-mono ${t.amount >= 0 ? 'status-sold' : 'text-destructive'}`}>{money(t.amount)}</td>
-              </tr>
+                <td className="px-4 py-2.5">{t.category ? <Badge variant="outline" className={`text-[10px] ${CAT_STYLE[t.category] || ''}`}>{t.category}{t.ai_categorized ? ' *' : ''}</Badge> : <span className="text-muted-foreground">-</span>}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{t.matched_entity_name || '-'}</td>
+                <td className={`px-4 py-2.5 text-right font-mono tabular-nums ${t.amount >= 0 ? 'status-sold' : 'text-destructive'}`}>{money(t.amount)}</td>
+              </motion.tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
 
       <Dialog open={mercuryOpen} onOpenChange={setMercuryOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">
@@ -206,7 +195,7 @@ export default function BankFeedTab() {
             <div>
               <Label className="text-[12px]">Mercury API Token</Label>
               <Input value={mForm.api_token} onChange={e => setMForm(p => ({ ...p, api_token: e.target.value }))} type="password" placeholder="secret-token-…" className="mt-1 bg-background font-mono text-[12px]" />
-              <p className="text-[11px] text-muted-foreground mt-1.5">Create a read token in Mercury → Settings → API tokens. Requires read access to transactions.</p>
+              <p className="text-[11px] text-muted-foreground mt-1.5">Create a read token in Mercury Settings, API tokens. Requires read access to transactions.</p>
             </div>
             <div>
               <Label className="text-[12px]">Account ID (optional)</Label>

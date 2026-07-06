@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import { money } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
+import { Panel, THead, rise } from '@/components/finances/financeAtoms';
 
 const SUB_FILTERS = [
   { key: 'all', label: 'All' },
@@ -34,7 +36,7 @@ export default function InvoicesTab({ buyers }) {
 
   const { data: invoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
 
-  const buyerName = (id) => buyers.find(b => b.id === id)?.company_name || '—';
+  const buyerName = (id) => buyers.find(b => b.id === id)?.company_name || '-';
   const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter);
 
   const create = async () => {
@@ -103,28 +105,24 @@ export default function InvoicesTab({ buyers }) {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
+      <Panel className="overflow-hidden">
         <table className="w-full text-[12px]">
-          <thead><tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase tracking-wider">
-            <th className="text-left px-4 py-2.5">Invoice</th><th className="text-left px-4 py-2.5">Buyer</th>
-            <th className="text-right px-4 py-2.5">Amount</th><th className="text-right px-4 py-2.5">Leads</th>
-            <th className="text-left px-4 py-2.5">Status</th><th className="text-right px-4 py-2.5">Action</th>
-          </tr></thead>
-          <tbody className="divide-y divide-border">
+          <thead><THead cols={['Invoice', 'Buyer', 'Amount', 'Leads', 'Status', 'Action']} alignRight={[2, 3, 5]} /></thead>
+          <tbody className="divide-y divide-border/60">
             {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No invoices</td></tr>}
-            {filtered.map(inv => (
-              <tr key={inv.id} className="hover:bg-accent/30">
+            {filtered.map((inv, i) => (
+              <motion.tr key={inv.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
                 <td className="px-4 py-2.5 font-mono">{inv.invoice_number}</td>
                 <td className="px-4 py-2.5 text-foreground">{buyerName(inv.buyer_id)}</td>
-                <td className="px-4 py-2.5 text-right font-mono">{money(inv.amount)}</td>
-                <td className="px-4 py-2.5 text-right font-mono">{inv.lead_count || 0}</td>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums">{money(inv.amount)}</td>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums">{inv.lead_count || 0}</td>
                 <td className="px-4 py-2.5"><Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[inv.status] || ''}`}>{inv.status}</Badge></td>
                 <td className="px-4 py-2.5 text-right">{inv.status !== 'paid' && <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => markPaid(inv)}>Mark Paid</Button>}</td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-popover border-border max-w-[420px]">

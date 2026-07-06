@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Plus, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
+import { Panel, THead, rise } from '@/components/finances/financeAtoms';
 
 const STATUS_STYLE = { draft: 'text-muted-foreground', issued: 'bg-status-queued status-queued', paid: 'bg-status-sold status-sold' };
 
@@ -43,27 +45,24 @@ export default function SupplierPayoutsTab({ suppliers }) {
         ], payouts)}><Download className="w-3.5 h-3.5" /> Export</Button>
         <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="w-3.5 h-3.5" /> New Payout</Button>
       </div>
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
+      <Panel className="overflow-hidden">
         <table className="w-full text-[12px]">
-          <thead><tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase tracking-wider">
-            <th className="text-left px-4 py-2.5">Supplier</th><th className="text-right px-4 py-2.5">Amount</th><th className="text-right px-4 py-2.5">Paid</th>
-            <th className="text-right px-4 py-2.5">Leads</th><th className="text-left px-4 py-2.5">Status</th><th className="text-right px-4 py-2.5">Action</th>
-          </tr></thead>
-          <tbody className="divide-y divide-border">
+          <thead><THead cols={['Supplier', 'Amount', 'Paid', 'Leads', 'Status', 'Action']} alignRight={[1, 2, 3, 5]} /></thead>
+          <tbody className="divide-y divide-border/60">
             {payouts.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No payouts</td></tr>}
-            {payouts.map(p => (
-              <tr key={p.id} className="hover:bg-accent/30">
+            {payouts.map((p, i) => (
+              <motion.tr key={p.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
                 <td className="px-4 py-2.5 text-foreground">{p.supplier_name}</td>
-                <td className="px-4 py-2.5 text-right font-mono">{money(p.amount)}</td>
-                <td className="px-4 py-2.5 text-right font-mono">{money(p.paid_amount)}</td>
-                <td className="px-4 py-2.5 text-right font-mono">{p.lead_count || 0}</td>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums">{money(p.amount)}</td>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums">{money(p.paid_amount)}</td>
+                <td className="px-4 py-2.5 text-right font-mono tabular-nums">{p.lead_count || 0}</td>
                 <td className="px-4 py-2.5"><Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[p.status] || ''}`}>{p.status}</Badge></td>
                 <td className="px-4 py-2.5 text-right">{p.status !== 'paid' && <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => markPaid(p)}>Mark Paid</Button>}</td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-popover border-border max-w-[400px]">
