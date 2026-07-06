@@ -277,7 +277,7 @@ export default function SettingsCustomFields() {
         <Input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search fields by label, token or LB key..."
+          placeholder="Search fields by label, name or token..."
           className="pl-9 bg-background"
         />
       </div>
@@ -306,7 +306,7 @@ export default function SettingsCustomFields() {
                 <Checkbox checked={selectedIds.size > 0 && selectedIds.size === orderedFields.length} onCheckedChange={toggleSelectAll} />
               </th>
               <th className="w-8 px-2" />
-              {['Label', 'Token (field_name)', 'Type', 'Required', 'LB Key', 'Notes', ''].map(h => (
+              {['Field Label', 'Token', 'Type', 'Required', 'Field Name', 'Tags', ''].map(h => (
                 <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
               ))}
             </tr>
