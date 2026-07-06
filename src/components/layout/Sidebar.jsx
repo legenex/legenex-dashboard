@@ -57,8 +57,9 @@ const navGroups = [
     ],
   },
   {
-    label: 'Operations', icon: SlidersHorizontal, type: 'dropdown', path: '/operations/buyers', permKey: 'operations',
+    label: 'Operations', icon: SlidersHorizontal, type: 'dropdown', path: '/operations', permKey: 'operations',
     children: [
+      { label: 'Dashboard', path: '/operations', permKey: 'operations' },
       { label: 'Buyers', path: '/operations/buyers', permKey: 'operations' },
       { label: 'Suppliers', path: '/operations/suppliers', permKey: 'operations' },
       { label: 'Active States', path: '/operations/active-states', permKey: 'operations' },
