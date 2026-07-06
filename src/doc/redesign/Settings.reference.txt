@@ -1,0 +1,67 @@
+// SETTINGS redesign reference (Performance OS). Prepared for a per-section build later.
+// Restyle the Settings page and its sub-pages to this design, PRESERVING all data, actions, auth, and the permission matrix.
+// Real data only, honest zeros, no mock/seed rows. No em dashes. Pipeline and portal scoping stay untouched.
+//
+// SIDE MENU (Settings rail): GROUPED, each group has a micro uppercase label (text-muted-foreground/70) then items.
+// ACTIVE item = soft-red pill (bg-primary/10, text-primary) + 2px inset primary left border. Bottom: a Gateway status
+// card with a PulseDot and "api.legenex.com - live" in green (live), from health/spec status. Note: no em dash in the label.
+// GROUPS + ITEMS (id -> real Settings tab, data):
+//   ACCOUNT:
+//     profile      Profile           current User record
+//     general      General           AppSettings
+//     users        Users and Roles   User list + permission matrix
+//   DATA:
+//     integrations Integrations      the existing SettingsIntegrations (already redesigned; keep its cards)
+//     datasources  Data Sources      LeadSource (google_sheets, ringba, truecall) + provisionLeadSource
+//     customfields Custom Fields     CustomField catalog
+//     fieldmapping Field Mapping     FieldMapping
+//     apikeys      API Keys          ApiKey (master/supplier, expose_revenue)
+//     errorlogs    Error Logs        ErrorLog
+//     knowledge    Knowledge Base    KnowledgeDoc
+//     billing      Billing and Plan  billing/plan
+// NOTE: the prototype labels this last item "Billing and Plan". Earlier the Settings nav item was renamed to
+//   "Financial". Confirm which label to keep when we build Settings (do not silently diverge).
+//
+// COLOR -> TOKEN MAP (never hardcode hex): #0A0E15 -> bg-background ; #131924/#182030 -> bg-card ;
+//   #243044 -> border-border ; #1C2536 -> border-border/60 ; #EEF2F8 -> text-foreground ;
+//   #8B95A8 -> text-muted-foreground ; #5A6478 -> text-muted-foreground/70 ; #E5484D -> primary ;
+//   #3DD68C -> status-sold ; #E8A33D -> status-unsold ; rail bg #0E131D -> bg-sidebar ; F2777B -> text-primary.
+// MOTION: rise-in stagger on cards/rows; hover lift; PulseDot on the Gateway card. framer-motion only if present, else CSS.
+
+const rise = {
+  hidden: { opacity: 0, y: 14 },
+  show: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: 0.05 * i, duration: 0.5, ease: [0.22, 1, 0.36, 1] } })
+};
+
+const PAGES = [
+  { group: "ACCOUNT", items: [
+    { id: "profile", label: "Profile" },
+    { id: "general", label: "General" },
+    { id: "users", label: "Users and Roles" }
+  ]},
+  { group: "DATA", items: [
+    { id: "integrations", label: "Integrations" },
+    { id: "datasources", label: "Data Sources" },
+    { id: "customfields", label: "Custom Fields" },
+    { id: "fieldmapping", label: "Field Mapping" },
+    { id: "apikeys", label: "API Keys" },
+    { id: "errorlogs", label: "Error Logs" },
+    { id: "knowledge", label: "Knowledge Base" },
+    { id: "billing", label: "Billing and Plan" }
+  ]}
+];
+
+// Toggle atom (Settings uses primary/red track when on): w-9 h-5 rounded-full, track = primary when on else border-border,
+//   white knob translateX(16px) when on. Input atom: label (text-foreground) + a read-style field (h-10, border-border,
+//   bg-background, font-mono when mono) showing value or placeholder + optional hint (text-muted-foreground/70).
+// Tag pill: token tints (slate/red/green/amber -> muted/primary/status-sold/status-unsold).
+
+// SUB-PAGE SPECS (each becomes its own build; wire to real data + keep auth and permission gating):
+// PROFILE: current user name, email, role, avatar; change password action. GENERAL: AppSettings fields (company,
+//   timezone, defaults) with Input atoms + save. USERS AND ROLES: User table (name, email, role, status) + the
+//   per-user permission matrix toggles; keep create/invite/edit/deactivate. INTEGRATIONS: keep the existing
+//   SettingsIntegrations cards (already on the new design). DATA SOURCES: LeadSource cards/rows (kind, supplier,
+//   campaign, key) + Sync now + provisionLeadSource. CUSTOM FIELDS: CustomField catalog table (label, key, type,
+//   include_in_leadbyte, order) with add/edit/reorder. FIELD MAPPING: FieldMapping list. API KEYS: ApiKey table
+//   (name, type master/supplier, expose_revenue, key) with create/revoke. ERROR LOGS: ErrorLog table (time, function,
+//   message) with filters. KNOWLEDGE BASE: KnowledgeDoc list + editor. BILLING AND PLAN: plan + billing summary.
