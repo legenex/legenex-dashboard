@@ -9,6 +9,7 @@ import StatusPill from '@/components/shared/StatusPill';
 import JsonViewer from '@/components/shared/JsonViewer';
 import CapiLogView from '@/components/leads/CapiLogView';
 import DeliveryStatusList from '@/components/leads/DeliveryStatusList';
+import LeadEditForm from '@/components/leads/LeadEditForm';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -19,7 +20,6 @@ import { processLead } from '@/functions/processLead';
 export default function LeadDetailModal({ lead, open, onClose, initialTab = 'summary' }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [editFields, setEditFields] = useState({});
   const [resending, setResending] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -77,23 +77,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
     onClose();
   };
 
-  const handleSaveEdit = async () => {
-    await base44.entities.Lead.update(lead.id, editFields);
-    toast.success('Lead updated');
-    setEditing(false);
-    qc.invalidateQueries({ queryKey: ['leads'] });
-    onClose();
-  };
-
-  const startEdit = () => {
-    setEditFields({
-      first_name: lead.first_name || '',
-      last_name: lead.last_name || '',
-      mobile: lead.mobile || '',
-      email: lead.email || '',
-    });
-    setEditing(true);
-  };
+  const startEdit = () => setEditing(true);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -124,18 +108,11 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
 
           <TabsContent value="summary" className="space-y-4 mt-4">
             {editing ? (
-              <div className="space-y-3">
-                {['first_name', 'last_name', 'mobile', 'email'].map(f => (
-                  <div key={f}>
-                    <Label className="text-[12px] text-muted-foreground capitalize">{f.replace('_', ' ')}</Label>
-                    <Input value={editFields[f] || ''} onChange={e => setEditFields(p => ({ ...p, [f]: e.target.value }))} className="mt-1 bg-background" />
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-                </div>
-              </div>
+              <LeadEditForm
+                lead={lead}
+                onSaved={() => { setEditing(false); onClose(); }}
+                onCancel={() => setEditing(false)}
+              />
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {[
