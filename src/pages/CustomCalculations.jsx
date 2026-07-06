@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { base44 } from '@/api/base44Client';
-import SectionHeader from '@/components/shared/SectionHeader';
+import ToolsShell from '@/components/tools/ToolsShell';
+import { Tag } from '@/components/tools/toolsUi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,15 +38,31 @@ const BLANK_FORM = {
   input_field: '',
   enabled: true,
   sort_order: 0,
-  // date_age_bucket config
   buckets: DEFAULT_DATE_BUCKETS.map(b => ({ ...b })),
   fallback: 'Over 24 Months',
   date_format: 'MM/DD/YYYY',
-  // value_map config
   value_map: [{ from: '', to: '' }],
-  // script config
   script: `// Available variables:\n// value - the raw input field value\n// lead - the full lead payload object\n// Return the computed output value.\n\nreturn value;`,
 };
+
+// AI-suggested calculated fields. "Add" opens the editor prefilled with the suggestion.
+const SUGGESTED_FIELDS = [
+  {
+    token: 'campaign', label: 'Campaign', formula: 'MAP(optin_url, {...})',
+    description: 'Derive a campaign name from the optin/landing URL.',
+    prefill: { output_token: 'campaign', output_label: 'Campaign', transform_type: 'value_map', input_field: 'optin_url' },
+  },
+  {
+    token: 'lead_age_days', label: 'Lead age days', formula: 'DAYS_BETWEEN(incident_date, NOW())',
+    description: 'Days elapsed since the incident date, for routing and reports.',
+    prefill: { output_token: 'lead_age_days', output_label: 'Lead Age (days)', transform_type: 'date_age_bucket', input_field: 'incident_date' },
+  },
+  {
+    token: 'quality_score', label: 'Quality score', formula: 'SCORE(phone_valid, email_valid, injury_type, has_attorney)',
+    description: 'Composite quality score from verification and case attributes.',
+    prefill: { output_token: 'quality_score', output_label: 'Quality Score', transform_type: 'script', input_field: 'phone_verified' },
+  },
+];
 
 function formToRecord(form) {
   let config = {};
@@ -114,7 +131,7 @@ export default function CustomCalculations() {
       if (editId) return base44.entities.CustomCalculation.update(editId, data);
       return base44.entities.CustomCalculation.create(data);
     },
-    onSuccess: async (saved) => {
+    onSuccess: async () => {
       // Sync output_token as a Calculated CustomField so it appears in payload builder
       try {
         const existing = customFields.find(f => f.field_name === form.output_token);
@@ -183,6 +200,12 @@ export default function CustomCalculations() {
     setOpen(true);
   }
 
+  function addSuggestion(s) {
+    setEditId(null);
+    setForm({ ...BLANK_FORM, buckets: DEFAULT_DATE_BUCKETS.map(b => ({ ...b })), ...s.prefill });
+    setOpen(true);
+  }
+
   function setF(key, val) { setForm(f => ({ ...f, [key]: val })); }
 
   function updateBucket(i, key, val) {
@@ -213,17 +236,28 @@ export default function CustomCalculations() {
   function removeMapRow(i) { setForm(f => ({ ...f, value_map: f.value_map.filter((_, idx) => idx !== i) })); }
 
   const typeLabels = { date_age_bucket: 'Date Transformer', value_map: 'Value Map', clone: 'Clone', script: 'Script' };
+  const existingTokens = new Set(calcs.map(c => c.output_token));
 
   return (
-    <div className="p-6">
-      <SectionHeader title="Calculated Fields" subtitle="Define computed fields derived from inbound lead data. Drag to reorder.">
-        <Button onClick={() => setIoOpen(true)} size="sm" variant="outline" className="gap-2">
-          <ArrowDownUp className="w-4 h-4" /> Import / Export Fields
-        </Button>
-        <Button onClick={openNew} size="sm" className="gap-2">
-          <Plus className="w-4 h-4" /> New Calculated Field
-        </Button>
-      </SectionHeader>
+    <ToolsShell
+      title="Calculated Fields"
+      subtitle="Derived fields computed on ingest, used in routing and reports."
+      actions={
+        <>
+          <Button onClick={() => setIoOpen(true)} size="sm" variant="outline" className="gap-1.5">
+            <ArrowDownUp className="w-4 h-4" /> Import / Export
+          </Button>
+          <Button onClick={openNew} size="sm" className="gap-1.5">
+            <Plus className="w-4 h-4" /> New Field
+          </Button>
+        </>
+      }
+    >
+      {/* Top chips */}
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <Tag tone="primary">{calcs.length} field{calcs.length !== 1 ? 's' : ''} defined</Tag>
+        <Tag tone="neutral">evaluated on ingest</Tag>
+      </div>
 
       <ImportExportDialog
         open={ioOpen}
@@ -237,61 +271,103 @@ export default function CustomCalculations() {
         title="Import / Export Calculated Fields"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-      {calcs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
-          <Calculator className="w-10 h-10 mb-3 opacity-30" />
-          <p className="text-sm">No calculations yet. Create one to transform inbound fields.</p>
-        </div>
-      ) : (
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="calcs">
-            {(provided) => (
-              <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                {calcs.map((rec, index) => (
-                  <Draggable key={rec.id} draggableId={rec.id} index={index}>
-                    {(prov) => (
-                      <div
-                        ref={prov.innerRef}
-                        {...prov.draggableProps}
-                        className="flex items-center justify-between px-4 py-3 rounded-lg bg-card border border-border"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div {...prov.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0">
-                            <GripVertical className="w-4 h-4" />
-                          </div>
-                          <Switch
-                            checked={rec.enabled !== false}
-                            onCheckedChange={(v) => toggleMutation.mutate({ id: rec.id, enabled: v })}
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <div className="text-sm font-medium text-foreground font-mono truncate">{`{{${rec.output_token}}}`}</div>
-                              <Badge variant="outline" className="text-xs shrink-0">{typeLabels[rec.transform_type] || rec.transform_type}</Badge>
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5 font-mono truncate">
-                              {rec.input_field}<span className="mx-1.5">→</span>{rec.output_token}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(rec)}><Pencil className="w-4 h-4" /></Button>
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(rec.id)}><Trash2 className="w-4 h-4" /></Button>
-                        </div>
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 space-y-5">
+          {/* Defined Fields table */}
+          <div className="rounded-[10px] border border-border bg-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-border text-[13px] font-semibold text-foreground">Defined Fields</div>
+            {calcs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Calculator className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <div className="text-[13px] font-medium text-foreground">No calculated fields</div>
+                <div className="text-[12px] text-muted-foreground mt-1">Create one to transform inbound fields on ingest.</div>
               </div>
+            ) : (
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="calcs">
+                  {(provided) => (
+                    <table className="w-full text-[13px]">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/40">
+                          {['Field', 'Formula', 'Status', ''].map((h, i) => (
+                            <th key={i} className="text-left px-4 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-border">
+                        {calcs.map((rec, index) => (
+                          <Draggable key={rec.id} draggableId={rec.id} index={index}>
+                            {(prov) => (
+                              <tr ref={prov.innerRef} {...prov.draggableProps} className="hover:bg-accent/40 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <span {...prov.dragHandleProps} className="cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-foreground">
+                                      <GripVertical className="w-3.5 h-3.5" />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <div className="font-mono text-foreground truncate">{`{{${rec.output_token}}}`}</div>
+                                      <div className="text-[11px] text-muted-foreground truncate">{rec.output_label}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="outline" className="text-[10px]">{typeLabels[rec.transform_type] || rec.transform_type}</Badge>
+                                    <span className="font-mono text-[11px] text-muted-foreground truncate">{rec.input_field}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <Switch
+                                    checked={rec.enabled !== false}
+                                    onCheckedChange={(v) => toggleMutation.mutate({ id: rec.id, enabled: v })}
+                                  />
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(rec)}><Pencil className="w-3.5 h-3.5" /></Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(rec.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </tbody>
+                    </table>
+                  )}
+                </Droppable>
+              </DragDropContext>
             )}
-          </Droppable>
-        </DragDropContext>
-      )}
+          </div>
+
+          {/* AI-suggested fields */}
+          <div className="rounded-[10px] border border-border bg-card p-4">
+            <div className="text-[13px] font-semibold text-foreground mb-3">AI-suggested fields</div>
+            <div className="space-y-2">
+              {SUGGESTED_FIELDS.map(s => {
+                const added = existingTokens.has(s.token);
+                return (
+                  <div key={s.token} className="border border-border rounded-lg p-3 flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-status-sold status-sold">{s.token}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground truncate">{s.formula}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-1">{s.description}</div>
+                    </div>
+                    <Button size="sm" variant={added ? 'ghost' : 'outline'} disabled={added} className="gap-1.5 shrink-0" onClick={() => addSuggestion(s)}>
+                      <Plus className="w-3.5 h-3.5" /> {added ? 'Added' : 'Add'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
+
         <div className="lg:col-span-1">
-          <div className="rounded-lg bg-card border border-border p-3 sticky top-4">
+          <div className="rounded-[10px] bg-card border border-border p-3 sticky top-4">
             <div className="text-[13px] font-semibold text-foreground mb-2">Reference Key</div>
             <ReferenceKeyPanel />
           </div>
@@ -307,7 +383,6 @@ export default function CustomCalculations() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-2">
             <div className="lg:col-span-2 space-y-4">
-            {/* Input Field - at the TOP */}
             <div className="space-y-1.5">
               <Label>Input Field</Label>
               <SearchableSelect
@@ -318,7 +393,6 @@ export default function CustomCalculations() {
               />
             </div>
 
-            {/* Output Field + Output Label on the same line */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Output Field <span className="text-muted-foreground text-xs">(used as {'{{token}}'})</span></Label>
@@ -335,7 +409,6 @@ export default function CustomCalculations() {
               </div>
             </div>
 
-            {/* Transform Type */}
             <div className="space-y-1.5">
               <Label>Transform Type</Label>
               <SearchableSelect
@@ -350,7 +423,6 @@ export default function CustomCalculations() {
               />
             </div>
 
-            {/* DATE AGE BUCKET */}
             {form.transform_type === 'date_age_bucket' && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -378,7 +450,6 @@ export default function CustomCalculations() {
               </div>
             )}
 
-            {/* VALUE MAP */}
             {form.transform_type === 'value_map' && (
               <div className="space-y-2">
                 <Label className="block mb-1">Value Mappings</Label>
@@ -394,7 +465,6 @@ export default function CustomCalculations() {
               </div>
             )}
 
-            {/* SCRIPT */}
             {form.transform_type === 'script' && (
               <div className="space-y-1.5">
                 <Label>JavaScript Transform Script</Label>
@@ -409,7 +479,6 @@ export default function CustomCalculations() {
               </div>
             )}
 
-            {/* CLONE */}
             {form.transform_type === 'clone' && (
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <p className="text-[13px] text-muted-foreground leading-relaxed">
@@ -446,6 +515,6 @@ export default function CustomCalculations() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ToolsShell>
   );
 }
