@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, X, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Panel } from '@/components/settings/settingsUi';
+import { Filter, Plus, X } from 'lucide-react';
+import { format } from 'date-fns';
+import { STANDARD_PERIODS, resolvePeriod } from '@/lib/periodRange';
 
 const OPTIONAL_FILTERS = [
   { key: 'utm_source', label: 'UTM Source' },
@@ -11,62 +14,113 @@ const OPTIONAL_FILTERS = [
   { key: 'state', label: 'State' },
 ];
 
-// Report-level filter bar. value = { date_from, date_to, campaign, vertical, supplier, buyer, brand, state, utm_source, accident_date, ...custom }
+const fmt = (d) => format(d, 'yyyy-MM-dd');
+
+// Report-level filter bar. Matches the Leads filter bar styling.
+// value = { date_from, date_to, campaign, vertical, supplier_name, buyer_id, brand, ...optional }
 export default function ReportFilterBar({ value, onChange, options }) {
   const { campaigns = [], verticals = [], suppliers = [], buyers = [], brands = [] } = options || {};
-  const [extra, setExtra] = useState(
-    Object.keys(value || {}).filter(k => OPTIONAL_FILTERS.some(f => f.key === k) && value[k])
-  );
+  const [showFilters, setShowFilters] = useState(false);
+  const [extra, setExtra] = useState(Object.keys(value || {}).filter(k => OPTIONAL_FILTERS.some(f => f.key === k) && value[k]));
+  const [period, setPeriod] = useState(value.date_from || value.date_to ? 'custom' : 'this_month');
 
-  const set = (k, v) => onChange({ ...value, [k]: v === 'all' ? '' : v });
+  const set = (k, v) => onChange({ ...value, [k]: v });
+  const setDates = (from, to) => onChange({ ...value, date_from: from || '', date_to: to || '' });
+
+  // Default to This Month once, if no explicit date is already applied.
+  useEffect(() => {
+    if (!value.date_from && !value.date_to && period !== 'custom') {
+      const w = resolvePeriod(period);
+      onChange({ ...value, date_from: fmt(w.start), date_to: fmt(w.end) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pickPeriod = (p) => {
+    setPeriod(p);
+    if (p === 'custom') return;
+    const w = resolvePeriod(p);
+    setDates(fmt(w.start), fmt(w.end));
+  };
+
   const addExtra = (k) => { if (!extra.includes(k)) setExtra([...extra, k]); };
   const removeExtra = (k) => { setExtra(extra.filter(x => x !== k)); set(k, ''); };
 
-  const Sel = ({ k, ph, items }) => (
-    <Select value={value[k] || 'all'} onValueChange={(v) => set(k, v)}>
-      <SelectTrigger className="h-8 w-[140px] bg-background text-[12px]"><SelectValue placeholder={ph} /></SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">{ph}: All</SelectItem>
-        {items.map(it => <SelectItem key={it.value} value={it.value}>{it.label}</SelectItem>)}
-      </SelectContent>
-    </Select>
-  );
+  const clearAll = () => {
+    setPeriod('this_month');
+    setExtra([]);
+    const w = resolvePeriod('this_month');
+    onChange({ date_from: fmt(w.start), date_to: fmt(w.end) });
+  };
+
+  const opt = (all, items) => [{ value: '', label: all }, ...items];
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mb-5 px-4 py-3 rounded-xl border border-border bg-card shadow-[0_12px_32px_-16px_rgba(0,0,0,0.4)]">
-      <Filter className="w-4 h-4 text-muted-foreground/70" />
-      <Input type="date" value={value.date_from || ''} onChange={e => set('date_from', e.target.value)} className="h-8 w-[140px] bg-background text-[12px]" />
-      <span className="text-muted-foreground text-[12px]">to</span>
-      <Input type="date" value={value.date_to || ''} onChange={e => set('date_to', e.target.value)} className="h-8 w-[140px] bg-background text-[12px]" />
+    <div className="mb-5 space-y-3">
+      <Panel className="p-3 flex items-center gap-3 flex-wrap" i={0}>
+        <SearchableSelect
+          value={period}
+          onValueChange={pickPeriod}
+          className="w-[150px] bg-card border-border"
+          options={STANDARD_PERIODS.map(p => ({ value: p.value, label: p.label }))}
+        />
 
-      <Sel k="campaign" ph="Campaign" items={campaigns.map(c => ({ value: c.name, label: c.name }))} />
-      <Sel k="vertical" ph="Vertical" items={verticals.map(v => ({ value: v.code, label: v.name }))} />
-      <Sel k="supplier_name" ph="Supplier" items={suppliers.map(s => ({ value: s.name, label: s.name }))} />
-      <Sel k="buyer_id" ph="Buyer" items={buyers.map(b => ({ value: b.company_name, label: b.company_name }))} />
-      <Sel k="brand" ph="Brand" items={brands.map(b => ({ value: b.brand_code, label: b.brand_name }))} />
-
-      {extra.map(k => {
-        const f = OPTIONAL_FILTERS.find(x => x.key === k);
-        return (
-          <div key={k} className="flex items-center gap-1 bg-background border border-border rounded-md pl-2 h-8">
-            <span className="text-[11px] text-muted-foreground">{f.label}</span>
-            <Input value={value[k] || ''} onChange={e => set(k, e.target.value)} className="h-6 w-[110px] border-0 bg-transparent text-[12px] px-1" placeholder="value" />
-            <button onClick={() => removeExtra(k)} className="pr-1.5 text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+        {period === 'custom' && (
+          <div className="flex items-center gap-2">
+            <Input type="date" value={value.date_from || ''} onChange={e => setDates(e.target.value, value.date_to)} className="bg-card border-border w-[140px]" />
+            <span className="text-muted-foreground text-xs">to</span>
+            <Input type="date" value={value.date_to || ''} onChange={e => setDates(value.date_from, e.target.value)} className="bg-card border-border w-[140px]" />
           </div>
-        );
-      })}
+        )}
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button size="sm" variant="ghost" className="h-8 gap-1 text-[12px] text-primary hover:text-primary"><Plus className="w-3.5 h-3.5" /> Add Filter</Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-1 bg-popover border-border" align="end">
-          {OPTIONAL_FILTERS.filter(f => !extra.includes(f.key)).map(f => (
-            <button key={f.key} onClick={() => addExtra(f.key)} className="w-full text-left px-2 py-1.5 rounded text-[13px] text-foreground hover:bg-accent/50">{f.label}</button>
-          ))}
-          {OPTIONAL_FILTERS.every(f => extra.includes(f.key)) && <div className="px-2 py-1.5 text-[12px] text-muted-foreground">All added</div>}
-        </PopoverContent>
-      </Popover>
+        <SearchableSelect value={value.campaign || ''} onValueChange={v => set('campaign', v)} className="w-[150px] bg-card border-border" options={opt('Campaign: All', campaigns.map(c => ({ value: c.name, label: c.name })))} />
+        <SearchableSelect value={value.vertical || ''} onValueChange={v => set('vertical', v)} className="w-[140px] bg-card border-border" options={opt('Vertical: All', verticals.map(v => ({ value: v.code, label: v.name })))} />
+        <SearchableSelect value={value.supplier_name || ''} onValueChange={v => set('supplier_name', v)} className="w-[150px] bg-card border-border" options={opt('Supplier: All', suppliers.map(s => ({ value: s.name, label: s.name })))} />
+        <SearchableSelect value={value.buyer_id || ''} onValueChange={v => set('buyer_id', v)} className="w-[150px] bg-card border-border" options={opt('Buyer: All', buyers.map(b => ({ value: b.company_name, label: b.company_name })))} />
+        <SearchableSelect value={value.brand || ''} onValueChange={v => set('brand', v)} className="w-[140px] bg-card border-border" options={opt('Brand: All', brands.map(b => ({ value: b.brand_code, label: b.brand_name })))} />
+
+        <Button
+          variant={showFilters || extra.length > 0 ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className="gap-1.5"
+        >
+          <Filter className="w-3.5 h-3.5" /> Filters
+          {extra.length > 0 && <Badge variant="secondary" className="ml-1">{extra.length}</Badge>}
+        </Button>
+
+        <Button variant="ghost" size="sm" onClick={clearAll} className="gap-1 text-muted-foreground ml-auto">
+          <X className="w-3.5 h-3.5" /> Clear
+        </Button>
+      </Panel>
+
+      {showFilters && (
+        <div className="bg-card border border-border rounded-[10px] p-4 space-y-2">
+          {extra.length === 0 && (
+            <div className="text-[13px] text-muted-foreground py-2">No extra filters. Add one below.</div>
+          )}
+          {extra.map(k => {
+            const f = OPTIONAL_FILTERS.find(x => x.key === k);
+            return (
+              <div key={k} className="flex items-center gap-2">
+                <div className="w-[160px] text-[13px] text-muted-foreground">{f.label}</div>
+                <Input value={value[k] || ''} onChange={e => set(k, e.target.value)} placeholder="Value" className="flex-1 bg-background" />
+                <Button size="icon" variant="ghost" className="text-destructive shrink-0" onClick={() => removeExtra(k)}>
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            );
+          })}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {OPTIONAL_FILTERS.filter(f => !extra.includes(f.key)).map(f => (
+              <Button key={f.key} variant="outline" size="sm" onClick={() => addExtra(f.key)} className="gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> {f.label}
+              </Button>
+            ))}
+            {OPTIONAL_FILTERS.every(f => extra.includes(f.key)) && <div className="px-2 py-1.5 text-[12px] text-muted-foreground">All added</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
