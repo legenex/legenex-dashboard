@@ -10,6 +10,7 @@ import InvoicesTab from '@/components/finances/InvoicesTab';
 import BuyerPaymentsTab from '@/components/finances/BuyerPaymentsTab';
 import SupplierPayoutsTab from '@/components/finances/SupplierPayoutsTab';
 import AdSpendTab from '@/components/finances/AdSpendTab';
+import FinanceSettingsTab from '@/components/finances/FinanceSettingsTab';
 import { unmatched, reconcile, workbench } from '@/lib/financeMetrics';
 import { usePermissions } from '@/lib/AuthContext';
 import DateRangeFilter from '@/components/shared/DateRangeFilter';
@@ -24,6 +25,7 @@ const TAB_META = {
   payments: { name: 'Buyer Payments', subtitle: 'Cash actually received from buyers, matched against invoices.' },
   payouts: { name: 'Supplier Payouts', subtitle: 'What is owed to suppliers and what has been paid.' },
   adspend: { name: 'Ad Spend', subtitle: 'Synced platform spend and the true CPL it produces.' },
+  settings: { name: 'Settings', subtitle: 'Categories, matching rules, counterparty aliases, and accounts.' },
 };
 
 const num = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
@@ -103,7 +105,7 @@ export default function Finances() {
       subtitle={meta.subtitle}
       telemetry={telemetry}
       onRefresh={refresh}
-      filter={<DateRangeFilter period={period} custom={custom} onPeriodChange={setPeriod} onCustomChange={setCustom} />}
+      filter={tab === 'settings' ? null : <DateRangeFilter period={period} custom={custom} onPeriodChange={setPeriod} onCustomChange={setCustom} />}
     >
       {tab === 'overview' && <ReconciliationTab data={scopedReconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />}
       {tab === 'bank' && canBank && <BankFeedTab win={win} />}
@@ -111,6 +113,7 @@ export default function Finances() {
       {tab === 'payments' && <BuyerPaymentsTab buyers={buyers} win={win} />}
       {tab === 'payouts' && <SupplierPayoutsTab suppliers={suppliers} leads={leads} adSpend={adSpend} win={win} />}
       {tab === 'adspend' && <AdSpendTab win={win} />}
+      {tab === 'settings' && <FinanceSettingsTab />}
     </FinanceShell>
   );
 }
