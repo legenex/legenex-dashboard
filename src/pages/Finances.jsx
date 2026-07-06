@@ -35,6 +35,10 @@ export default function Finances() {
   const canBank = can('bank_feed');
   const tab = params.get('tab') || 'overview';
   const [resolved, setResolved] = useState(0);
+  const [period, setPeriod] = useState('this_month');
+  const [custom, setCustom] = useState({ from: '', to: '' });
+  const win = useMemo(() => resolvePeriod(period, custom), [period, custom]);
+  const inWin = (d) => { if (!d) return false; try { return isWithinInterval(new Date(d), { start: win.start, end: win.end }); } catch { return false; } };
 
   const { data: leads = [] } = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
