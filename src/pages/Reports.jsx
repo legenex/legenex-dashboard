@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,24 @@ function safeParse(raw, fallback) {
 
 export default function Reports() {
   const qc = useQueryClient();
-  const [active, setActive] = useState('std:performance_overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Active view is derived from the URL so every report has a shareable link:
+  //   standard views -> /reports?tab=<key>   (e.g. ?tab=daily)
+  //   custom reports  -> /reports?report=<id>
+  const reportParam = searchParams.get('report');
+  const tabParam = searchParams.get('tab');
+  const active = reportParam ? `custom:${reportParam}` : `std:${tabParam || 'performance_overview'}`;
+
+  const setActive = (id) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    next.delete('report');
+    if (id.startsWith('custom:')) next.set('report', id.slice(7));
+    else next.set('tab', id.slice(4));
+    setSearchParams(next, { replace: false });
+  };
+
   const [filters, setFilters] = useState({});
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
