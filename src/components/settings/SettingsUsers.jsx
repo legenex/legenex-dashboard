@@ -60,11 +60,14 @@ export default function SettingsUsers() {
     setInviting(true);
     const finalPerms = sanitizePermissions(baseRole, perms);
     await base44.users.inviteUser(email, baseRole === 'owner' || baseRole === 'admin' ? 'admin' : 'user');
-    // Persist granular config on the freshly created user record once available.
-    try {
-      const list = await base44.entities.User.filter({ email });
-      if (list[0]) await base44.entities.User.update(list[0].id, { base_role: baseRole, permissions: JSON.stringify(finalPerms) });
-    } catch { /* record may not exist until they accept */ }
+    // Provision the User record immediately with the service role so invited
+    // users appear in the table before they accept and log in.
+    await base44.functions.invoke('upsertInvitedUser', {
+      email,
+      base_role: baseRole,
+      permissions: JSON.stringify(finalPerms),
+      role: (baseRole === 'owner' || baseRole === 'admin') ? 'admin' : 'user',
+    });
     toast.success(`Invitation sent to ${email}`);
     setInviteOpen(false); setEmail(''); setInviting(false);
     qc.invalidateQueries({ queryKey: ['users'] });
