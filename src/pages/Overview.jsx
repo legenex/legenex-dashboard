@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import OverviewHeader from '@/components/overview/OverviewHeader';
 import GroupedKpiCard from '@/components/overview/GroupedKpiCard';
@@ -45,6 +45,7 @@ const RISK_LABEL = { Overdue: 'Short Paid', Outstanding: 'No Payment Source', Ov
 
 export default function Overview() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [period, setPeriod] = useState('last60');
   const [custom, setCustom] = useState({ from: '', to: '' });
   const [compare, setCompare] = useState(false);
@@ -337,7 +338,13 @@ export default function Overview() {
         <AnimatedPanel>
           <ActionQueueCard
             queue={queue}
-            onResolve={(item) => toast.info(`Resolving: ${item.label} — ${item.name}`)}
+            onResolve={(item) => {
+              if (item.label === 'Unmatched income') navigate('/finances?tab=bank');
+              else if (item.label === 'Missing source') navigate('/finances?tab=invoices');
+              else if (item.label === 'Payment overdue' || item.label === 'Short paid') navigate('/finances?tab=payments');
+              else if (item.label === 'Supplier cost gap') navigate('/finances?tab=payouts');
+              else navigate('/finances');
+            }}
             onDone={(item) => toast.success(`Marked done: ${item.label}`)}
           />
         </AnimatedPanel>
