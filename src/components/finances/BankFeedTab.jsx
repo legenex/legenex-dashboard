@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { isWithinInterval } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { categorizeTransactions } from '@/functions/categorizeTransactions';
 import { syncMercury } from '@/functions/syncMercury';
@@ -22,7 +23,7 @@ const CAT_STYLE = {
   revenue: 'bg-status-sold status-sold', other: 'bg-muted text-muted-foreground',
 };
 
-export default function BankFeedTab() {
+export default function BankFeedTab({ win }) {
   const qc = useQueryClient();
   const fileRef = useRef();
   const [busy, setBusy] = useState(false);
@@ -31,10 +32,11 @@ export default function BankFeedTab() {
   const [mSaving, setMSaving] = useState(false);
   const [mSyncing, setMSyncing] = useState(false);
 
-  const { data: txns = [] } = useQuery({
+  const { data: allTxns = [] } = useQuery({
     queryKey: ['bank-txns'],
     queryFn: () => base44.entities.BankTransaction.list('-date', 500),
   });
+  const txns = useMemo(() => (win ? allTxns.filter(t => t.date && isWithinInterval(new Date(t.date), { start: win.start, end: win.end })) : allTxns), [allTxns, win]);
 
   const { data: mercuryCfg } = useQuery({
     queryKey: ['mercury-config'],
