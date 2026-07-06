@@ -29,18 +29,28 @@ Deno.serve(async (req) => {
 
     const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
 
-    // Resolve accounts (or use the configured account id).
+    // Always resolve real accounts from the API. The configured account_id may
+    // be an actual id OR a human-typed name/nickname (as entered in the UI), so
+    // match it against id/name/nickname and fall back to all accounts.
+    const accRes = await fetch('https://api.mercury.com/api/v1/accounts', { headers });
+    if (!accRes.ok) {
+      const t = await accRes.text();
+      return Response.json({ success: false, error: `Mercury accounts error ${accRes.status}: ${t.slice(0, 200)}` }, { status: 400 });
+    }
+    const accJson = await accRes.json();
+    const allAccounts = (accJson.accounts || accJson || []).filter((a) => a && a.id);
+
     let accountIds = [];
-    if (parsed.account_id) {
-      accountIds = [parsed.account_id];
+    const want = (parsed.account_id || '').trim();
+    if (want) {
+      const match = allAccounts.filter((a) =>
+        a.id === want ||
+        (a.name && a.name.toLowerCase() === want.toLowerCase()) ||
+        (a.nickname && a.nickname.toLowerCase() === want.toLowerCase())
+      );
+      accountIds = (match.length ? match : allAccounts).map((a) => a.id);
     } else {
-      const accRes = await fetch('https://api.mercury.com/api/v1/accounts', { headers });
-      if (!accRes.ok) {
-        const t = await accRes.text();
-        return Response.json({ success: false, error: `Mercury accounts error ${accRes.status}: ${t.slice(0, 200)}` }, { status: 400 });
-      }
-      const accJson = await accRes.json();
-      accountIds = (accJson.accounts || accJson || []).map((a) => a.id).filter(Boolean);
+      accountIds = allAccounts.map((a) => a.id);
     }
 
     // Existing external_ids for dedupe.
@@ -48,9 +58,14 @@ Deno.serve(async (req) => {
     const seen = new Set(existing.map((t) => t.external_id).filter(Boolean));
 
     const toCreate = [];
+    const errors = [];
     for (const accId of accountIds) {
       const txRes = await fetch(`https://api.mercury.com/api/v1/account/${accId}/transactions?limit=500`, { headers });
-      if (!txRes.ok) continue;
+      if (!txRes.ok) {
+        const t = await txRes.text();
+        errors.push(`account ${accId}: ${txRes.status} ${t.slice(0, 120)}`);
+        continue;
+      }
       const txJson = await txRes.json();
       const list = txJson.transactions || txJson || [];
       for (const t of list) {
@@ -71,7 +86,10 @@ Deno.serve(async (req) => {
     if (toCreate.length) await svc.entities.BankTransaction.bulkCreate(toCreate);
     if (cfg.id) await svc.entities.IntegrationConfig.update(cfg.id, { config: JSON.stringify({ ...parsed, last_synced_at: new Date().toISOString() }) });
 
-    return Response.json({ success: true, ingested: toCreate.length, accounts: accountIds.length, scheduled: isScheduled });
+    if (toCreate.length === 0 && errors.length) {
+      return Response.json({ success: false, error: errors.join('; '), accounts: accountIds.length }, { status: 400 });
+    }
+    return Response.json({ success: true, ingested: toCreate.length, accounts: accountIds.length, errors, scheduled: isScheduled });
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
