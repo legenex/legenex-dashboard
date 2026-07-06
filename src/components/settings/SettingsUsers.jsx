@@ -32,7 +32,19 @@ export default function SettingsUsers() {
   const [perms, setPerms] = useState(ROLE_PRESETS.manager.permissions);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => base44.entities.User.list() });
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      // listUsers runs with the service role so users added directly in Base44
+      // (not just the logged-in user) show up. Fall back to the RLS-scoped list.
+      try {
+        const res = await base44.functions.invoke('listUsers', {});
+        return res?.data?.users || [];
+      } catch {
+        return base44.entities.User.list();
+      }
+    },
+  });
 
   const applyPreset = (r) => { setBaseRole(r); setPerms({ ...ROLE_PRESETS[r].permissions }); };
   const toggle = (key) => setPerms(p => { const n = { ...p }; if (n[key]) delete n[key]; else n[key] = true; return n; });
