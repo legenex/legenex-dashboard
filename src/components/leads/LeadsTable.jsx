@@ -110,6 +110,27 @@ function getSource(lead) {
   return null;
 }
 
+// Colored tag per Lead Type value. Falls back to neutral for unknown values.
+const LEAD_TYPE_COLORS = {
+  survey: 'bg-status-qualified status-qualified',
+  form: 'bg-status-duplicate status-duplicate',
+  experiment: 'bg-status-queued status-queued',
+  lander: 'bg-status-unsold status-unsold',
+  call: 'bg-status-disqualified status-disqualified',
+  data: 'bg-status-sold status-sold',
+  email: 'bg-status-rejected status-rejected',
+};
+
+function LeadTypeTag({ value }) {
+  if (!value || value === '-') return <span className="text-muted-foreground">-</span>;
+  const cls = LEAD_TYPE_COLORS[String(value).toLowerCase()] || 'tag-neutral';
+  return (
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${cls}`}>
+      {value}
+    </span>
+  );
+}
+
 const VIEW_CONFIGS = {
   all: { title: 'All Leads', subtitle: 'All processed leads with full trace data' },
   sold: { title: 'Sold Leads', subtitle: 'Sold leads with revenue and buyer data' },
@@ -528,6 +549,13 @@ export default function LeadsTable({ view }) {
                             errorLogEntry={errorLogByLeadId[lead.id]}
                             onOpenDetail={openLeadDetail}
                           />
+                        </td>
+                      );
+                    }
+                    if (col.key === 'leadType') {
+                      return (
+                        <td key={col.key} className="px-4 py-3" style={widthStyle}>
+                          <LeadTypeTag value={def.accessor(lead)} />
                         </td>
                       );
                     }

@@ -20,6 +20,7 @@ export const SYSTEM_COLUMNS = [
   { key: 'created', header: 'Timestamp', accessor: (l) => l.created_date ? format(new Date(l.created_date), 'MMM dd HH:mm') : '-', className: 'font-mono text-[11px] text-muted-foreground whitespace-nowrap' },
   { key: 'fullName', header: 'Full Name', accessor: (l) => `${l.first_name || ''} ${l.last_name || ''}`.trim() || '-' },
   { key: 'vertical', header: 'Vertical', accessor: (l) => getFromMapped(l, ['vertical']) || '-' },
+  { key: 'leadType', header: 'Lead Type', accessor: (l) => getFromMapped(l, ['lead_type']) || '-', special: 'leadType' },
   { key: 'finalStatus', header: 'Status', accessor: (l) => l.final_status || '-', special: 'status' },
   { key: 'leadStatus', header: 'Lead Status', accessor: (l) => getFromMapped(l, ['lead_status']) || '-', special: 'leadStatus' },
   { key: 'revenue', header: 'Revenue', accessor: (l) => `$${Number(l.revenue || 0).toFixed(2)}`, className: 'font-mono text-[12px] status-sold' },
@@ -44,11 +45,13 @@ export const SYSTEM_COLUMNS = [
 
 // Default column order applied to every view until the user customises it.
 export const DEFAULT_COLUMN_KEYS = [
-  'created', 'fullName', 'vertical', 'source', 'finalStatus', 'leadStatus', 'revenue',
+  'created', 'fullName', 'vertical', 'leadType', 'finalStatus', 'revenue',
   'state', 'supplier', 'buyer', 'email', 'verification',
 ];
 
-const STORAGE_KEY = 'legenex_column_config';
+// Bumped to v2 so the new default order (Lead Type in, Lead Status/Source out)
+// takes effect for users who already had a persisted layout.
+const STORAGE_KEY = 'legenex_column_config_v2';
 
 // Load the persisted column config for a view, falling back to the defaults.
 export function loadColumnConfig(view) {
