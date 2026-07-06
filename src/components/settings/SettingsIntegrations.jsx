@@ -44,18 +44,46 @@ const CATALOG = [
   { type: 'slack', category: 'notify', name: 'Slack', icon: Hash, desc: 'Channel notifications & alerts', supported: true, oauth: true },
   { type: 'gmail', category: 'notify', name: 'Gmail', icon: Mail, desc: 'Send & receive email notifications', supported: true, gmail: true },
 
-  { type: 'stripe', category: 'billing', name: 'Stripe', icon: CreditCard, desc: 'Buyer payments & subscription billing', comingSoon: true },
-  { type: 'xero', category: 'billing', name: 'Xero', icon: Receipt, desc: 'Sync invoices & payments to Xero', comingSoon: true },
-  { type: 'mercury', category: 'billing', name: 'Mercury', icon: Landmark, desc: 'Bank feed sync into transactions for reconciliation', supported: true },
+  { type: 'stripe', category: 'billing', name: 'Stripe', icon: CreditCard, desc: 'Buyer payments & subscription billing', supported: true, apiKey: true },
+  { type: 'xero', category: 'billing', name: 'Xero', icon: Receipt, desc: 'Sync invoices & payments to Xero', supported: true, apiKey: true },
+  { type: 'mercury', category: 'billing', name: 'Mercury', icon: Landmark, desc: 'Bank feed sync into transactions for reconciliation', supported: true, apiKey: true },
 
   { type: 'trustedform', category: 'validation', name: 'TrustedForm', icon: ShieldCheck, desc: 'Cert validation passthrough on inbound leads', link: '/verification', action: 'Configure' },
   { type: 'jornaya', category: 'validation', name: 'Jornaya', icon: ShieldCheck, desc: 'LeadiD token passthrough validation', comingSoon: true },
 ];
 
+// API-key based connectors: dialog field + verify/sync wiring per service.
+const API_KEY_CONNECTORS = {
+  mercury: {
+    title: 'Mercury', description: 'Paste your Mercury API token to pull bank transactions live into reconciliation.',
+    syncFn: syncMercury, syncLabel: 'Sync transactions',
+    fields: [
+      { key: 'api_token', label: 'Mercury API Token', placeholder: 'secret-token-...', secret: true, help: 'Create a read token in Mercury Settings > API tokens with read access to transactions.' },
+      { key: 'account_id', label: 'Account ID', placeholder: 'Leave blank to sync all accounts', optional: true },
+    ],
+  },
+  stripe: {
+    title: 'Stripe', description: 'Paste your Stripe secret key to sync balance transactions and buyer payments.',
+    verifyFn: syncStripe, syncFn: syncStripe, syncLabel: 'Sync payments',
+    fields: [
+      { key: 'secret_key', label: 'Stripe Secret Key', placeholder: 'sk_live_... or rk_live_...', secret: true, help: 'Use a restricted key with read access to Balance and Charges. Found in Stripe Dashboard > Developers > API keys.' },
+    ],
+  },
+  xero: {
+    title: 'Xero', description: 'Paste a Xero OAuth2 access token to sync invoices and payments.',
+    verifyFn: syncXero, syncFn: syncXero, syncLabel: 'Sync invoices',
+    fields: [
+      { key: 'access_token', label: 'Xero Access Token', placeholder: 'eyJ...', secret: true, help: 'Generate an access token from your Xero app (Custom Connection) with accounting.transactions and accounting.contacts read scopes.' },
+      { key: 'tenant_id', label: 'Tenant ID', placeholder: 'Auto-resolved from your token if blank', optional: true },
+    ],
+  },
+};
+
 export default function SettingsIntegrations() {
   const qc = useQueryClient();
   const [cat, setCat] = useState('all');
   const [pending, setPending] = useState(null);
+  const [apiKeyType, setApiKeyType] = useState(null);
 
   const [waOpen, setWaOpen] = useState(false);
   const [waForm, setWaForm] = useState({ access_token: '', phone_number_id: '' });
@@ -135,7 +163,7 @@ export default function SettingsIntegrations() {
     if (it.type === 'whatsapp') return openWhatsapp();
     if (it.gmail) return openGmail();
     if (it.link) { window.location.href = it.link; return; }
-    if (it.type === 'mercury') { window.location.href = '/finances'; return; }
+    if (it.apiKey && API_KEY_CONNECTORS[it.type]) { setApiKeyType(it.type); return; }
     setPending(it);
   };
 
@@ -214,6 +242,16 @@ export default function SettingsIntegrations() {
           </div>
           <MetaAdSpend />
         </div>
+      )}
+
+      {/* API-key connectors (Mercury, Stripe, Xero) */}
+      {apiKeyType && (
+        <ApiKeyConnectDialog
+          open={!!apiKeyType}
+          onOpenChange={(o) => { if (!o) { setApiKeyType(null); refetch(); } }}
+          name={apiKeyType}
+          {...API_KEY_CONNECTORS[apiKeyType]}
+        />
       )}
 
       {/* OAuth connect info dialog */}
