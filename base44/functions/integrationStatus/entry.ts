@@ -31,11 +31,13 @@ Deno.serve(async (req) => {
     } catch {
       status['whatsapp'] = false;
     }
-    try {
-      const mc = await base44.asServiceRole.entities.IntegrationConfig.filter({ name: 'mercury' });
-      status['mercury'] = !!mc[0];
-    } catch {
-      status['mercury'] = false;
+    for (const name of ['mercury', 'stripe', 'xero']) {
+      try {
+        const c = await base44.asServiceRole.entities.IntegrationConfig.filter({ name });
+        status[name] = !!c[0];
+      } catch {
+        status[name] = false;
+      }
     }
 
     return Response.json({ status });
