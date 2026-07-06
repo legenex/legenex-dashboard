@@ -37,17 +37,26 @@ Deno.serve(async (req) => {
 
     const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
 
-    // Verify the key by fetching the account.
-    const acctRes = await fetch('https://api.stripe.com/v1/account', { headers });
-    if (!acctRes.ok) {
-      const t = await acctRes.text();
-      return Response.json({ success: false, error: `Stripe auth error ${acctRes.status}: ${t.slice(0, 200)}` }, { status: 400 });
+    // Verify the key against the Balance endpoint, which the recommended
+    // restricted scopes (Balance + Charges read) actually cover. A restricted
+    // key with no account scope 403s on /v1/account, so we don't require it.
+    const balRes = await fetch('https://api.stripe.com/v1/balance', { headers });
+    if (!balRes.ok) {
+      const t = await balRes.text();
+      return Response.json({ success: false, error: `Stripe auth error ${balRes.status}: ${t.slice(0, 200)}` }, { status: 400 });
     }
-    const acct = await acctRes.json();
+
+    // Best-effort account fetch for display / stored account_id. Not required:
+    // restricted keys may not have account read scope.
+    let acct = {};
+    try {
+      const acctRes = await fetch('https://api.stripe.com/v1/account', { headers });
+      if (acctRes.ok) acct = await acctRes.json();
+    } catch { /* account scope optional */ }
 
     // If this was just a verify (body key, no stored config), return account info.
     if (body.verify_only) {
-      return Response.json({ success: true, account: { id: acct.id, business: acct.business_profile?.name || acct.settings?.dashboard?.display_name || '', country: acct.country } });
+      return Response.json({ success: true, account: { id: acct.id || null, business: acct.business_profile?.name || acct.settings?.dashboard?.display_name || '', country: acct.country || null } });
     }
 
     // Pull recent balance transactions and ingest as BankTransaction records.
@@ -76,10 +85,10 @@ Deno.serve(async (req) => {
     if (cfg?.id) {
       let parsed = {};
       try { parsed = JSON.parse(cfg.config || '{}'); } catch { parsed = {}; }
-      await svc.entities.IntegrationConfig.update(cfg.id, { config: JSON.stringify({ ...parsed, account_id: acct.id, last_synced_at: new Date().toISOString() }) });
+      await svc.entities.IntegrationConfig.update(cfg.id, { config: JSON.stringify({ ...parsed, account_id: acct.id || parsed.account_id || null, last_synced_at: new Date().toISOString() }) });
     }
 
-    return Response.json({ success: true, ingested: toCreate.length, account: acct.id, scheduled: isScheduled });
+    return Response.json({ success: true, ingested: toCreate.length, account: acct.id || null, scheduled: isScheduled });
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
