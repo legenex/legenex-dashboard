@@ -20,7 +20,26 @@ function formatTimestamp(date, fmt) {
     .replace('SS', pad(date.getUTCSeconds()));
 }
 
-function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName) {
+// Evaluate a single conditional condition against the full lead context.
+// All string comparisons are case-insensitive and trimmed.
+function evalConditionalCondition(ctx, cond) {
+  const raw = ctx[cond.field];
+  const actual = String(raw ?? '').trim().toLowerCase();
+  const expected = String(cond.value ?? '').trim().toLowerCase();
+  switch (cond.operator) {
+    case 'equals': return actual === expected;
+    case 'not_equals': return actual !== expected;
+    case 'contains': return actual.includes(expected);
+    case 'not_contains': return !actual.includes(expected);
+    case 'in': return expected.split(',').map(s => s.trim()).some(item => item !== '' && item === actual);
+    case 'not_in': return !expected.split(',').map(s => s.trim()).some(item => item !== '' && item === actual);
+    case 'exists': return raw !== null && raw !== undefined && String(raw).trim() !== '';
+    case 'not_exists': return raw === null || raw === undefined || String(raw).trim() === '';
+    default: return false;
+  }
+}
+
+function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName, supplierType) {
   const enriched = { ...leadData };
   enriched[phoneVerifiedFieldName || 'phone_verified'] = resolvePhoneVerified(hlrResult, phoneVerifiedSource);
   const sorted = [...calcs].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -29,6 +48,15 @@ function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneV
     let cfg = {};
     try { cfg = JSON.parse(calc.config || '{}'); } catch {}
     const inputValue = enriched[calc.input_field] ?? '';
+    // Full-lead context: every enriched field, plus supplier_type from the
+    // supplier record, plus lead_status / final_status when already set (they
+    // may be empty during enrichment, which is expected).
+    const ctx = {
+      ...enriched,
+      supplier_type: supplierType || enriched.supplier_type || '',
+      lead_status: enriched.lead_status ?? '',
+      final_status: enriched.final_status ?? '',
+    };
     try {
       if (calc.transform_type === 'date_age_bucket') {
         const fmt = cfg.date_format || 'MM/DD/YYYY';
@@ -56,6 +84,15 @@ function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneV
           const matchKey = Object.keys(map).find(k => k.trim().toLowerCase() === normalized);
           enriched[calc.output_token] = matchKey !== undefined ? map[matchKey] : inputValue;
         }
+      } else if (calc.transform_type === 'conditional') {
+        const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
+        let output = cfg.fallback ?? '';
+        for (const rule of rules) {
+          const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
+          const allMatch = conditions.every(cond => evalConditionalCondition(ctx, cond));
+          if (allMatch) { output = rule.output ?? ''; break; }
+        }
+        enriched[calc.output_token] = output;
       } else if (calc.transform_type === 'clone') {
         enriched[calc.output_token] = inputValue;
       } else if (calc.transform_type === 'script') {
@@ -1320,7 +1357,7 @@ Deno.serve(async (req) => {
 
     // ── Run custom calculations ──────────────────────────────────────────
     const phoneVerifiedSource = hlrSettings?.phone_verified_source || 'lh_hlr_response';
-    const enrichedData = runCalculations(calcs, leadPayload, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName);
+    const enrichedData = runCalculations(calcs, leadPayload, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName, supplierRecord?.supplier_type);
     if (hlrResult) {
       enrichedData.hlr_status = hlrResult.lh_hlr_response || '';
       enrichedData.hlr_score = hlrResult.summary_score != null ? String(hlrResult.summary_score) : '';
