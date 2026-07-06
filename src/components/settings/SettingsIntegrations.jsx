@@ -33,13 +33,8 @@ const CATEGORIES = [
 // category-tagged integration catalog. `meta` renders the live MetaAdSpend flow.
 const CATALOG = [
   { type: 'meta', category: 'ads', name: 'Meta (Facebook) Ads', icon: Facebook, desc: 'Sync ad spend & map to campaigns for true CPL', live: 'meta' },
-  { type: 'google_ads', category: 'ads', name: 'Google Ads', icon: Megaphone, desc: 'Search & display ad spend', comingSoon: true },
-  { type: 'taboola', category: 'ads', name: 'Taboola', icon: BarChart3, desc: 'Native ad spend', comingSoon: true },
-  { type: 'tiktok', category: 'ads', name: 'TikTok Ads', icon: Music2, desc: 'TikTok ad spend', comingSoon: true },
 
   { type: 'googlesheets', category: 'delivery', name: 'Google Sheets', icon: FileSpreadsheet, desc: 'Write delivered leads to a spreadsheet', supported: true, oauth: true },
-  { type: 'ringba', category: 'delivery', name: 'Ringba', icon: PhoneCall, desc: 'Call webhook delivery to Ringba', comingSoon: true },
-  { type: 'truecall', category: 'delivery', name: 'TrueCall', icon: Phone, desc: 'Call webhook delivery to TrueCall', comingSoon: true },
 
   { type: 'slack', category: 'notify', name: 'Slack', icon: Hash, desc: 'Channel notifications & alerts', supported: true, oauth: true },
   { type: 'gmail', category: 'notify', name: 'Gmail', icon: Mail, desc: 'Send & receive email notifications', supported: true, gmail: true },
@@ -49,7 +44,6 @@ const CATALOG = [
   { type: 'mercury', category: 'billing', name: 'Mercury', icon: Landmark, desc: 'Bank feed sync into transactions for reconciliation', supported: true, apiKey: true },
 
   { type: 'trustedform', category: 'validation', name: 'TrustedForm', icon: ShieldCheck, desc: 'Cert validation passthrough on inbound leads', link: '/verification', action: 'Configure' },
-  { type: 'jornaya', category: 'validation', name: 'Jornaya', icon: ShieldCheck, desc: 'LeadiD token passthrough validation', comingSoon: true },
 ];
 
 // API-key based connectors: dialog field + verify/sync wiring per service.
@@ -258,13 +252,21 @@ export default function SettingsIntegrations() {
       <Dialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
         <DialogContent className="bg-popover border-border max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Connect {pending?.name}</DialogTitle>
+            <DialogTitle>{pending && statusMap[pending.type] ? 'Manage' : 'Connect'} {pending?.name}</DialogTitle>
             <DialogDescription>{pending?.desc}</DialogDescription>
           </DialogHeader>
-          <div className="text-[13px] text-muted-foreground leading-relaxed">
-            Connecting <span className="text-foreground font-medium">{pending?.name}</span> opens an OAuth grant so you can link your account and pick resources.
-            This needs a one-time connector setup — tell me in chat to enable the {pending?.name} connect flow and I'll wire it up.
-          </div>
+          {pending && statusMap[pending.type] ? (
+            <div className="flex items-center gap-2 text-[13px]">
+              <CheckCircle2 className="w-4 h-4 status-sold" />
+              <span className="status-sold font-medium">Connected</span>
+              <span className="text-muted-foreground">· {pending?.name} is linked and active.</span>
+            </div>
+          ) : (
+            <div className="text-[13px] text-muted-foreground leading-relaxed">
+              Connecting <span className="text-foreground font-medium">{pending?.name}</span> opens an OAuth grant so you can link your account and pick resources.
+              This needs a one-time connector setup — tell me in chat to enable the {pending?.name} connect flow and I'll wire it up.
+            </div>
+          )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPending(null)}>Close</Button>
             <Button onClick={() => { setPending(null); refetch(); qc.invalidateQueries({ queryKey: ['integration-status'] }); }}><Plug className="w-4 h-4" /> Refresh status</Button>
