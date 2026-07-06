@@ -31,8 +31,29 @@ const navGroups = [
       { label: 'Conversion Events', path: '/conversion-events', permKey: 'dist_conversion_events' },
     ],
   },
-  { label: 'Reports', icon: BarChart3, path: '/reports', type: 'single', permKey: 'reports' },
-  { label: 'Finances', icon: Wallet, path: '/finances', type: 'single', permKey: 'finances' },
+  {
+    label: 'Reports', icon: BarChart3, type: 'dropdown', path: '/reports', permKey: 'reports',
+    children: [
+      { label: 'Performance Overview', path: '/reports', tab: 'performance_overview', permKey: 'reports' },
+      { label: 'Daily Performance', path: '/reports', tab: 'daily', permKey: 'reports' },
+      { label: 'Campaign Performance', path: '/reports', tab: 'campaign', permKey: 'reports' },
+      { label: 'P&L', path: '/reports', tab: 'pnl', permKey: 'reports' },
+      { label: 'Ad Performance', path: '/reports', tab: 'ad', permKey: 'reports' },
+      { label: 'Buyer Performance', path: '/reports', tab: 'buyer', permKey: 'reports' },
+      { label: 'Supplier Performance', path: '/reports', tab: 'supplier', permKey: 'reports' },
+    ],
+  },
+  {
+    label: 'Finances', icon: Wallet, type: 'dropdown', path: '/finances', permKey: 'finances',
+    children: [
+      { label: 'Overview', path: '/finances', tab: 'overview', permKey: 'finances' },
+      { label: 'Bank Feed', path: '/finances', tab: 'bank', permKey: 'bank_feed' },
+      { label: 'Invoices', path: '/finances', tab: 'invoices', permKey: 'finances' },
+      { label: 'Buyer Payments', path: '/finances', tab: 'payments', permKey: 'finances' },
+      { label: 'Supplier Payouts', path: '/finances', tab: 'payouts', permKey: 'finances' },
+      { label: 'Ad Spend', path: '/finances', tab: 'adspend', permKey: 'finances' },
+    ],
+  },
   {
     label: 'Tools', icon: Wrench, type: 'dropdown', path: '/tools', permKey: 'tools',
     children: [
