@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Copy, Trash2, Edit2, Wand2, GripVertical, Sparkles, CheckCheck, Ban, ArrowDownUp, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportFieldsDialog from '@/components/settings/ImportExportFieldsDialog';
+import AutoDetectedFieldsDialog from '@/components/settings/AutoDetectedFieldsDialog';
 
 const BLANK_FIELD = {
   field_name: '', label: '', field_type: 'string',
@@ -47,6 +48,7 @@ export default function SettingsCustomFields() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [importExportOpen, setImportExportOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [autoReviewOpen, setAutoReviewOpen] = useState(false);
 
   const { data: fields = [] } = useQuery({
     queryKey: ['custom-fields'],
@@ -75,7 +77,8 @@ export default function SettingsCustomFields() {
     setOrderedFields(sorted);
   }, [fields]);
 
-  const autoCount = fields.filter(f => f.auto_created).length;
+  const autoFields = fields.filter(f => f.auto_created);
+  const autoCount = autoFields.length;
 
   const q = search.trim().toLowerCase();
   const visibleFields = q
@@ -283,10 +286,14 @@ export default function SettingsCustomFields() {
       </div>
 
       {autoCount > 0 && (
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+        <button
+          onClick={() => setAutoReviewOpen(true)}
+          className="w-full flex items-center gap-2 mb-3 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/15 transition-colors text-left"
+        >
           <Sparkles className="w-4 h-4 text-primary shrink-0" />
           <span className="text-[13px] text-primary">{autoCount} field{autoCount !== 1 ? 's' : ''} auto-detected from inbound leads</span>
-        </div>
+          <span className="text-[12px] text-primary/70 ml-auto">Review →</span>
+        </button>
       )}
 
       {selectedIds.size > 0 && (
@@ -475,6 +482,12 @@ export default function SettingsCustomFields() {
         open={importExportOpen}
         onOpenChange={setImportExportOpen}
         fields={orderedFields}
+      />
+
+      <AutoDetectedFieldsDialog
+        open={autoReviewOpen}
+        onOpenChange={setAutoReviewOpen}
+        autoFields={autoFields}
       />
     </div>
   );
