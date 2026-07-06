@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { Sparkles } from 'lucide-react';
 import { money } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
 import { Panel, THead, rise } from '@/components/finances/financeAtoms';
+import { StatChip } from '@/components/finances/financeUi';
 
 export default function BuyerPaymentsTab({ buyers }) {
   const qc = useQueryClient();
@@ -20,6 +22,25 @@ export default function BuyerPaymentsTab({ buyers }) {
   const [form, setForm] = useState({ buyer_id: '', amount: '', method: 'manual', paid_date: new Date().toISOString().slice(0, 10) });
 
   const { data: payments = [] } = useQuery({ queryKey: ['buyer-payments'], queryFn: () => base44.entities.BuyerPayment.list('-paid_date', 500) });
+  const { data: invoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
+
+  const n = (v) => { const x = Number(v); return isNaN(x) ? 0 : x; };
+  const received = payments.reduce((a, p) => a + n(p.amount), 0);
+  const nowMonth = new Date().toISOString().slice(0, 7);
+  const thisMonth = payments.filter(p => String(p.paid_date || '').slice(0, 7) === nowMonth).reduce((a, p) => a + n(p.amount), 0);
+
+  // Avg days to pay: for payments linked to an invoice, paid_date minus invoice created_date.
+  const invById = Object.fromEntries(invoices.map(i => [i.id, i]));
+  const dayGaps = payments
+    .map(p => { const inv = p.invoice_id ? invById[p.invoice_id] : null; if (!inv?.created_date || !p.paid_date) return null; const d = (new Date(p.paid_date) - new Date(inv.created_date)) / 86400000; return d >= 0 ? d : null; })
+    .filter(v => v != null);
+  const avgDays = dayGaps.length ? Math.round(dayGaps.reduce((a, d) => a + d, 0) / dayGaps.length) : null;
+
+  const stats = [
+    { label: 'Received', value: money(received), tone: 'good', pct: received > 0 ? 100 : 0 },
+    { label: 'This Month', value: money(thisMonth), tone: 'good', pct: received > 0 ? (thisMonth / received) * 100 : 0 },
+    { label: 'Avg Days To Pay', value: avgDays == null ? '--' : `${avgDays}d`, tone: avgDays != null && avgDays <= 30 ? 'good' : 'warn', pct: avgDays == null ? 0 : Math.min(100, (avgDays / 60) * 100) },
+  ];
 
   const create = async () => {
     if (!form.buyer_id || !form.amount) { toast.error('Buyer and amount required'); return; }
@@ -32,6 +53,10 @@ export default function BuyerPaymentsTab({ buyers }) {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {stats.map((s, i) => <StatChip key={s.label} {...s} i={i} />)}
+      </div>
+
       <div className="flex items-center justify-end gap-2">
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadCsv('buyer_payments', [
           { key: 'buyer_name', label: 'Buyer' }, { key: 'amount', label: 'Amount' }, { key: 'method', label: 'Method' }, { key: 'paid_date', label: 'Date' },
@@ -42,7 +67,10 @@ export default function BuyerPaymentsTab({ buyers }) {
         <table className="w-full text-[12px]">
           <thead><THead cols={['Buyer', 'Method', 'Date', 'Amount']} alignRight={[3]} /></thead>
           <tbody className="divide-y divide-border/60">
-            {payments.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No payments recorded</td></tr>}
+            {payments.length === 0 && <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
+              <div>No payments recorded yet.</div>
+              <button onClick={() => setOpen(true)} className="text-primary text-[12px] mt-1.5 hover:underline">Record a payment</button>
+            </td></tr>}
             {payments.map((p, i) => (
               <motion.tr key={p.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
                 <td className="px-4 py-2.5 text-foreground">{p.buyer_name || '-'}</td>
@@ -54,6 +82,17 @@ export default function BuyerPaymentsTab({ buyers }) {
           </tbody>
         </table>
       </Panel>
+
+      {payments.length > 0 && (
+        <div className="flex items-start gap-2 rounded-xl border border-border bg-card px-4 py-3 text-[12px] text-muted-foreground">
+          <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+          <span>
+            {money(received)} received across {payments.length} payment{payments.length !== 1 ? 's' : ''}
+            {avgDays != null ? `, averaging ${avgDays} days from invoice to payment.` : '.'}
+            {avgDays != null && avgDays > 30 ? ' Buyers are paying slower than Net 30, consider tightening terms.' : ''}
+          </span>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-popover border-border max-w-[400px]">

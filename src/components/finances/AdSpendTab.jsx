@@ -8,7 +8,8 @@ import { Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { money, groupBy } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
-import { Panel, PanelHeader, StatChip, THead, rise } from '@/components/finances/financeAtoms';
+import { Panel, PanelHeader, THead, rise } from '@/components/finances/financeAtoms';
+import { StatChip } from '@/components/finances/financeUi';
 
 // Shows synced ad spend and the true CPL it produces per supplier/source.
 export default function AdSpendTab() {
@@ -21,8 +22,8 @@ export default function AdSpendTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="w-[220px]">
-          <StatChip label="Total Ad Spend (synced)" value={money(totalSpend)} />
+        <div className="w-[240px]">
+          <StatChip label="Total Ad Spend (synced)" value={money(totalSpend)} tone={totalSpend > 0 ? 'good' : undefined} pct={totalSpend > 0 ? 100 : 0} />
         </div>
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadCsv('ad_spend', [
           { key: 'date', label: 'Date' }, { key: 'platform', label: 'Platform' }, { key: 'supplier_name', label: 'Supplier' }, { key: 'cost_source', label: 'Source' }, { key: 'spend', label: 'Spend' },

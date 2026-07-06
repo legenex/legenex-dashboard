@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { money } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
 import { Panel, THead, rise } from '@/components/finances/financeAtoms';
+import { StatChip } from '@/components/finances/financeUi';
 
 const SUB_FILTERS = [
   { key: 'all', label: 'All' },
@@ -38,6 +39,19 @@ export default function InvoicesTab({ buyers }) {
 
   const buyerName = (id) => buyers.find(b => b.id === id)?.company_name || '-';
   const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter);
+
+  const now = new Date();
+  const n = (v) => { const x = Number(v); return isNaN(x) ? 0 : x; };
+  const outstanding = invoices.filter(i => i.status !== 'paid' && i.status !== 'void').reduce((a, i) => a + n(i.amount), 0);
+  const awaiting = invoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((a, i) => a + n(i.amount), 0);
+  const overdue = invoices.filter(i => i.status !== 'paid' && i.status !== 'void' && i.period_end && new Date(i.period_end) < now).reduce((a, i) => a + n(i.amount), 0);
+  const collected = invoices.filter(i => i.status === 'paid').reduce((a, i) => a + n(i.amount), 0);
+  const stats = [
+    { label: 'Outstanding', value: money(outstanding), tone: outstanding > 0 ? 'warn' : 'good', pct: outstanding > 0 ? 100 : 0 },
+    { label: 'Awaiting Payment', value: money(awaiting), tone: 'warn', pct: outstanding > 0 ? (awaiting / outstanding) * 100 : 0 },
+    { label: 'Overdue', value: money(overdue), tone: overdue > 0 ? 'risk' : 'good', pct: overdue > 0 ? 100 : 0 },
+    { label: 'Collected', value: money(collected), tone: 'good', pct: (collected + outstanding) > 0 ? (collected / (collected + outstanding)) * 100 : 0 },
+  ];
 
   const create = async () => {
     if (!form.buyer_id || !form.amount) { toast.error('Buyer and amount are required'); return; }
@@ -86,6 +100,10 @@ export default function InvoicesTab({ buyers }) {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {stats.map((s, i) => <StatChip key={s.label} {...s} i={i} />)}
+      </div>
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1 bg-muted rounded-lg p-1">
           {SUB_FILTERS.map(f => (
@@ -109,7 +127,10 @@ export default function InvoicesTab({ buyers }) {
         <table className="w-full text-[12px]">
           <thead><THead cols={['Invoice', 'Buyer', 'Amount', 'Leads', 'Status', 'Action']} alignRight={[2, 3, 5]} /></thead>
           <tbody className="divide-y divide-border/60">
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">No invoices</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+              <div>No invoices yet.</div>
+              <button onClick={() => setOpen(true)} className="text-primary text-[12px] mt-1.5 hover:underline">Create your first invoice</button>
+            </td></tr>}
             {filtered.map((inv, i) => (
               <motion.tr key={inv.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
                 <td className="px-4 py-2.5 font-mono">{inv.invoice_number}</td>

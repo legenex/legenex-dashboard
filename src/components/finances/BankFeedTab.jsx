@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { money } from '@/lib/reportMetrics';
 import { unmatched } from '@/lib/financeMetrics';
-import { StatChip, Panel, THead, rise } from '@/components/finances/financeAtoms';
+import { Panel, THead, rise } from '@/components/finances/financeAtoms';
+import { StatChip } from '@/components/finances/financeUi';
 
 const CAT_STYLE = {
   tech: 'bg-status-qualified status-qualified', media: 'bg-status-queued status-queued',
@@ -130,10 +131,10 @@ export default function BankFeedTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div className="grid grid-cols-3 gap-3 w-[420px]">
-          <StatChip label="Money In" value={money(moneyIn)} tone="good" i={0} />
-          <StatChip label="Money Out" value={money(moneyOut)} tone="risk" i={1} />
-          <StatChip label="Net" value={money(moneyIn + moneyOut)} i={2} />
+        <div className="grid grid-cols-3 gap-3 w-[440px]">
+          <StatChip label="Money In" value={money(moneyIn)} tone="good" pct={100} i={0} />
+          <StatChip label="Money Out" value={money(moneyOut)} tone="risk" pct={moneyIn > 0 ? Math.min(100, (Math.abs(moneyOut) / moneyIn) * 100) : (moneyOut < 0 ? 100 : 0)} i={1} />
+          <StatChip label="Net" value={money(moneyIn + moneyOut)} tone={moneyIn + moneyOut >= 0 ? 'good' : 'risk'} pct={(moneyIn + moneyOut) >= 0 ? 100 : 0} i={2} />
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={importCsv} />
@@ -184,6 +185,17 @@ export default function BankFeedTab() {
           </tbody>
         </table>
       </Panel>
+
+      {txns.length > 0 && (
+        <div className="flex items-start gap-2 rounded-xl border border-border bg-card px-4 py-3 text-[12px] text-muted-foreground">
+          <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+          <span>
+            {unmatchedTxns.length === 0
+              ? 'Every transaction is matched to a counterparty. This bank feed is fully reconciled.'
+              : `${unmatchedTxns.length} of ${txns.length} transactions are still unmatched. Run AI Categorize to sort them, then match them to buyers or suppliers in Reconciliation.`}
+          </span>
+        </div>
+      )}
 
       <Dialog open={mercuryOpen} onOpenChange={setMercuryOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">

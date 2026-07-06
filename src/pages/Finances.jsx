@@ -1,20 +1,33 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import SectionHeader from '@/components/shared/SectionHeader';
+import { toast } from 'sonner';
+import FinanceShell from '@/components/finances/FinanceShell';
 import ReconciliationTab from '@/components/finances/ReconciliationTab';
 import BankFeedTab from '@/components/finances/BankFeedTab';
 import InvoicesTab from '@/components/finances/InvoicesTab';
 import BuyerPaymentsTab from '@/components/finances/BuyerPaymentsTab';
 import SupplierPayoutsTab from '@/components/finances/SupplierPayoutsTab';
 import AdSpendTab from '@/components/finances/AdSpendTab';
-import { toast } from 'sonner';
-import { unmatched } from '@/lib/financeMetrics';
+import { unmatched, reconcile, workbench } from '@/lib/financeMetrics';
 import { usePermissions } from '@/lib/AuthContext';
+
+// Per-tab title + subtitle for the FinanceShell header.
+const TAB_META = {
+  overview: { name: 'Overview', subtitle: "Cash truth: what came in, what went out, and what still doesn't reconcile." },
+  bank: { name: 'Bank Feed', subtitle: 'Live bank feed: Mercury sync, CSV import and AI categorization.' },
+  invoices: { name: 'Invoices', subtitle: 'Buyer invoices raised, awaiting payment, and collected.' },
+  payments: { name: 'Buyer Payments', subtitle: 'Cash actually received from buyers, matched against invoices.' },
+  payouts: { name: 'Supplier Payouts', subtitle: 'What is owed to suppliers and what has been paid.' },
+  adspend: { name: 'Ad Spend', subtitle: 'Synced platform spend and the true CPL it produces.' },
+};
+
+const num = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
 
 export default function Finances() {
   const [params] = useSearchParams();
+  const qc = useQueryClient();
   const { can } = usePermissions();
   const canBank = can('bank_feed');
   const tab = params.get('tab') || 'overview';
@@ -28,20 +41,51 @@ export default function Finances() {
   const { data: payouts = [] } = useQuery({ queryKey: ['supplier-payouts'], queryFn: () => base44.entities.SupplierPayout.list('-created_date', 500) });
   const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
   const { data: txns = [] } = useQuery({ queryKey: ['bank-txns'], queryFn: () => base44.entities.BankTransaction.list('-date', 500) });
+  const { data: mercuryCfg } = useQuery({
+    queryKey: ['mercury-config'],
+    queryFn: async () => (await base44.entities.IntegrationConfig.filter({ name: 'mercury' }))[0] || null,
+  });
 
-  const unmatchedIn = unmatched(txns).filter(t => t.amount > 0).reduce((a, t) => a + Number(t.amount), 0);
+  const unmatchedIn = useMemo(
+    () => unmatched(txns).filter(t => t.amount > 0).reduce((a, t) => a + num(t.amount), 0),
+    [txns],
+  );
 
-  const reconData = { leads, buyers, suppliers, invoices, payments, payouts, adSpend, unmatchedIn, resolved };
+  const reconData = { leads, buyers, suppliers, invoices, payments, payouts, adSpend, unmatchedIn, resolved, txns };
+
+  // Real telemetry: bank feed, open gaps, overdue, payouts owing, ad-spend synced platforms.
+  const telemetry = useMemo(() => {
+    const rows = reconcile(reconData);
+    const wb = workbench(rows, invoices);
+    const payoutsOwing = payouts.reduce((a, p) => a + Math.max(0, num(p.amount) - num(p.paid_amount)), 0);
+    const syncedPlatforms = new Set(adSpend.map(r => r.platform).filter(Boolean)).size;
+    return {
+      bankOnline: !!mercuryCfg || txns.length > 0,
+      unmatchedIn,
+      openGaps: wb.openGaps.length,
+      overdue: wb.overdue,
+      payoutsOwing,
+      adSyncedPlatforms: syncedPlatforms,
+      adTotalPlatforms: 3,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns, mercuryCfg, unmatchedIn]);
+
+  const meta = TAB_META[tab] || TAB_META.overview;
+
+  const refresh = () => {
+    ['report-leads', 'buyers', 'suppliers', 'all-invoices', 'buyer-payments', 'supplier-payouts', 'adspend', 'bank-txns', 'mercury-config']
+      .forEach(k => qc.invalidateQueries({ queryKey: [k] }));
+  };
 
   return (
-    <div>
-      <SectionHeader title="Finances" subtitle="Financial overview, reconciliation, invoices, payments and ad spend" />
+    <FinanceShell tabName={meta.name} subtitle={meta.subtitle} telemetry={telemetry} onRefresh={refresh}>
       {tab === 'overview' && <ReconciliationTab data={reconData} onResolve={(g) => { setResolved(r => r + 1); toast.success(`Marked ${g.name} resolved`); }} />}
       {tab === 'bank' && canBank && <BankFeedTab />}
       {tab === 'invoices' && <InvoicesTab buyers={buyers} />}
       {tab === 'payments' && <BuyerPaymentsTab buyers={buyers} />}
-      {tab === 'payouts' && <SupplierPayoutsTab suppliers={suppliers} />}
+      {tab === 'payouts' && <SupplierPayoutsTab suppliers={suppliers} leads={leads} adSpend={adSpend} />}
       {tab === 'adspend' && <AdSpendTab />}
-    </div>
+    </FinanceShell>
   );
 }
