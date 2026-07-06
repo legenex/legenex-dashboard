@@ -15,6 +15,7 @@
         "number",
         "boolean",
         "date",
+        "dropdown",
         "Calculated",
         "system"
       ],
