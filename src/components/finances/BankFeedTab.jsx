@@ -16,6 +16,9 @@ import { money } from '@/lib/reportMetrics';
 import { unmatched } from '@/lib/financeMetrics';
 import { Panel, THead, rise } from '@/components/finances/financeAtoms';
 import { StatChip } from '@/components/finances/financeUi';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { loadFinanceSettings, suggestMatch, suggestCategory } from '@/lib/financeSettings';
+import { Wand2 } from 'lucide-react';
 
 const CAT_STYLE = {
   tech: 'bg-status-qualified status-qualified', media: 'bg-status-queued status-queued',
@@ -31,6 +34,37 @@ export default function BankFeedTab({ win }) {
   const [mForm, setMForm] = useState({ api_token: '', account_id: '' });
   const [mSaving, setMSaving] = useState(false);
   const [mSyncing, setMSyncing] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(null);
+  const [savingTxn, setSavingTxn] = useState(false);
+
+  const { data: fsettings } = useQuery({ queryKey: ['finance-settings'], queryFn: async () => (await loadFinanceSettings()).settings });
+  const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
+
+  const openTxn = (t) => {
+    setSelected(t);
+    setForm({ category: t.category || '', matched_entity_type: t.matched_entity_type || '', matched_entity_name: t.matched_entity_name || '' });
+  };
+  const suggestion = selected ? suggestMatch(selected.description, fsettings) : null;
+  const catSuggestion = selected ? suggestCategory(selected.description, fsettings) : null;
+  const nameFor = (type) => (type === 'supplier' ? suppliers.map(s => s.name) : buyers.map(b => b.company_name)).filter(Boolean);
+
+  const saveTxn = async () => {
+    if (!selected || !form) return;
+    setSavingTxn(true);
+    try {
+      await base44.entities.BankTransaction.update(selected.id, {
+        category: form.category || undefined,
+        matched_entity_type: form.matched_entity_name ? (form.matched_entity_type || 'buyer') : undefined,
+        matched_entity_name: form.matched_entity_name || undefined,
+      });
+      toast.success('Mapping saved');
+      qc.invalidateQueries({ queryKey: ['bank-txns'] });
+      setSelected(null);
+    } catch { toast.error('Could not save mapping'); }
+    setSavingTxn(false);
+  };
 
   const { data: allTxns = [] } = useQuery({
     queryKey: ['bank-txns'],
@@ -176,7 +210,7 @@ export default function BankFeedTab({ win }) {
           <tbody className="divide-y divide-border/60">
             {txns.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">No transactions yet. Connect Mercury or import a CSV.</td></tr>}
             {txns.map((t, i) => (
-              <motion.tr key={t.id} variants={rise} initial="hidden" animate="show" custom={i} className="hover:bg-foreground/[0.02]">
+              <motion.tr key={t.id} variants={rise} initial="hidden" animate="show" custom={i} onClick={() => openTxn(t)} className="hover:bg-foreground/[0.02] cursor-pointer">
                 <td className="px-4 py-2.5 font-mono text-muted-foreground">{t.date}</td>
                 <td className="px-4 py-2.5 text-foreground truncate max-w-[280px]">{t.description || '-'}</td>
                 <td className="px-4 py-2.5">{t.category ? <Badge variant="outline" className={`text-[10px] ${CAT_STYLE[t.category] || ''}`}>{t.category}{t.ai_categorized ? ' *' : ''}</Badge> : <span className="text-muted-foreground">-</span>}</td>
@@ -198,6 +232,68 @@ export default function BankFeedTab({ win }) {
           </span>
         </div>
       )}
+
+      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+        <DialogContent className="bg-popover border-border max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Transaction detail</DialogTitle>
+            <DialogDescription>See where this transaction is mapped and re-map it.</DialogDescription>
+          </DialogHeader>
+          {selected && form && (
+            <div className="space-y-3.5">
+              <div className="rounded-lg border border-border bg-background/40 p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium text-foreground truncate">{selected.description || '-'}</div>
+                  <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{selected.date}</div>
+                </div>
+                <div className={`text-[16px] font-bold font-mono tabular-nums whitespace-nowrap ${selected.amount >= 0 ? 'status-sold' : 'text-destructive'}`}>{money(selected.amount)}</div>
+              </div>
+
+              {suggestion && form.matched_entity_name !== suggestion.entity_name && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Wand2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[12px] text-foreground">Suggested: <span className="font-semibold">{suggestion.entity_name}</span> <span className="text-muted-foreground">({suggestion.entity_type})</span></div>
+                      <div className="text-[11px] text-muted-foreground">Matched by {suggestion.reason}</div>
+                    </div>
+                  </div>
+                  <Button size="sm" className="h-7 text-[11px] shrink-0" onClick={() => setForm(f => ({ ...f, matched_entity_type: suggestion.entity_type, matched_entity_name: suggestion.entity_name }))}>Apply</Button>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-[12px]">Category {catSuggestion && !form.category && <span className="text-muted-foreground">- suggested {catSuggestion.label}</span>}</Label>
+                <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                  <SelectTrigger className="mt-1 bg-background text-[12px]"><SelectValue placeholder="Uncategorized" /></SelectTrigger>
+                  <SelectContent>{(fsettings?.categories || []).map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[12px]">Match type</Label>
+                  <Select value={form.matched_entity_type} onValueChange={v => setForm(f => ({ ...f, matched_entity_type: v, matched_entity_name: '' }))}>
+                    <SelectTrigger className="mt-1 bg-background text-[12px]"><SelectValue placeholder="Unmatched" /></SelectTrigger>
+                    <SelectContent><SelectItem value="buyer">Buyer</SelectItem><SelectItem value="supplier">Supplier</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-[12px]">Counterparty</Label>
+                  <Select value={form.matched_entity_name} onValueChange={v => setForm(f => ({ ...f, matched_entity_name: v }))}>
+                    <SelectTrigger className="mt-1 bg-background text-[12px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>{nameFor(form.matched_entity_type).map(nm => <SelectItem key={nm} value={nm}>{nm}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSelected(null)}>Cancel</Button>
+            <Button onClick={saveTxn} disabled={savingTxn} className="gap-1.5"><Save className="w-3.5 h-3.5" /> {savingTxn ? 'Saving...' : 'Save mapping'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={mercuryOpen} onOpenChange={setMercuryOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">
