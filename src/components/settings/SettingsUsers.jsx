@@ -146,28 +146,34 @@ export default function SettingsUsers() {
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              {['Name', 'Email', 'Role', 'Access', 'Joined', ''].map(h => (
+              {['Name', 'Email', 'Role', 'Status', 'Access', 'Joined', ''].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {users.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No users found</td></tr>}
+            {users.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No users found</td></tr>}
             {users.map((u, idx) => {
               const p = parsePerms(u.permissions);
               const count = Object.keys(p).length;
               const preset = ROLE_PRESETS[u.base_role];
+              const isPending = u.status === 'pending';
               return (
                 <motion.tr key={u.id} variants={riseIn} initial="hidden" animate="show" custom={idx} className="hover:bg-accent/40 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{u.full_name || '-'}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{u.full_name || (isPending ? <span className="text-muted-foreground italic">Invite pending</span> : '-')}</td>
                   <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                   <td className="px-4 py-3"><Tag tone="muted">{preset?.label || u.role || 'user'}</Tag></td>
+                  <td className="px-4 py-3">
+                    {isPending
+                      ? <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-status-unsold"><span className="w-1.5 h-1.5 rounded-full bg-status-unsold-dot" style={{ backgroundColor: '#FACC14' }} />Pending</span>
+                      : <span className="inline-flex items-center gap-1.5 text-[11px] font-medium status-sold"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3DD68C' }} />Active</span>}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground text-[11px]">{count > 0 ? `${count} section${count !== 1 ? 's' : ''}` : '0 sections'}</td>
-                  <td className="px-4 py-3 text-muted-foreground font-mono text-[11px]">{u.created_date ? format(new Date(u.created_date), 'MMM dd, yyyy') : '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground font-mono text-[11px]">{isPending ? <span className="italic">Invited {u.created_date ? format(new Date(u.created_date), 'MMM dd') : ''}</span> : (u.created_date ? format(new Date(u.created_date), 'MMM dd, yyyy') : '-')}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 text-[11px] px-2" onClick={() => openEdit(u)}>Edit access</Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(u)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      {!isPending && <Button size="sm" variant="ghost" className="h-7 text-[11px] px-2" onClick={() => openEdit(u)}>Edit access</Button>}
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(u)} title={isPending ? 'Cancel invite' : 'Remove user'}><Trash2 className="w-3.5 h-3.5" /></Button>
                     </div>
                   </td>
                 </motion.tr>
@@ -211,8 +217,8 @@ export default function SettingsUsers() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent className="bg-popover border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove user?</AlertDialogTitle>
-            <AlertDialogDescription>This removes "{deleteTarget?.full_name || deleteTarget?.email}" from the app. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{deleteTarget?.status === 'pending' ? 'Cancel invitation?' : 'Remove user?'}</AlertDialogTitle>
+            <AlertDialogDescription>{deleteTarget?.status === 'pending' ? `This cancels the pending invitation for "${deleteTarget?.email}".` : `This removes "${deleteTarget?.full_name || deleteTarget?.email}" from the app. This cannot be undone.`}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
