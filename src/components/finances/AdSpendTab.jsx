@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { isWithinInterval } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -12,9 +13,12 @@ import { Panel, PanelHeader, THead, rise } from '@/components/finances/financeAt
 import { StatChip } from '@/components/finances/financeUi';
 
 // Shows synced ad spend and the true CPL it produces per supplier/source.
-export default function AdSpendTab() {
-  const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
-  const { data: leads = [] } = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
+export default function AdSpendTab({ win }) {
+  const { data: allSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
+  const { data: allLeads = [] } = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
+  const inWin = (d) => !win || (d && isWithinInterval(new Date(d), { start: win.start, end: win.end }));
+  const adSpend = useMemo(() => allSpend.filter(r => inWin(r.date)), [allSpend, win]);
+  const leads = useMemo(() => allLeads.filter(l => inWin(l.created_date)), [allLeads, win]);
 
   const totalSpend = adSpend.reduce((a, r) => a + Number(r.spend || 0), 0);
   const bySupplier = groupBy(leads, 'supplier_name', adSpend);
