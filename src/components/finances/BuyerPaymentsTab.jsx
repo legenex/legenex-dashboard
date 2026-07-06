@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { isWithinInterval } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -16,13 +17,14 @@ import { downloadCsv } from '@/lib/csv';
 import { Panel, THead, rise } from '@/components/finances/financeAtoms';
 import { StatChip } from '@/components/finances/financeUi';
 
-export default function BuyerPaymentsTab({ buyers }) {
+export default function BuyerPaymentsTab({ buyers, win }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ buyer_id: '', amount: '', method: 'manual', paid_date: new Date().toISOString().slice(0, 10) });
 
-  const { data: payments = [] } = useQuery({ queryKey: ['buyer-payments'], queryFn: () => base44.entities.BuyerPayment.list('-paid_date', 500) });
+  const { data: allPayments = [] } = useQuery({ queryKey: ['buyer-payments'], queryFn: () => base44.entities.BuyerPayment.list('-paid_date', 500) });
   const { data: invoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
+  const payments = useMemo(() => (win ? allPayments.filter(p => p.paid_date && isWithinInterval(new Date(p.paid_date), { start: win.start, end: win.end })) : allPayments), [allPayments, win]);
 
   const n = (v) => { const x = Number(v); return isNaN(x) ? 0 : x; };
   const received = payments.reduce((a, p) => a + n(p.amount), 0);
