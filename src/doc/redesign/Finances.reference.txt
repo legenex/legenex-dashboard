@@ -1,0 +1,57 @@
+// FINANCES redesign reference (Performance OS). Prepared for a per-section build later.
+// Restyle the Finances page and its tabs to this design, PRESERVING all data, queries, syncs, and actions.
+// Real data only, honest zeros, no mock/seed rows. No em dashes. Buyer/supplier portals and the pipeline stay untouched.
+//
+// SIDE MENU (Finance sub-rail, updates FinancesNav): a left rail, group label "FINANCES", each item an icon + label.
+// ACTIVE item = soft-red pill (bg-primary/10, text-primary) with a 2px inset primary left border. A Mercury status
+// card sits at the bottom: connected -> green dot + label, else red dot + "bank truth unavailable".
+// TABS (id -> real tab, data source):
+//   overview  Overview          Reconciliation overview
+//   bank      Bank Feed         BankTransaction, syncMercury, categorizeTransactions
+//   invoices  Invoices          Invoice
+//   payments  Buyer Payments    BuyerPayment
+//   payouts   Supplier Payouts  SupplierPayout
+//   adspend   Ad Spend          AdSpend + AdSpendMapping, syncMetaSpend, true CPL
+//
+// COLOR -> TOKEN MAP (never hardcode hex; use tokens so light + dark both render):
+//   #0A0E15 -> bg-background ; #131924/#182030 panels -> bg-card ; #243044 -> border-border ;
+//   #1C2536 -> border-border/60 ; #EEF2F8 -> text-foreground ; #8B95A8 -> text-muted-foreground ;
+//   #5A6478 -> text-muted-foreground/70 ; #E5484D -> primary ; #3DD68C -> status-sold ; #E8A33D -> status-unsold.
+//   rail background #0E131D -> bg-sidebar. F2777B (light red) -> text-primary.
+//
+// MOTION: rise-in stagger on cards/rows; hover lift y -2/-3 on tiles; shimmer sweep on the metrics board;
+//   PulseDot on live status. framer-motion only if already present, else CSS. Keep BOOKED vs CASH labels distinct.
+
+const rise = {
+  hidden: { opacity: 0, y: 14 },
+  show: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: 0.05 * i, duration: 0.5, ease: [0.22, 1, 0.36, 1] } })
+};
+
+const TABS = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "bank", label: "Bank Feed", icon: Landmark },
+  { id: "invoices", label: "Invoices", icon: FileText },
+  { id: "payments", label: "Buyer Payments", icon: CreditCard },
+  { id: "payouts", label: "Supplier Payouts", icon: Wallet },
+  { id: "adspend", label: "Ad Spend", icon: Megaphone }
+];
+
+// FinanceRail: rail (bg-sidebar, border-border). "FINANCES" group label. Each TAB a button:
+//   active -> className "bg-primary/10 text-primary" + style boxShadow inset 2px 0 0 hsl(var(--primary)); else text-muted-foreground.
+//   icon text-primary when active else text-muted-foreground/70. Bottom: Mercury status card (bg-card, border-border).
+
+// StatChip (small KPI chip): bg-card/subtle, uppercase micro-label (text-muted-foreground/70), big tabular value
+//   (green for good, primary for risk, foreground default).
+// Tag (pill): rounded-md px-2 py-0.5 text-[11px] border. tones slate/red/green/amber map to
+//   muted / primary / status-sold / status-unsold token tints.
+
+// SUB-PAGE SPECS (each becomes its own build; wire to the existing Finances data + hooks):
+// OVERVIEW TAB: grouped MetricsBoard (Booked Revenue, Verified/Cash, Gap, Outstanding, Overdue, Short-Paid, True CPL,
+//   Cash Margin, Data Quality) + CashChart (Booked vs Verified vs Spend over time, faint grid) + reconciliation
+//   workbench (Open Variances, Match Queue, Unmatched Income, Reconciliation status). AI read from reconInsights.
+// BANK FEED TAB: Connect Mercury card (status from IntegrationConfig name 'mercury') + BankTransaction table
+//   (date, description, amount, category from categorizeTransactions, matched flag). Sync now -> syncMercury. Honest empty state.
+// INVOICES TAB: Invoice table (number, buyer, amount, status, due date), real Invoice records.
+// BUYER PAYMENTS TAB: BuyerPayment table (buyer, amount, method, date, status).
+// SUPPLIER PAYOUTS TAB: SupplierPayout table (supplier, declared cost, ad spend, true cost, payouts issued, paid, owing).
+// AD SPEND TAB: AdSpend + AdSpendMapping table (platform, supplier, spend, leads, true CPL) + syncMetaSpend button.
