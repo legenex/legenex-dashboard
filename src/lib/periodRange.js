@@ -1,6 +1,6 @@
 // Shared period definitions + window resolver for the dashboards.
 import {
-  startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths,
+  startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears,
 } from 'date-fns';
 
 export const PERIODS = [
@@ -33,6 +33,10 @@ export function resolvePeriod(value, custom) {
     }
     case 'last60':
       return { start: startOfDay(subDays(now, 59)), end: endOfDay(now) };
+    case 'last_year': {
+      const ly = subYears(now, 1);
+      return { start: startOfYear(ly), end: endOfYear(ly) };
+    }
     case 'custom':
       return {
         start: custom?.from ? startOfDay(new Date(custom.from)) : startOfDay(subDays(now, 29)),
@@ -50,3 +54,13 @@ export function priorWindow({ start, end }) {
 }
 
 export const PERIOD_LABELS = PERIODS.reduce((m, p) => { m[p.value] = p.label; return m; }, {});
+
+// The standardized preset set used by every Finance + Report date filter.
+export const STANDARD_PERIODS = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'last_year', label: 'Last Year' },
+  { value: 'custom', label: 'Custom' },
+];
