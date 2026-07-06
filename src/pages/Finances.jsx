@@ -60,6 +60,18 @@ export default function Finances() {
 
   const reconData = { leads, buyers, suppliers, invoices, payments, payouts, adSpend, unmatchedIn, resolved, txns };
 
+  // Date-scoped copy for the Reconciliation (overview) tab. Telemetry stays all-time (live status).
+  const scopedReconData = useMemo(() => ({
+    buyers, suppliers, resolved, unmatchedIn,
+    leads: leads.filter(l => inWin(l.created_date)),
+    invoices: invoices.filter(i => inWin(i.created_date)),
+    payments: payments.filter(p => inWin(p.paid_date)),
+    payouts: payouts.filter(p => inWin(p.created_date)),
+    adSpend: adSpend.filter(a => inWin(a.date)),
+    txns: txns.filter(t => inWin(t.date)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns, unmatchedIn, resolved, win]);
+
   // Real telemetry: bank feed, open gaps, overdue, payouts owing, ad-spend synced platforms.
   const telemetry = useMemo(() => {
     const rows = reconcile(reconData);
