@@ -8,7 +8,7 @@ import { money } from '@/lib/reportMetrics';
 // Per-page shell for every Finances tab: header ("Finances / <TabName>" with LIVE pill,
 // Compare + Refresh), a subtitle, the content, and a FINANCE TELEMETRY footer bar with
 // real values. `telemetry` carries the already-computed real numbers.
-export default function FinanceShell({ tabName, subtitle, telemetry = {}, onRefresh, onCompare, children }) {
+export default function FinanceShell({ tabName, subtitle, telemetry = {}, onRefresh, onCompare, filter, children }) {
   const {
     bankOnline = false, unmatchedIn = 0, openGaps = 0, overdue = 0, payoutsOwing = 0,
     adSyncedPlatforms = 0, adTotalPlatforms = 3,
@@ -30,6 +30,7 @@ export default function FinanceShell({ tabName, subtitle, telemetry = {}, onRefr
           {subtitle && <p className="text-[13px] text-muted-foreground mt-1 max-w-2xl">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {filter}
           {onCompare && (
             <button
               onClick={onCompare}
