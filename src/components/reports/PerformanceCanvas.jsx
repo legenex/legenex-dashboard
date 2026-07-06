@@ -1,39 +1,22 @@
 import React, { useState } from 'react';
-import { Plus, Pin } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { Plus } from 'lucide-react';
 import MetricCard from './MetricCard';
 import MetricPicker from './MetricPicker';
 import ReportWidget from './ReportWidget';
 import AddWidgetPicker from './AddWidgetPicker';
-import { computeMetrics, dailySeries, applyFilters, METRIC_CATALOG, leadField } from '@/lib/reportMetrics';
+import { computeMetrics, dailySeries, applyFilters, METRIC_CATALOG, leadField, formatMetric } from '@/lib/reportMetrics';
 import { reorder } from '@/lib/reorder';
 
 let idc = 0;
 const nid = () => `w${Date.now()}_${idc++}`;
 
-// Performance OS metric board: a pinned row plus category toggle chips.
-const GROUPS = [
-  { id: 'revenue', label: 'Revenue', hex: '#E5484D' },
-  { id: 'cash', label: 'Cash', hex: '#3DD68C' },
-  { id: 'risk', label: 'Buyer Risk', hex: '#E8A33D' },
-  { id: 'data', label: 'Data Quality', hex: '#5B8DEF' },
-];
-const CATEGORY = {
-  revenue: 'revenue', net_revenue: 'revenue', profit: 'revenue', net_profit: 'revenue', qp_margin: 'revenue', roas: 'revenue', booked_revenue: 'revenue',
-  verified_income: 'cash', revenue_gap: 'cash', outstanding: 'cash', overdue: 'cash', short_paid: 'cash', cost: 'cash', ad_spend: 'cash', cpl: 'cash', blended_cpl: 'cash', cost_per_sold: 'cash',
-  sold: 'risk', unsold: 'risk', returns: 'risk', dqs: 'risk', duplicates: 'risk', conv_rate: 'risk',
-  total_leads: 'data', fakes: 'data', phone_verified: 'data',
-};
-const PINNED = ['revenue', 'profit', 'total_leads', 'conv_rate'];
-const RISK = ['returns', 'fakes', 'dqs', 'duplicates', 'revenue_gap', 'overdue', 'short_paid', 'outstanding'];
-const groupOf = (metric) => CATEGORY[metric] || 'data';
-
-// The Performance Overview canvas: pinned + grouped metric board, then widgets.
+// The editable Performance Overview canvas: metric cards grid + widgets.
 export default function PerformanceCanvas({
   leads, adSpend, cards, widgets, onCardsChange, onWidgetsChange, customFields, filters,
 }) {
   const [pickCard, setPickCard] = useState(false);
   const [pickWidget, setPickWidget] = useState(false);
-  const [activeGroup, setActiveGroup] = useState('revenue');
 
   const filtered = applyFilters(leads, filters);
   const metrics = computeMetrics(filtered, adSpend);
@@ -55,6 +38,10 @@ export default function PerformanceCanvas({
     return series.map(s => s.leads);
   };
 
+  const onDragCard = (r) => {
+    if (!r.destination) return;
+    onCardsChange(reorder(cards, r.source.index, r.destination.index));
+  };
   const addCard = (opt) => {
     const metric = opt.kind === 'field' ? `field:${opt.key.replace('field:', '')}` : opt.key;
     onCardsChange([...cards, { id: nid(), metric, label: opt.label }]);
@@ -77,72 +64,41 @@ export default function PerformanceCanvas({
     onWidgetsChange(reorder(widgets, idx, to));
   };
 
-  const renderCard = (card) => (
-    <MetricCard
-      key={card.id}
-      card={card}
-      value={cardValue(card)}
-      series={cardSeries(card)}
-      positive={!RISK.includes(card.metric)}
-      onRemove={() => removeCard(card.id)}
-    />
-  );
-
-  const pinnedCards = cards.filter(c => PINNED.includes(c.metric));
-  const grouped = cards.filter(c => !PINNED.includes(c.metric));
-  const activeCards = grouped.filter(c => groupOf(c.metric) === activeGroup);
-  const counts = Object.fromEntries(GROUPS.map(g => [g.id, grouped.filter(c => groupOf(c.metric) === g.id).length]));
-
   return (
     <div>
-      {/* METRIC BOARD: pinned row + category chips */}
-      <div className="mb-6 rounded-xl border border-border bg-card shadow-[0_12px_32px_-16px_rgba(0,0,0,0.35)] overflow-hidden">
-        <div className="flex items-center justify-between px-5 pt-4">
-          <div className="flex items-center gap-2">
-            <Pin className="w-3.5 h-3.5 text-muted-foreground" />
-            <h3 className="text-[13px] font-semibold text-foreground">Pinned metrics</h3>
-          </div>
-          <button onClick={() => setPickCard(true)} className="flex items-center gap-1 text-[11.5px] font-medium text-primary hover:text-primary/80">
-            <Plus className="w-3.5 h-3.5" /> Add Card
-          </button>
-        </div>
-
-        {pinnedCards.length > 0 && (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 px-5 pt-3 pb-4">
-            {pinnedCards.map(renderCard)}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-border">
-          {GROUPS.map(g => {
-            const on = activeGroup === g.id;
-            return (
-              <button key={g.id} onClick={() => setActiveGroup(g.id)}
-                className={`flex items-center gap-2 px-3 h-8 rounded-lg border text-[12px] font-medium transition-colors ${on ? 'text-foreground' : 'text-muted-foreground border-border hover:text-foreground'}`}
-                style={on ? { borderColor: `${g.hex}55`, background: `${g.hex}14` } : undefined}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: g.hex }} />
-                {g.label}
-                <span className={`px-1.5 py-px rounded text-[10px] tabular-nums ${on ? '' : 'bg-muted text-muted-foreground'}`}
-                  style={on ? { background: `${g.hex}22`, color: g.hex } : undefined}>{counts[g.id]}</span>
+      {/* METRIC CARDS */}
+      <DragDropContext onDragEnd={onDragCard}>
+        <Droppable droppableId="cards" direction="horizontal">
+          {(prov) => (
+            <div ref={prov.innerRef} {...prov.droppableProps}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+              {cards.map((card, i) => (
+                <Draggable key={card.id} draggableId={card.id} index={i}>
+                  {(p) => (
+                    <div ref={p.innerRef} {...p.draggableProps}>
+                      <MetricCard
+                        card={card}
+                        value={cardValue(card)}
+                        series={cardSeries(card)}
+                        positive={['returns', 'fakes', 'dqs', 'duplicates', 'revenue_gap', 'overdue', 'short_paid', 'outstanding'].includes(card.metric) ? false : true}
+                        onRemove={() => removeCard(card.id)}
+                        dragHandleProps={p.dragHandleProps}
+                      />
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {prov.placeholder}
+              <button onClick={() => setPickCard(true)}
+                className="border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 min-h-[104px] text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors">
+                <Plus className="w-5 h-5" /><span className="text-[12px]">Add Card</span>
               </button>
-            );
-          })}
-        </div>
-
-        <div className="px-5 pb-5 pt-4 border-t border-border">
-          {activeCards.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
-              {activeCards.map(renderCard)}
-            </div>
-          ) : (
-            <div className="py-8 text-center text-[12px] text-muted-foreground">
-              No cards in this group. Use Add Card to add one.
             </div>
           )}
-        </div>
-      </div>
+        </Droppable>
+      </DragDropContext>
 
-      {/* WIDGETS: chart + dimension tables */}
+      {/* WIDGETS */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {widgets.map(w => (
           <ReportWidget

@@ -53,7 +53,7 @@ export default function ToolsDashboard() {
   const n = (v) => (isLoading ? '—' : (v ?? 0).toLocaleString());
 
   return (
-    <div className="-m-4 sm:-m-6 p-4 sm:p-6 min-h-screen" style={{ backgroundColor: '#242B34' }}>
+    <div>
       <SectionHeader
         title="Tools"
         subtitle="Operational utilities — verification, calculated fields, notifications and testing at a glance."
