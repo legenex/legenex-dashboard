@@ -1,0 +1,49 @@
+// TOOLS redesign reference (Performance OS). Prepared for a per-section build later.
+// Restyle the Tools page and its sub-pages to this design, PRESERVING all data, actions, and the Payload Tester behavior.
+// Real data only, honest zeros, no mock/seed rows. No em dashes. Pipeline, portals, and permissions stay untouched.
+//
+// SIDE MENU (Tools rail): left rail, group label "TOOLS", each item icon + label. ACTIVE = soft-red pill
+// (bg-primary/10, text-primary) + 2px inset primary left border. Bottom: "Automation engine" status card with a
+// PulseDot and "Running - N jobs queued" (green when running).
+// TOOLS (id -> real sub-page, data source):
+//   dashboard      Dashboard          landing with the tool cards below
+//   notifications  Notifications      NotificationRule + NotificationEvent (Tools > Notifications)
+//   calcfields     Calculated Fields  CustomCalculation + Calculated CustomField
+//   verification   Verification       HlrSettings + EmailValidationSettings (HLR + email gates)
+//   payload        Payload Tester     sendPayloadTest + PayloadTest records (fires a lead through processLead)
+//
+// COLOR -> TOKEN MAP (never hardcode hex): #0A0E15 -> bg-background ; #131924/#182030 -> bg-card ;
+//   #243044 -> border-border ; #1C2536 -> border-border/60 ; #EEF2F8 -> text-foreground ;
+//   #8B95A8 -> text-muted-foreground ; #5A6478 -> text-muted-foreground/70 ; #E5484D -> primary ;
+//   #3DD68C -> status-sold ; #E8A33D -> status-unsold ; rail bg #0E131D -> bg-sidebar ; F2777B -> text-primary.
+// MOTION: rise-in stagger on cards; hover lift; PulseDot on live status. framer-motion only if present, else CSS.
+
+const rise = {
+  hidden: { opacity: 0, y: 14 },
+  show: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: 0.05 * i, duration: 0.5, ease: [0.22, 1, 0.36, 1] } })
+};
+
+const TOOLS = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "calcfields", label: "Calculated Fields", icon: Calculator },
+  { id: "verification", label: "Verification", icon: ShieldCheck },
+  { id: "payload", label: "Payload Tester", icon: FlaskConical }
+];
+
+// Toggle atom: w-9 h-5 rounded-full, track = status-sold when on else border-border, white knob translateX(16px) when on.
+// Tag pill: same token tints as elsewhere (slate/red/green/amber -> muted/primary/status-sold/status-unsold).
+
+// SUB-PAGE SPECS (each becomes its own build; wire to real data):
+// TOOLS DASHBOARD: four tool cards (Notifications, Calculated Fields, Verification, Payload Tester). Each card:
+//   icon, name, one-line description, a real status stat (e.g. "N active rules", "N fields", "1 of 2 active",
+//   "Last run: <time>"), a tone dot (red/amber/green from real state), and a hint. Card click routes to that tool.
+//   Compute stats from real records (NotificationRule count, Calculated CustomField count, HlrSettings +
+//   EmailValidationSettings enabled, last PayloadTest run). Honest zeros.
+// NOTIFICATIONS: NotificationRule list, each row with channel, trigger, target, and an on/off Toggle. Add rule action.
+// CALCULATED FIELDS: Calculated fields list (CustomField type Calculated + CustomCalculation transform:
+//   date_age_bucket / value_map / script). Add/edit/remove preserved.
+// VERIFICATION: two gate panels, Phone HLR (HlrSettings) and Email Validation (EmailValidationSettings), each with
+//   enabled Toggle and config. Keep the test actions (testHlr, testEmail).
+// PAYLOAD TESTER: the existing Payload Tester UI restyled (form to build a synthetic lead, fire via sendPayloadTest
+//   through the full processLead pipeline, and show every hop of the trace). Do NOT change its posting behavior.
