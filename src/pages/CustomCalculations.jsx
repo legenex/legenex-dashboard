@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Calculator, GripVertical, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { OutputFieldPicker } from '@/components/calculations/OutputFieldPicker';
@@ -42,8 +43,29 @@ const BLANK_FORM = {
   fallback: 'Over 24 Months',
   date_format: 'MM/DD/YYYY',
   value_map: [{ from: '', to: '' }],
+  conditional_rules: [{ conditions: [{ field: '', operator: 'equals', value: '' }], output: '' }],
+  conditional_fallback: '',
   script: `// Available variables:\n// value - the raw input field value\n// lead - the full lead payload object\n// Return the computed output value.\n\nreturn value;`,
 };
+
+const CONDITION_FIELD_CONTEXT = [
+  { value: 'supplier_type', label: 'Supplier Type' },
+  { value: 'sid', label: 'Supplier SID' },
+  { value: 'final_status', label: 'Final Status' },
+  { value: 'supplier_name', label: 'Supplier Name' },
+  { value: 'brand', label: 'Brand' },
+];
+
+const CONDITION_OPERATORS = [
+  { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'not equals' },
+  { value: 'contains', label: 'contains' },
+  { value: 'not_contains', label: 'does not contain' },
+  { value: 'in', label: 'in (comma separated)' },
+  { value: 'not_in', label: 'not in (comma separated)' },
+  { value: 'exists', label: 'exists' },
+  { value: 'not_exists', label: 'does not exist' },
+];
 
 // AI-suggested calculated fields. "Add" opens the editor prefilled with the suggestion.
 const SUGGESTED_FIELDS = [
@@ -74,6 +96,18 @@ function formToRecord(form) {
     config = { map };
   } else if (form.transform_type === 'clone') {
     config = {};
+  } else if (form.transform_type === 'conditional') {
+    config = {
+      rules: form.conditional_rules
+        .filter(r => (r.output || '').trim() !== '' && r.conditions.some(c => (c.field || '').trim() !== ''))
+        .map(r => ({
+          conditions: r.conditions
+            .filter(c => (c.field || '').trim() !== '')
+            .map(c => ({ field: c.field, operator: c.operator, value: c.value })),
+          output: r.output,
+        })),
+      fallback: form.conditional_fallback,
+    };
   } else {
     config = { script: form.script };
   }
@@ -81,7 +115,7 @@ function formToRecord(form) {
     output_token: form.output_token,
     output_label: form.output_label || form.output_token,
     transform_type: form.transform_type,
-    input_field: form.input_field,
+    input_field: form.transform_type === 'conditional' ? '' : form.input_field,
     enabled: form.enabled,
     sort_order: form.sort_order,
     config: JSON.stringify(config),
@@ -102,6 +136,10 @@ function recordToForm(rec) {
     fallback: cfg.fallback || 'Over 24 Months',
     date_format: cfg.date_format || 'MM/DD/YYYY',
     value_map: cfg.map ? Object.entries(cfg.map).map(([from, to]) => ({ from, to })) : [{ from: '', to: '' }],
+    conditional_rules: (rec.transform_type === 'conditional' && Array.isArray(cfg.rules) && cfg.rules.length)
+      ? cfg.rules
+      : [{ conditions: [{ field: '', operator: 'equals', value: '' }], output: '' }],
+    conditional_fallback: rec.transform_type === 'conditional' ? (cfg.fallback || '') : '',
     script: cfg.script || BLANK_FORM.script,
   };
 }
@@ -234,6 +272,60 @@ export default function CustomCalculations() {
 
   function addMapRow() { setForm(f => ({ ...f, value_map: [...f.value_map, { from: '', to: '' }] })); }
   function removeMapRow(i) { setForm(f => ({ ...f, value_map: f.value_map.filter((_, idx) => idx !== i) })); }
+
+  function addRule() {
+    setForm(f => ({ ...f, conditional_rules: [...f.conditional_rules, { conditions: [{ field: '', operator: 'equals', value: '' }], output: '' }] }));
+  }
+
+  function removeRule(ruleIndex) {
+    setForm(f => ({ ...f, conditional_rules: f.conditional_rules.filter((_, idx) => idx !== ruleIndex) }));
+  }
+
+  function updateRuleOutput(ruleIndex, value) {
+    setForm(f => {
+      const conditional_rules = [...f.conditional_rules];
+      conditional_rules[ruleIndex] = { ...conditional_rules[ruleIndex], output: value };
+      return { ...f, conditional_rules };
+    });
+  }
+
+  function addCondition(ruleIndex) {
+    setForm(f => {
+      const conditional_rules = [...f.conditional_rules];
+      const rule = conditional_rules[ruleIndex];
+      conditional_rules[ruleIndex] = { ...rule, conditions: [...rule.conditions, { field: '', operator: 'equals', value: '' }] };
+      return { ...f, conditional_rules };
+    });
+  }
+
+  function removeCondition(ruleIndex, condIndex) {
+    setForm(f => {
+      const conditional_rules = [...f.conditional_rules];
+      const rule = conditional_rules[ruleIndex];
+      conditional_rules[ruleIndex] = { ...rule, conditions: rule.conditions.filter((_, idx) => idx !== condIndex) };
+      return { ...f, conditional_rules };
+    });
+  }
+
+  function updateCondition(ruleIndex, condIndex, key, value) {
+    setForm(f => {
+      const conditional_rules = [...f.conditional_rules];
+      const rule = conditional_rules[ruleIndex];
+      const conditions = [...rule.conditions];
+      conditions[condIndex] = { ...conditions[condIndex], [key]: value };
+      conditional_rules[ruleIndex] = { ...rule, conditions };
+      return { ...f, conditional_rules };
+    });
+  }
+
+  const conditionFieldOptions = [
+    ...CONDITION_FIELD_CONTEXT,
+    ...customFields.map(f => ({ value: f.field_name, label: f.label || f.field_name })),
+  ];
+
+  const conditionalValid =
+    form.transform_type === 'conditional' &&
+    form.conditional_rules.some(r => (r.output || '').trim() !== '' && r.conditions.some(c => (c.field || '').trim() !== ''));
 
   const typeLabels = { date_age_bucket: 'Date Transformer', value_map: 'Value Map', clone: 'Clone', script: 'Script' };
   const existingTokens = new Set(calcs.map(c => c.output_token));
@@ -427,10 +519,61 @@ export default function CustomCalculations() {
             </div>
 
             {form.transform_type === 'conditional' && (
-              <div className="rounded-lg border border-border bg-muted/30 p-4">
-                <p className="text-[13px] text-muted-foreground leading-relaxed">
-                  Conditional rules builder is set up in the next step.
-                </p>
+              <div className="space-y-3">
+                <Label className="block">Rules <span className="text-muted-foreground text-xs">(checked in order, first match wins)</span></Label>
+                <div className="space-y-3">
+                  {form.conditional_rules.map((rule, ri) => (
+                    <div key={ri} className="rounded-lg border border-border bg-muted/20 p-3 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-muted-foreground">When all of these match:</span>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeRule(ri)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                      <div className="space-y-2">
+                        {rule.conditions.map((cond, ci) => {
+                          const noValue = cond.operator === 'exists' || cond.operator === 'not_exists';
+                          return (
+                            <div key={ci} className="flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                <SearchableSelect
+                                  value={cond.field}
+                                  onValueChange={v => updateCondition(ri, ci, 'field', v)}
+                                  options={conditionFieldOptions}
+                                  placeholder="Field…"
+                                />
+                              </div>
+                              <Select value={cond.operator} onValueChange={v => updateCondition(ri, ci, 'operator', v)}>
+                                <SelectTrigger className="w-44 shrink-0"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {CONDITION_OPERATORS.map(op => (
+                                    <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                className="flex-1 min-w-0"
+                                value={cond.value}
+                                onChange={e => updateCondition(ri, ci, 'value', e.target.value)}
+                                disabled={noValue}
+                                placeholder="Value"
+                              />
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeCondition(ri, ci)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                            </div>
+                          );
+                        })}
+                        <Button size="sm" variant="outline" onClick={() => addCondition(ri)} className="gap-1"><Plus className="w-3.5 h-3.5" />Add condition</Button>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Label className="text-[12px] whitespace-nowrap">Set output to</Label>
+                        <Input className="flex-1" value={rule.output} onChange={e => updateRuleOutput(ri, e.target.value)} placeholder="Output value" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button size="sm" variant="outline" onClick={addRule} className="gap-1"><Plus className="w-3.5 h-3.5" />Add Rule</Button>
+                <div className="space-y-1.5">
+                  <Label>Fallback Value <span className="text-muted-foreground text-xs">(used when no rule matches)</span></Label>
+                  <Input value={form.conditional_fallback} onChange={e => setF('conditional_fallback', e.target.value)} placeholder="Fallback value" />
+                </div>
               </div>
             )}
 
@@ -508,7 +651,12 @@ export default function CustomCalculations() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate(formToRecord(form))} disabled={!form.output_token || !form.input_field || saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate(formToRecord(form))} disabled={
+              !form.output_token ||
+              saveMutation.isPending ||
+              (['date_age_bucket', 'value_map', 'clone', 'script'].includes(form.transform_type) && !form.input_field) ||
+              (form.transform_type === 'conditional' && !conditionalValid)
+            }>
               {saveMutation.isPending ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
