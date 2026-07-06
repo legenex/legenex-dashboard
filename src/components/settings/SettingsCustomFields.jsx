@@ -381,6 +381,19 @@ export default function SettingsCustomFields() {
     toast.success(`${ids.length} field${ids.length !== 1 ? 's' : ''} ${required ? 'marked required' : 'unmarked'}`);
   };
 
+  const onOptionDragEnd = (result) => {
+    if (!result.destination) return;
+    const from = result.source.index;
+    const to = result.destination.index;
+    if (from === to) return;
+    setForm(p => {
+      const next = [...(p.options || [])];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return { ...p, options: next };
+    });
+  };
+
   const showValues = VALUE_TYPES.includes(form.field_type);
 
   return (
@@ -567,23 +580,43 @@ export default function SettingsCustomFields() {
             {showValues && (
               <div className="space-y-2 pt-2 border-t border-border">
                 <Label className="text-[12px]">Dropdown Values <span className="text-muted-foreground text-[11px]">(also used as Triggers on Destinations & Conversion Events)</span></Label>
-                {Array.isArray(form.options) && form.options.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={opt}
-                      onChange={e => setForm(p => {
-                        const next = [...p.options];
-                        next[i] = e.target.value;
-                        return { ...p, options: next };
-                      })}
-                      placeholder="e.g. Qualified"
-                      className="bg-background font-mono text-[12px]"
-                    />
-                    <Button size="icon" variant="ghost" className="h-8 w-8 p-0 text-destructive shrink-0" onClick={() => setForm(p => ({ ...p, options: p.options.filter((_, idx) => idx !== i) }))}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ))}
+                <DragDropContext onDragEnd={onOptionDragEnd}>
+                  <Droppable droppableId="option-list">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                        {Array.isArray(form.options) && form.options.map((opt, i) => (
+                          <Draggable key={i} draggableId={`opt-${i}`} index={i}>
+                            {(dp, snap) => (
+                              <div
+                                ref={dp.innerRef}
+                                {...dp.draggableProps}
+                                className={`flex items-center gap-2 ${snap.isDragging ? 'opacity-90' : ''}`}
+                              >
+                                <div {...dp.dragHandleProps} className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0">
+                                  <GripVertical className="w-4 h-4" />
+                                </div>
+                                <Input
+                                  value={opt}
+                                  onChange={e => setForm(p => {
+                                    const next = [...p.options];
+                                    next[i] = e.target.value;
+                                    return { ...p, options: next };
+                                  })}
+                                  placeholder="e.g. Qualified"
+                                  className="bg-background font-mono text-[12px]"
+                                />
+                                <Button size="icon" variant="ghost" className="h-8 w-8 p-0 text-destructive shrink-0" onClick={() => setForm(p => ({ ...p, options: p.options.filter((_, idx) => idx !== i) }))}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
                 <Button size="sm" variant="outline" onClick={() => setForm(p => ({ ...p, options: [...(p.options || []), ''] }))} className="gap-1.5">
                   <Plus className="w-3.5 h-3.5" /> Add Value
                 </Button>
