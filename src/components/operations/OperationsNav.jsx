@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Factory, MapPin, ReceiptText, UserPlus } from 'lucide-react';
+import { Users, Factory, MapPin, ReceiptText, UserPlus, LayoutDashboard } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
+  { label: 'Dashboard', path: '/operations', icon: LayoutDashboard },
   { label: 'Buyers', path: '/operations/buyers', icon: Users },
   { label: 'Suppliers', path: '/operations/suppliers', icon: Factory },
   { label: 'Active States', path: '/operations/active-states', icon: MapPin },
