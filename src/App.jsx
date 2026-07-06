@@ -21,6 +21,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import DistributionLayout from '@/components/distribution/DistributionLayout';
 import LeadsLayout from '@/components/leads/LeadsLayout';
 import FinancesLayout from '@/components/finances/FinancesLayout';
+import OperationsLayout from '@/components/operations/OperationsLayout';
 import ToolsLayout from '@/components/tools/ToolsLayout';
 import Overview from '@/pages/Overview';
 import DistributionDashboard from '@/pages/DistributionDashboard';
@@ -38,6 +39,11 @@ import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
 import CustomCalculations from '@/pages/CustomCalculations';
+import OperationsBuyers from '@/pages/operations/OperationsBuyers';
+import OperationsSuppliers from '@/pages/operations/OperationsSuppliers';
+import OperationsActiveStates from '@/pages/operations/OperationsActiveStates';
+import OperationsBillingReports from '@/pages/operations/OperationsBillingReports';
+import OperationsBuyerOnboarding from '@/pages/operations/OperationsBuyerOnboarding';
 import PayloadTester from '@/pages/PayloadTester';
 import ToolsDashboard from '@/pages/ToolsDashboard';
 
@@ -175,6 +181,13 @@ const AuthenticatedApp = () => {
           <Route path="/reports" element={<Reports />} />
           <Route element={<FinancesLayout />}>
             <Route path="/finances" element={<Finances />} />
+          </Route>
+          <Route element={<OperationsLayout />}>
+            <Route path="/operations/buyers" element={<OperationsBuyers />} />
+            <Route path="/operations/suppliers" element={<OperationsSuppliers />} />
+            <Route path="/operations/active-states" element={<OperationsActiveStates />} />
+            <Route path="/operations/billing-reports" element={<OperationsBillingReports />} />
+            <Route path="/operations/buyer-onboarding" element={<OperationsBuyerOnboarding />} />
           </Route>
           <Route path="/lead-distribution" element={<Navigate to="/campaigns" replace />} />
           <Route element={<ToolsLayout />}>

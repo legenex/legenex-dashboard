@@ -5,6 +5,7 @@ import { useTheme } from '@/lib/theme';
 import {
   LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
   BarChart3, Wallet, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
+  SlidersHorizontal,
 } from 'lucide-react';
 import ViewAsSwitcher from './ViewAsSwitcher';
 import SidebarProfile from './SidebarProfile';
@@ -52,6 +53,16 @@ const navGroups = [
       { label: 'Buyer Payments', path: '/finances', tab: 'payments', permKey: 'finances' },
       { label: 'Supplier Payouts', path: '/finances', tab: 'payouts', permKey: 'finances' },
       { label: 'Ad Spend', path: '/finances', tab: 'adspend', permKey: 'finances' },
+    ],
+  },
+  {
+    label: 'Operations', icon: SlidersHorizontal, type: 'dropdown', path: '/operations/buyers', permKey: 'operations',
+    children: [
+      { label: 'Buyers', path: '/operations/buyers', permKey: 'operations' },
+      { label: 'Suppliers', path: '/operations/suppliers', permKey: 'operations' },
+      { label: 'Active States', path: '/operations/active-states', permKey: 'operations' },
+      { label: 'Billing Reports', path: '/operations/billing-reports', permKey: 'operations' },
+      { label: 'Buyer Onboarding', path: '/operations/buyer-onboarding', permKey: 'operations' },
     ],
   },
   {
