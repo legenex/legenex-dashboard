@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import ReportSidebar, { STANDARD } from '@/components/reports/ReportSidebar';
 import ReportFilterBar from '@/components/reports/ReportFilterBar';
 import PerformanceCanvas, { makeDefaultCards, makeDefaultWidgets } from '@/components/reports/PerformanceCanvas';
+import DailyReport from '@/components/reports/views/DailyReport';
 import SectionShell from '@/components/layout/SectionShell';
 import SectionHeader from '@/components/shared/SectionHeader';
 
@@ -134,16 +135,20 @@ export default function Reports() {
         options={{ campaigns, verticals, suppliers, buyers, brands }}
       />
 
-      <PerformanceCanvas
-        leads={leads}
-        adSpend={adSpend}
-        cards={view.cards}
-        widgets={view.widgets}
-        onCardsChange={setCards}
-        onWidgetsChange={setWidgets}
-        customFields={customFields}
-        filters={effectiveFilters}
-      />
+      {active === 'std:daily' ? (
+        <DailyReport leads={leads} adSpend={adSpend} filters={effectiveFilters} />
+      ) : (
+        <PerformanceCanvas
+          leads={leads}
+          adSpend={adSpend}
+          cards={view.cards}
+          widgets={view.widgets}
+          onCardsChange={setCards}
+          onWidgetsChange={setWidgets}
+          customFields={customFields}
+          filters={effectiveFilters}
+        />
+      )}
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="bg-popover border-border max-w-[420px]">
