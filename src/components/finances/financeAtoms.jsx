@@ -34,7 +34,7 @@ export const StatChip = ({ label, value, tone, i = 0 }) => {
       className="rounded-xl border border-border bg-card p-4 shadow-[0_12px_32px_-16px_rgba(0,0,0,0.4)]"
     >
       <div className="text-[9.5px] font-semibold tracking-[0.1em] uppercase text-muted-foreground/70 truncate">{label}</div>
-      <div className={`text-[22px] font-bold font-mono tabular-nums mt-1.5 ${valueClass}`}>{value}</div>
+      <div className={`text-[20px] font-bold font-mono tabular-nums mt-1.5 whitespace-nowrap ${valueClass}`}>{value}</div>
     </motion.div>
   );
 };
