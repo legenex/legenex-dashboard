@@ -602,7 +602,7 @@ export default function SettingsCustomFields() {
                                     next[i] = e.target.value;
                                     return { ...p, options: next };
                                   })}
-                                  placeholder="e.g. Qualified"
+                                  placeholder="e.g. Survey, Quiz, Call"
                                   className="bg-background font-mono text-[12px]"
                                 />
                                 <Button size="icon" variant="ghost" className="h-8 w-8 p-0 text-destructive shrink-0" onClick={() => setForm(p => ({ ...p, options: p.options.filter((_, idx) => idx !== i) }))}>
