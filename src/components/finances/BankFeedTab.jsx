@@ -130,13 +130,13 @@ export default function BankFeedTab() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="grid grid-cols-3 gap-3 w-[440px]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid grid-cols-3 gap-3 flex-1 min-w-[360px] max-w-[600px]">
           <StatChip label="Money In" value={money(moneyIn)} tone="good" pct={100} i={0} />
           <StatChip label="Money Out" value={money(moneyOut)} tone="risk" pct={moneyIn > 0 ? Math.min(100, (Math.abs(moneyOut) / moneyIn) * 100) : (moneyOut < 0 ? 100 : 0)} i={1} />
           <StatChip label="Net" value={money(moneyIn + moneyOut)} tone={moneyIn + moneyOut >= 0 ? 'good' : 'risk'} pct={(moneyIn + moneyOut) >= 0 ? 100 : 0} i={2} />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={importCsv} />
           {mercuryConnected ? (
             <>
