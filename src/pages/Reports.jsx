@@ -11,6 +11,7 @@ import ReportSidebar, { STANDARD } from '@/components/reports/ReportSidebar';
 import ReportFilterBar from '@/components/reports/ReportFilterBar';
 import PerformanceCanvas, { makeDefaultCards, makeDefaultWidgets } from '@/components/reports/PerformanceCanvas';
 import DailyReport from '@/components/reports/views/DailyReport';
+import PnlReport from '@/components/reports/views/PnlReport';
 import SectionShell from '@/components/layout/SectionShell';
 import SectionHeader from '@/components/shared/SectionHeader';
 
@@ -32,6 +33,7 @@ export default function Reports() {
 
   const { data: leads = [] } = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
   const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
+  const { data: bankTx = [] } = useQuery({ queryKey: ['report-banktx'], queryFn: () => base44.entities.BankTransaction.list('-date', 2000) });
   const { data: reports = [] } = useQuery({ queryKey: ['reports'], queryFn: () => base44.entities.Report.filter({ group: 'custom' }, 'sort_order') });
   const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('sort_order') });
   const { data: campaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list() });
@@ -137,6 +139,8 @@ export default function Reports() {
 
       {active === 'std:daily' ? (
         <DailyReport leads={leads} adSpend={adSpend} filters={effectiveFilters} />
+      ) : active === 'std:pnl' ? (
+        <PnlReport leads={leads} adSpend={adSpend} bankTx={bankTx} filters={effectiveFilters} />
       ) : (
         <PerformanceCanvas
           leads={leads}
