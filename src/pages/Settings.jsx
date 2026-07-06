@@ -1,8 +1,8 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SectionShell from '@/components/layout/SectionShell';
-import SectionHeader from '@/components/shared/SectionHeader';
 import SettingsNav from '@/components/settings/SettingsNav';
+import SettingsShell from '@/components/settings/SettingsShell';
 import SettingsGeneral from '@/components/settings/SettingsGeneral';
 import SettingsUsers from '@/components/settings/SettingsUsers';
 import SettingsIntegrations from '@/components/settings/SettingsIntegrations';
@@ -34,19 +34,20 @@ const NAV = [
   ] },
 ];
 
+// tab key -> { title (page name in header), subtitle, panel }
 const PANELS = {
-  profile: <SettingsProfile />,
-  general: <SettingsGeneral />,
-  users: <SettingsUsers />,
-  integrations: <SettingsIntegrations />,
-  'data-sources': <SettingsDataSources />,
-  fields: <SettingsCustomFields />,
-  'field-mapping': <SettingsFieldMapping />,
-  apikeys: <SettingsApiKeys />,
-  errors: <ErrorLogs embedded />,
-  knowledge: <SettingsKnowledgeBase />,
-  billing: <SettingsBilling />,
-  adaptive: <SettingsIgnoreList />,
+  profile: { title: 'Profile', subtitle: 'Your account details.', node: <SettingsProfile /> },
+  general: { title: 'General', subtitle: 'Workspace defaults.', node: <SettingsGeneral /> },
+  users: { title: 'Users and Roles', subtitle: 'Team members and permissions.', node: <SettingsUsers /> },
+  integrations: { title: 'Integrations', subtitle: 'Connected services and providers.', node: <SettingsIntegrations /> },
+  'data-sources': { title: 'Data Sources', subtitle: 'Inbound lead sources.', node: <SettingsDataSources /> },
+  fields: { title: 'Custom Fields', subtitle: 'The lead field catalog.', node: <SettingsCustomFields /> },
+  'field-mapping': { title: 'Field Mapping', subtitle: 'Incoming key to field mapping.', node: <SettingsFieldMapping /> },
+  apikeys: { title: 'API Keys', subtitle: 'Gateway and supplier keys.', node: <SettingsApiKeys /> },
+  errors: { title: 'Error Logs', subtitle: 'Pipeline failures and reasons.', node: <ErrorLogs embedded /> },
+  knowledge: { title: 'Knowledge Base', subtitle: 'Docs the AI assistant reads.', node: <SettingsKnowledgeBase /> },
+  billing: { title: 'Billing and Plan', subtitle: 'Plan and billing.', node: <SettingsBilling /> },
+  adaptive: { title: 'Ignore List', subtitle: 'Fields excluded from cataloging.', node: <SettingsIgnoreList /> },
 };
 
 const VALID = Object.keys(PANELS);
@@ -57,10 +58,13 @@ export default function Settings() {
   const tab = VALID.includes(raw) ? raw : 'general';
   const setTab = (v) => setSearchParams({ tab: v }, { replace: true });
 
+  const panel = PANELS[tab];
+
   return (
     <SectionShell nav={<SettingsNav groups={NAV} active={tab} onSelect={setTab} />}>
-      <SectionHeader title="Settings" subtitle="Account, users & roles, integrations, data sources and more" />
-      {PANELS[tab]}
+      <SettingsShell title={panel.title} subtitle={panel.subtitle}>
+        {panel.node}
+      </SettingsShell>
     </SectionShell>
   );
 }

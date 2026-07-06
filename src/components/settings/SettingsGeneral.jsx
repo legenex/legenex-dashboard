@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Save, Building2, Shield, Globe } from 'lucide-react';
 import { toast } from 'sonner';
+import { Panel, Input, Toggle } from '@/components/settings/settingsUi';
 
 export default function SettingsGeneral() {
   const qc = useQueryClient();
@@ -54,104 +52,84 @@ export default function SettingsGeneral() {
 
   if (!form) return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
 
+  const set = (k) => (v) => setForm(p => ({ ...p, [k]: v }));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-[14px] flex items-center gap-2">
+      <div className="lg:col-span-2 space-y-5">
+        <Panel className="p-5" i={0}>
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-foreground mb-4">
             <Building2 className="w-4 h-4 text-primary" /> Brand
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-[12px]">Brand Name</Label>
-            <Input value={form.brand_name} onChange={e => setForm(p => ({ ...p, brand_name: e.target.value }))} className="mt-1 bg-background" placeholder="Legenex" />
           </div>
-          <div>
-            <Label className="text-[12px]">Brand Tagline</Label>
-            <Input value={form.brand_tagline} onChange={e => setForm(p => ({ ...p, brand_tagline: e.target.value }))} className="mt-1 bg-background" placeholder="Lead Gateway" />
+          <div className="space-y-4">
+            <Input label="Brand Name" value={form.brand_name} onChange={set('brand_name')} placeholder="Legenex" />
+            <Input label="Brand Tagline" value={form.brand_tagline} onChange={set('brand_tagline')} placeholder="Lead Gateway" />
           </div>
-        </CardContent>
-      </Card>
+        </Panel>
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-[14px] flex items-center gap-2">
+        <Panel className="p-5" i={1}>
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-foreground mb-4">
             <Globe className="w-4 h-4 text-primary" /> Endpoint
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-[12px]">Public Base URL</Label>
-            <Input value={form.public_base_url} onChange={e => setForm(p => ({ ...p, public_base_url: e.target.value }))} className="mt-1 bg-background font-mono text-[12px]" placeholder="https://api.legenex.com" />
-            <p className="text-[11px] text-muted-foreground mt-1">The public URL suppliers send leads to.</p>
           </div>
-        </CardContent>
-      </Card>
+          <Input label="Public Base URL" value={form.public_base_url} onChange={set('public_base_url')} mono placeholder="https://api.legenex.com" hint="The public URL suppliers send leads to." />
+        </Panel>
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-[14px] flex items-center gap-2">
+        <Panel className="p-5" i={2}>
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-foreground mb-4">
             <Shield className="w-4 h-4 text-primary" /> Pipeline Defaults
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-[12px]">Default Fail Mode</Label>
-            <SearchableSelect
-              value={form.default_fail_mode}
-              onValueChange={v => setForm(p => ({ ...p, default_fail_mode: v }))}
-              className="mt-1 w-full bg-background"
-              options={[
-                { value: 'fail_open', label: 'Fail Open - continue without data' },
-                { value: 'fail_closed', label: 'Fail Closed - stop and error' },
-                { value: 'forward_blank', label: 'Forward Blank - send empty fields' },
-              ]}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">What happens when an external lookup (HLR, etc.) fails.</p>
           </div>
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
+          <div className="space-y-4">
             <div>
-              <Label className="text-[12px]">Require TrustedForm Cert</Label>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Leads without a valid cert are queued before delivery.</p>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Default Fail Mode</div>
+              <SearchableSelect
+                value={form.default_fail_mode}
+                onValueChange={set('default_fail_mode')}
+                className="w-full bg-background"
+                options={[
+                  { value: 'fail_open', label: 'Fail Open - continue without data' },
+                  { value: 'fail_closed', label: 'Fail Closed - stop and error' },
+                  { value: 'forward_blank', label: 'Forward Blank - send empty fields' },
+                ]}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">What happens when an external lookup (HLR, etc.) fails.</p>
             </div>
-            <Switch checked={form.require_trustedform_cert} onCheckedChange={v => setForm(p => ({ ...p, require_trustedform_cert: v }))} />
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
+              <div>
+                <Label className="text-[12px]">Require TrustedForm Cert</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Leads without a valid cert are queued before delivery.</p>
+              </div>
+              <Toggle checked={form.require_trustedform_cert} onChange={set('require_trustedform_cert')} />
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </Panel>
 
-      <Button onClick={handleSave} disabled={saving} className="gap-1.5">
-        <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Settings'}
-      </Button>
+        <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+          <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Settings'}
+        </Button>
       </div>
 
       <div>
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-[14px] flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" /> Lead Route Reference
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-[11px] text-muted-foreground">Set <code className="bg-muted px-1 rounded text-primary font-mono">lead_route</code> in the inbound payload to control routing. Matching uses a case-insensitive "contains" filter.</p>
-            <div className="space-y-2">
-              {[
-                ['standard', 'Goes to Leadbyte (default)'],
-                ['direct', 'Bypasses Leadbyte and allows all other delivery / event processing'],
-                ['data', 'Allows leads to be sent to data partners'],
-                ['event', 'Only allows leads to be sent to Conversion Events'],
-                ['queue', 'Holds lead for manual processing'],
-                ['test', 'Sends test lead to system and does nothing else - sits in system for testing'],
-              ].map(([val, desc]) => (
-                <div key={val} className="border border-border rounded-md p-2.5">
-                  <div className="font-mono text-[12px] text-primary font-semibold">{val}</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">{desc}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <Panel className="p-5" i={3}>
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-foreground mb-3">
+            <Shield className="w-4 h-4 text-primary" /> Lead Route Reference
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3">Set <code className="bg-muted px-1 rounded text-primary font-mono">lead_route</code> in the inbound payload to control routing. Matching uses a case-insensitive "contains" filter.</p>
+          <div className="space-y-2">
+            {[
+              ['standard', 'Goes to Leadbyte (default)'],
+              ['direct', 'Bypasses Leadbyte and allows all other delivery / event processing'],
+              ['data', 'Allows leads to be sent to data partners'],
+              ['event', 'Only allows leads to be sent to Conversion Events'],
+              ['queue', 'Holds lead for manual processing'],
+              ['test', 'Sends test lead to system and does nothing else - sits in system for testing'],
+            ].map(([val, desc]) => (
+              <div key={val} className="border border-border rounded-md p-2.5">
+                <div className="font-mono text-[12px] text-primary font-semibold">{val}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{desc}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
       </div>
     </div>
   );

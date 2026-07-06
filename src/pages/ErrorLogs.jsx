@@ -9,9 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Search, ExternalLink } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Panel, riseIn } from '@/components/settings/settingsUi';
 
 const severityColors = {
   warning: 'bg-status-unsold status-unsold',
@@ -112,7 +114,7 @@ export default function ErrorLogs({ embedded = false }) {
         </Select>
       </div>
 
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
+      <Panel className="overflow-hidden">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
@@ -124,8 +126,8 @@ export default function ErrorLogs({ embedded = false }) {
           <tbody className="divide-y divide-border">
             {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>}
             {!isLoading && filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No errors</td></tr>}
-            {filtered.map(err => (
-              <tr key={err.id} className="hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => setSelected(err)}>
+            {filtered.map((err, idx) => (
+              <motion.tr key={err.id} variants={riseIn} initial="hidden" animate="show" custom={idx} className="hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => setSelected(err)}>
                 <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                   {err.created_date ? format(new Date(err.created_date), 'MMM dd HH:mm:ss') : ''}
                 </td>
@@ -137,11 +139,11 @@ export default function ErrorLogs({ embedded = false }) {
                 <td className="px-4 py-3 text-foreground truncate max-w-[300px]">{err.message}</td>
                 <td className="px-4 py-3">{err.lead_id ? <ExternalLink className="w-3.5 h-3.5 text-primary" /> : '-'}</td>
                 <td className="px-4 py-3">{err.resolved ? <CheckCircle className="w-4 h-4 text-[#3DD68C]" /> : '-'}</td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
 
       {/* Detail Modal */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
