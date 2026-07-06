@@ -7,7 +7,9 @@ import SectionShell from '@/components/layout/SectionShell';
 export default function LeadsLayout() {
   return (
     <SectionShell nav={<LeadsNav />}>
-      <Outlet />
+      <div className="min-h-full bg-[#242B34]">
+        <Outlet />
+      </div>
     </SectionShell>
   );
 }
