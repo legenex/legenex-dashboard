@@ -44,6 +44,7 @@ import OperationsSuppliers from '@/pages/operations/OperationsSuppliers';
 import OperationsActiveStates from '@/pages/operations/OperationsActiveStates';
 import OperationsBillingReports from '@/pages/operations/OperationsBillingReports';
 import OperationsBuyerOnboarding from '@/pages/operations/OperationsBuyerOnboarding';
+import OperationsDashboard from '@/pages/operations/OperationsDashboard';
 import PayloadTester from '@/pages/PayloadTester';
 import ToolsDashboard from '@/pages/ToolsDashboard';
 
@@ -183,6 +184,7 @@ const AuthenticatedApp = () => {
             <Route path="/finances" element={<Finances />} />
           </Route>
           <Route element={<OperationsLayout />}>
+            <Route path="/operations" element={<OperationsDashboard />} />
             <Route path="/operations/buyers" element={<OperationsBuyers />} />
             <Route path="/operations/suppliers" element={<OperationsSuppliers />} />
             <Route path="/operations/active-states" element={<OperationsActiveStates />} />
