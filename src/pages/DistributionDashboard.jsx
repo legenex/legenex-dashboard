@@ -199,11 +199,11 @@ export default function DistributionDashboard() {
             transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
           />
           <div className="relative flex flex-col xl:flex-row xl:items-center gap-4 px-5 py-4">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-9 h-9 rounded-lg grid place-items-center shrink-0 bg-status-sold border border-[hsl(152_65%_54%/0.3)]">
                 <Link2 size={15} className="status-sold" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/70">SUPPLIER ENDPOINT</span>
                   <span className="flex items-center gap-1 text-[10px] status-sold">
@@ -214,8 +214,7 @@ export default function DistributionDashboard() {
               </div>
               <Btn icon={Copy} onClick={copyEndpoint}>Copy</Btn>
             </div>
-            <div className="flex-1" />
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 xl:shrink-0">
               {verifications.map((v) => (
                 <div
                   key={v.name}
