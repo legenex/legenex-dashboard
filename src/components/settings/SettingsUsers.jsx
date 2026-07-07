@@ -222,7 +222,7 @@ export default function SettingsUsers() {
           <div className="space-y-4">
             <div><Label className="text-[12px]">Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" className="mt-1 bg-background" /></div>
             {RolePicker()}
-            <div className="border-t border-border pt-3"><Checklist /></div>
+            <div className="border-t border-border pt-3">{Checklist()}</div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
@@ -237,7 +237,7 @@ export default function SettingsUsers() {
           <DialogHeader><DialogTitle>Edit access · {editing?.full_name || editing?.email}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {RolePicker()}
-            <div className="border-t border-border pt-3"><Checklist /></div>
+            <div className="border-t border-border pt-3">{Checklist()}</div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
