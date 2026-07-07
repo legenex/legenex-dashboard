@@ -221,7 +221,7 @@ export default function SettingsUsers() {
           <DialogHeader><DialogTitle>Invite User</DialogTitle><DialogDescription>Pick a base role, then tick exactly what this user can see.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div><Label className="text-[12px]">Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" className="mt-1 bg-background" /></div>
-            <RolePicker />
+            {RolePicker()}
             <div className="border-t border-border pt-3"><Checklist /></div>
           </div>
           <DialogFooter>
@@ -236,7 +236,7 @@ export default function SettingsUsers() {
         <DialogContent className="bg-popover border-border max-w-[560px]">
           <DialogHeader><DialogTitle>Edit access · {editing?.full_name || editing?.email}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <RolePicker />
+            {RolePicker()}
             <div className="border-t border-border pt-3"><Checklist /></div>
           </div>
           <DialogFooter>
