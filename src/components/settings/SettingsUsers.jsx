@@ -113,27 +113,49 @@ export default function SettingsUsers() {
     return n;
   });
 
-  const Checklist = () => (
-    <div className="space-y-4 max-h-[46vh] overflow-y-auto pr-1">
-      {PERMISSION_GROUPS.map(g => (
-        <div key={g.group}>
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{g.group}</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-            {g.items.map(item => {
-              const blocked = restricted(item.key) || restrictedGroup(g.group);
-              return (
-                <label key={item.key} className={`flex items-center gap-2 text-[13px] ${blocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  <Checkbox checked={!blocked && !!perms[item.key]} disabled={blocked} onCheckedChange={() => !blocked && toggle(item.key)} />
-                  <span className="text-foreground">{item.label}</span>
-                </label>
-              );
-            })}
-          </div>
+  const Checklist = () => {
+    const allKeys = allSelectableKeys();
+    const allOn = allKeys.length > 0 && allKeys.every(k => !!perms[k]);
+    return (
+      <div className="space-y-4 max-h-[46vh] overflow-y-auto pr-1">
+        <div className="flex items-center justify-between pb-2 border-b border-border/60">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">All sections</span>
+          <button type="button" onClick={() => setKeys(allKeys, !allOn)} className="text-[11px] font-medium text-primary hover:opacity-80">
+            {allOn ? 'Deselect all' : 'Select all'}
+          </button>
         </div>
-      ))}
-      {isPartner && <div className="text-[11px] text-muted-foreground">Supplier & Buyer roles can never access Lead Distribution or Finances — those are locked off.</div>}
-    </div>
-  );
+        {PERMISSION_GROUPS.map(g => {
+          const groupKeys = groupSelectableKeys(g);
+          const groupOn = groupKeys.length > 0 && groupKeys.every(k => !!perms[k]);
+          const groupBlocked = restrictedGroup(g.group) || groupKeys.length === 0;
+          return (
+            <div key={g.group}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{g.group}</div>
+                {!groupBlocked && (
+                  <button type="button" onClick={() => setKeys(groupKeys, !groupOn)} className="text-[10px] font-medium text-primary hover:opacity-80">
+                    {groupOn ? 'Clear' : 'All'}
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                {g.items.map(item => {
+                  const blocked = restricted(item.key) || restrictedGroup(g.group);
+                  return (
+                    <label key={item.key} className={`flex items-center gap-2 text-[13px] ${blocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                      <Checkbox checked={!blocked && !!perms[item.key]} disabled={blocked} onCheckedChange={() => !blocked && toggle(item.key)} />
+                      <span className="text-foreground">{item.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {isPartner && <div className="text-[11px] text-muted-foreground">Supplier & Buyer roles can never access Lead Distribution or Finances, so those are locked off.</div>}
+      </div>
+    );
+  };
 
   const RolePicker = () => (
     <div>
