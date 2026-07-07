@@ -103,6 +103,16 @@ export default function SettingsUsers() {
   const restricted = (key) => isPartner && ['finances', 'bank_feed'].includes(key);
   const restrictedGroup = (group) => isPartner && group === 'Lead Distribution';
 
+  // Select/deselect all helpers. Blocked keys (partner-locked Finances, Bank Feed,
+  // Lead Distribution) are excluded so Select all never grants a locked section.
+  const groupSelectableKeys = (g) => g.items.filter(item => !(restricted(item.key) || restrictedGroup(g.group))).map(item => item.key);
+  const allSelectableKeys = () => PERMISSION_GROUPS.flatMap(groupSelectableKeys);
+  const setKeys = (keys, value) => setPerms(p => {
+    const n = { ...p };
+    keys.forEach(k => { if (value) n[k] = true; else delete n[k]; });
+    return n;
+  });
+
   const Checklist = () => (
     <div className="space-y-4 max-h-[46vh] overflow-y-auto pr-1">
       {PERMISSION_GROUPS.map(g => (
