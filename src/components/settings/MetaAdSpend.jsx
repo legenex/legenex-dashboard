@@ -79,9 +79,7 @@ export default function MetaAdSpend() {
       const { config } = await loadMetaConfig();
       const toks = readTokens(config);
       setStoredTokens(toks);
-      const hasKey = Array.isArray(config.synced_account_ids);
-      setSyncedKeyMissing(!hasKey);
-      setSyncedIds(hasKey ? config.synced_account_ids : []);
+      setSyncedIds(Array.isArray(config.synced_account_ids) ? config.synced_account_ids : []);
       return toks;
     },
   });
@@ -187,7 +185,6 @@ export default function MetaAdSpend() {
 
       setStoredTokens(nextTokens);
       setSyncedIds(nextSynced);
-      setSyncedKeyMissing(false);
       await refetch();
       qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
       if (selDialog.mode === 'add') { setNewLabel(''); setNewToken(''); }
