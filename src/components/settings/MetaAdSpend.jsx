@@ -237,7 +237,7 @@ export default function MetaAdSpend() {
             {testResult.valid ? (
               <div className="p-3 rounded-lg bg-status-sold border border-border">
                 <div className="text-[12px] status-sold inline-flex items-center gap-1.5 font-medium">
-                  <CheckCircle2 className="w-4 h-4" /> Token valid — connected as {testResult.account_name}
+                  <CheckCircle2 className="w-4 h-4" /> Token valid - connected as {testResult.account_name}
                 </div>
                 <div className="text-[12px] text-foreground mt-1.5">Reaches {testResult.account_count} ad account{testResult.account_count === 1 ? '' : 's'}.</div>
                 {mappings.length > 0 && (
@@ -330,14 +330,14 @@ export default function MetaAdSpend() {
               <Input value={masterToken} onChange={e => setMasterToken(e.target.value)} type="password" placeholder="System-user token (never expires)" className="bg-background font-mono text-[12px]" />
               <div className="flex justify-end mt-2">
                 <Button size="sm" variant="outline" onClick={saveMasterToken} disabled={savingMaster} className="gap-1.5">
-                  <Save className="w-3.5 h-3.5" /> {savingMaster ? 'Saving…' : 'Save master token'}
+                  <Save className="w-3.5 h-3.5" /> {savingMaster ? 'Saving...' : 'Save master token'}
                 </Button>
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setTokenOpen(false)}>Cancel</Button>
-            <Button onClick={saveToken} disabled={saving} className="gap-1.5"><Save className="w-3.5 h-3.5" /> {saving ? 'Saving…' : 'Save & Connect'}</Button>
+            <Button onClick={saveToken} disabled={saving} className="gap-1.5"><Save className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save & Connect'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
