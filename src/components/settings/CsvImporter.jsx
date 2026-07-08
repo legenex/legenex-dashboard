@@ -292,9 +292,21 @@ export default function CsvImporter() {
     try {
       const records = rows.map(r => {
         const out = {};
+        const mapped = {};
         Object.entries(mapping).forEach(([col, field]) => {
-          if (field && field !== IGNORE) out[field] = r[col];
+          if (!field || field === IGNORE) return;
+          // Core lead fields become top-level columns; anything else is a
+          // custom field the Lead entity does not persist as a column, so it
+          // is collected into the mapped_fields JSON the app reads from.
+          if (target === 'lead' && !LEAD_FIELDS.includes(field)) {
+            mapped[field] = r[col];
+          } else {
+            out[field] = r[col];
+          }
         });
+        if (target === 'lead' && Object.keys(mapped).length) {
+          out.mapped_fields = JSON.stringify(mapped);
+        }
         return out;
       });
       if (target === 'lead') {
