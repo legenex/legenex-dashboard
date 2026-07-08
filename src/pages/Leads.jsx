@@ -5,6 +5,8 @@ import PageHeader from '@/components/shared/PageHeader';
 import ErrorStatusPill from '@/components/leads/ErrorStatusPill';
 import BulkActionBar from '@/components/leads/BulkActionBar';
 import LeadDetailModal from '@/components/leads/LeadDetailModal';
+import ExportColumnsDialog from '@/components/leads/ExportColumnsDialog';
+import { buildLeadsCsv } from '@/lib/leadExportColumns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,6 +35,7 @@ export default function Leads() {
   const [brandFilter, setBrandFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -125,13 +128,8 @@ export default function Leads() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  const exportCSV = () => {
-    const headers = ['ID', 'Created', 'Supplier', 'Name', 'Mobile', 'Email', 'HLR Status', 'LB Status', 'Final Status', 'Process Time'];
-    const rows = filtered.map(l => [
-      l.id, l.created_date, l.supplier_name, `${l.first_name || ''} ${l.last_name || ''}`,
-      l.mobile, l.email, l.hlr_status, l.leadbyte_record_status, l.final_status, l.process_time_ms
-    ]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const exportCSV = (selectedKeys) => {
+    const csv = buildLeadsCsv(filtered, selectedKeys);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -206,7 +204,7 @@ export default function Leads() {
               Queue
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} className="gap-1.5">
             <Download className="w-4 h-4" /> Export CSV
           </Button>
         </div>
@@ -365,6 +363,13 @@ export default function Leads() {
         open={!!selectedLead}
         onClose={() => setSelectedLead(null)}
         initialTab={initialTab}
+      />
+
+      <ExportColumnsDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        count={filtered.length}
+        onExport={exportCSV}
       />
 
       {/* Bulk archive confirmation */}
