@@ -32,7 +32,7 @@ export default function Leads() {
   const [viewMode, setViewMode] = useState('all');
   const [brandFilter, setBrandFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -347,7 +347,7 @@ export default function Leads() {
               value={String(pageSize)}
               onValueChange={(v) => setPageSize(Number(v))}
               className="w-[120px] bg-card border-border"
-              options={[{ value: '25', label: '25 / page' }, { value: '50', label: '50 / page' }, { value: '100', label: '100 / page' }, { value: '200', label: '200 / page' }]}
+              options={[{ value: '20', label: '20 / page' }, { value: '25', label: '25 / page' }, { value: '50', label: '50 / page' }, { value: '100', label: '100 / page' }, { value: '200', label: '200 / page' }]}
             />
             <Button variant="outline" size="sm" className="gap-1" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
               <ChevronLeft className="w-4 h-4" /> Prev
