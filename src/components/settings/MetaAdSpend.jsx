@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metaAssets } from '@/functions/metaAssets';
 import { syncMetaSpend } from '@/functions/syncMetaSpend';
 import { validateMetaToken } from '@/functions/validateMetaToken';
+import MetaAccountSelectDialog from '@/components/settings/MetaAccountSelectDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Facebook, RefreshCw, Plus, Trash2, CheckCircle2, ShieldCheck, XCircle, Search } from 'lucide-react';
+import { Facebook, RefreshCw, Plus, Trash2, CheckCircle2, ShieldCheck, XCircle, Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SYNC_OPTIONS = [
@@ -42,10 +43,10 @@ const loadMetaConfig = async () => {
 // Normalize whatever is stored into a tokens array, migrating a legacy single token.
 const readTokens = (config) => {
   if (Array.isArray(config.tokens) && config.tokens.length) {
-    return config.tokens.filter(t => t && t.token).map((t, i) => ({ id: t.id || `token_${i}`, label: t.label || `Token ${i + 1}`, token: t.token }));
+    return config.tokens.filter(t => t && t.token).map((t, i) => ({ id: t.id || `token_${i}`, label: t.label || `Token ${i + 1}`, token: t.token, account_ids: Array.isArray(t.account_ids) ? t.account_ids : [] }));
   }
   const legacy = config.system_user_token || config.master_token || config.access_token || '';
-  if (legacy) return [{ id: 'default', label: 'Default', token: legacy }];
+  if (legacy) return [{ id: 'default', label: 'Default', token: legacy, account_ids: [] }];
   return [];
 };
 
@@ -56,6 +57,8 @@ export default function MetaAdSpend() {
   const [newToken, setNewToken] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  // Account-selection dialog state. mode 'add' = validating a new token, 'edit' = managing an existing one.
+  const [selDialog, setSelDialog] = useState(null); // { mode, label, token, tokenId, accounts, chosen:Set, search, saving }
   const [removingId, setRemovingId] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -65,7 +68,6 @@ export default function MetaAdSpend() {
   const [syncedIds, setSyncedIds] = useState([]);
   const [syncedKeyMissing, setSyncedKeyMissing] = useState(true);
   const [acctSearch, setAcctSearch] = useState('');
-  const [savingSync, setSavingSync] = useState(false);
 
   const { data: assets, refetch } = useQuery({
     queryKey: ['meta-assets'],
@@ -89,7 +91,9 @@ export default function MetaAdSpend() {
   const tokenSummaries = assets?.tokens || [];
   const validCount = tokenSummaries.filter(t => t.valid).length;
   const connected = validCount > 0;
-  const adAccountCount = assets?.ad_accounts?.length || 0;
+  // Only accounts selected in synced_account_ids are shown and counted.
+  const syncedAccounts = (assets?.ad_accounts || []).filter(a => syncedIds.includes(a.id));
+  const adAccountCount = syncedAccounts.length;
 
   const { data: mappings = [] } = useQuery({
     queryKey: ['adspend-mappings'],
@@ -111,32 +115,6 @@ export default function MetaAdSpend() {
     qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
   };
 
-  // Persist the synced account id selection onto the meta config immediately.
-  const persistSyncedIds = async (ids) => {
-    const prevIds = syncedIds;
-    const prevMissing = syncedKeyMissing;
-    setSyncedIds(ids);
-    setSyncedKeyMissing(false);
-    setSavingSync(true);
-    try {
-      const { record, config } = await loadMetaConfig();
-      const payload = JSON.stringify({ ...config, synced_account_ids: ids });
-      if (record) await base44.entities.IntegrationConfig.update(record.id, { config: payload });
-      else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
-      qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
-    } catch {
-      setSyncedIds(prevIds);
-      setSyncedKeyMissing(prevMissing);
-      toast.error('Failed to save sync selection');
-    }
-    setSavingSync(false);
-  };
-
-  const toggleSyncedId = (id) => {
-    const on = syncedIds.includes(id);
-    persistSyncedIds(on ? syncedIds.filter(x => x !== id) : [...syncedIds, id]);
-  };
-
   const addToken = async () => {
     setAddError('');
     if (!newLabel.trim()) { toast.error('Enter a Business Manager label'); return; }
@@ -150,25 +128,95 @@ export default function MetaAdSpend() {
         setAdding(false);
         return;
       }
-      const { config } = await loadMetaConfig();
-      const current = readTokens(config);
-      const next = [...current, { id: genId(), label: newLabel.trim(), token: newToken.trim() }];
-      await persistTokens(next);
-      setNewLabel(''); setNewToken('');
-      const n = check.account_count || 0;
-      toast.success(`Token added${check.account_name ? ` for ${check.account_name}` : ''}, reaching ${n} ad account${n === 1 ? '' : 's'}`);
+      // Valid: do not save yet. Open the account selection step with the reachable accounts.
+      setSelDialog({
+        mode: 'add',
+        label: newLabel.trim(),
+        token: newToken.trim(),
+        tokenId: null,
+        accounts: check.ad_accounts || [],
+        chosen: (check.ad_accounts || []).map(a => a.id),
+        saving: false,
+      });
     } catch (e) {
       setAddError(e?.response?.data?.error || 'Failed to validate token');
     }
     setAdding(false);
   };
 
+  // Open the selection dialog for an existing token so its accounts can be managed.
+  const manageAccounts = async (row) => {
+    setSelDialog({ mode: 'edit', label: row.label, token: row.token, tokenId: row.id, accounts: [], chosen: row.account_ids || [], saving: true, loading: true });
+    try {
+      const check = (await validateMetaToken({ token: row.token })).data || {};
+      if (!check.valid) {
+        toast.error(check.error || 'Meta rejected this token');
+        setSelDialog(null);
+        return;
+      }
+      setSelDialog(s => s ? { ...s, accounts: check.ad_accounts || [], saving: false, loading: false } : s);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Failed to load accounts');
+      setSelDialog(null);
+    }
+  };
+
+  // Confirm the selection: save the token (or update it) with account_ids, and
+  // reconcile config.synced_account_ids so it always contains the chosen ids.
+  const confirmSelection = async (chosenIds) => {
+    if (!selDialog) return;
+    setSelDialog(s => ({ ...s, saving: true }));
+    try {
+      const { record, config } = await loadMetaConfig();
+      const current = readTokens(config);
+      let nextTokens;
+      let prevIds = [];
+      if (selDialog.mode === 'add') {
+        nextTokens = [...current, { id: genId(), label: selDialog.label, token: selDialog.token, account_ids: chosenIds }];
+      } else {
+        const existing = current.find(t => t.id === selDialog.tokenId);
+        prevIds = existing?.account_ids || [];
+        nextTokens = current.map(t => t.id === selDialog.tokenId ? { ...t, account_ids: chosenIds } : t);
+      }
+      // Reconcile synced_account_ids: drop this token's previous ids, then add chosen.
+      const baseSynced = Array.isArray(config.synced_account_ids) ? config.synced_account_ids : [];
+      const withoutPrev = baseSynced.filter(id => !prevIds.includes(id));
+      const nextSynced = Array.from(new Set([...withoutPrev, ...chosenIds]));
+
+      const payload = JSON.stringify({ ...config, tokens: nextTokens, synced_account_ids: nextSynced });
+      if (record) await base44.entities.IntegrationConfig.update(record.id, { config: payload });
+      else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
+
+      setStoredTokens(nextTokens);
+      setSyncedIds(nextSynced);
+      setSyncedKeyMissing(false);
+      await refetch();
+      qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
+      if (selDialog.mode === 'add') { setNewLabel(''); setNewToken(''); }
+      setSelDialog(null);
+      toast.success(selDialog.mode === 'add' ? `Token added with ${chosenIds.length} account${chosenIds.length === 1 ? '' : 's'}` : 'Accounts updated');
+    } catch {
+      toast.error('Failed to save selection');
+      setSelDialog(s => s ? { ...s, saving: false } : s);
+    }
+  };
+
   const removeToken = async (id) => {
     setRemovingId(id);
     try {
-      const { config } = await loadMetaConfig();
-      const next = readTokens(config).filter(t => t.id !== id);
-      await persistTokens(next);
+      const { record, config } = await loadMetaConfig();
+      const tokens = readTokens(config);
+      const removed = tokens.find(t => t.id === id);
+      const next = tokens.filter(t => t.id !== id);
+      const removedIds = removed?.account_ids || [];
+      const baseSynced = Array.isArray(config.synced_account_ids) ? config.synced_account_ids : [];
+      const nextSynced = baseSynced.filter(x => !removedIds.includes(x));
+      const payload = JSON.stringify({ ...config, tokens: next, synced_account_ids: nextSynced });
+      if (record) await base44.entities.IntegrationConfig.update(record.id, { config: payload });
+      setStoredTokens(next);
+      setSyncedIds(nextSynced);
+      await refetch();
+      qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
       toast.success('Token removed');
     } catch { toast.error('Failed to remove token'); }
     setRemovingId('');
@@ -289,15 +337,16 @@ export default function MetaAdSpend() {
                   <div className="flex items-center gap-2 shrink-0">
                     {r.valid === true ? (
                       <span className="text-[11px] status-sold inline-flex items-center gap-1 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Valid · {r.accounts} account{r.accounts === 1 ? '' : 's'}
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Valid · {(r.account_ids || []).length} account{(r.account_ids || []).length === 1 ? '' : 's'} synced
                       </span>
                     ) : r.valid === false ? (
-                      <span className="text-[11px] status-error inline-flex items-center gap-1 font-medium max-w-[260px] truncate" title={r.error}>
+                      <span className="text-[11px] status-error inline-flex items-center gap-1 font-medium max-w-[220px] truncate" title={r.error}>
                         <XCircle className="w-3.5 h-3.5 shrink-0" /> {r.error || 'Invalid token'}
                       </span>
                     ) : (
                       <span className="text-[11px] text-muted-foreground">Checking…</span>
                     )}
+                    <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => manageAccounts(r)}><SlidersHorizontal className="w-3 h-3" /> Manage accounts</Button>
                     <button onClick={() => removeToken(r.id)} disabled={removingId === r.id} className="text-muted-foreground hover:text-destructive p-1 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -327,65 +376,53 @@ export default function MetaAdSpend() {
           <p className="text-[11px] text-muted-foreground mt-1.5">Each token needs ads_read plus leads_retrieval plus pages_show_list. A system-user token reaches one Business Manager, so add one per Business Manager.</p>
         </div>
 
-        {/* Ad account sync selection */}
+        {/* Ad accounts selected for sync (read only; selection happens per token) */}
         {connected && (() => {
-          const allAccounts = assets?.ad_accounts || [];
           const q = acctSearch.trim().toLowerCase();
           const filtered = q
-            ? allAccounts.filter(a =>
+            ? syncedAccounts.filter(a =>
                 `${a.name || ''} ${a.account_id || ''} ${a.token_label || ''}`.toLowerCase().includes(q))
-            : allAccounts;
-          const selectedCount = allAccounts.filter(a => syncedIds.includes(a.id)).length;
+            : syncedAccounts;
           return (
             <div className="mt-4 pt-4 border-t border-border">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <div className="text-[13px] font-semibold text-foreground">Ad Accounts</div>
+                  <div className="text-[13px] font-semibold text-foreground">Ad Accounts Synced</div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {selectedCount} of {allAccounts.length} account{allAccounts.length === 1 ? '' : 's'} selected for sync
-                    {savingSync && <span className="ml-2 text-muted-foreground">Saving…</span>}
+                    {syncedAccounts.length} account{syncedAccounts.length === 1 ? '' : 's'} selected for sync. Use Manage accounts on a token above to change the selection.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={savingSync} onClick={() => persistSyncedIds(allAccounts.map(a => a.id))}>Select all</Button>
-                  <Button size="sm" variant="outline" disabled={savingSync} onClick={() => persistSyncedIds([])}>Clear all</Button>
-                </div>
               </div>
 
-              {syncedKeyMissing && (
+              {syncedAccounts.length === 0 ? (
                 <div className="mt-2 text-[11px] tag-neutral inline-flex items-center gap-1.5 rounded-md px-2 py-1">
-                  No accounts selected yet. Nothing will sync until you pick some.
+                  No accounts selected yet. Nothing will sync until you pick some when adding or managing a token.
                 </div>
-              )}
-
-              <div className="relative mt-3">
-                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <Input value={acctSearch} onChange={e => setAcctSearch(e.target.value)} placeholder="Search accounts by name, id or Business Manager" className="pl-8 bg-background text-[13px]" />
-              </div>
-
-              {allAccounts.length === 0 ? (
-                <p className="text-[12px] text-muted-foreground py-3">No ad accounts discovered yet. Add a valid token or run the coverage test.</p>
-              ) : filtered.length === 0 ? (
-                <p className="text-[12px] text-muted-foreground py-3">No accounts match "{acctSearch}".</p>
               ) : (
-                <div className="mt-3 space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                  {filtered.map(a => (
-                    <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background gap-3">
-                      <div className="min-w-0">
-                        <div className="text-[13px] text-foreground font-medium truncate">{a.name || a.account_id}</div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                          <span className="text-[11px] text-muted-foreground font-mono">{a.account_id}</span>
-                          {a.currency && <Badge variant="outline" className="text-[10px]">{a.currency}</Badge>}
-                          {a.token_label && <Badge variant="outline" className="text-[10px]">{a.token_label}</Badge>}
+                <>
+                  <div className="relative mt-3">
+                    <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Input value={acctSearch} onChange={e => setAcctSearch(e.target.value)} placeholder="Search accounts by name, id or Business Manager" className="pl-8 bg-background text-[13px]" />
+                  </div>
+                  {filtered.length === 0 ? (
+                    <p className="text-[12px] text-muted-foreground py-3">No accounts match "{acctSearch}".</p>
+                  ) : (
+                    <div className="mt-3 space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                      {filtered.map(a => (
+                        <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[13px] text-foreground font-medium truncate">{a.name || a.account_id}</div>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="text-[11px] text-muted-foreground font-mono">{a.account_id}</span>
+                              {a.currency && <Badge variant="outline" className="text-[10px]">{a.currency}</Badge>}
+                              {a.token_label && <Badge variant="outline" className="text-[10px]">{a.token_label}</Badge>}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Label className="text-[11px] text-muted-foreground">Sync spend</Label>
-                        <Switch checked={syncedIds.includes(a.id)} disabled={savingSync} onCheckedChange={() => toggleSyncedId(a.id)} />
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           );
@@ -459,7 +496,7 @@ export default function MetaAdSpend() {
                 <Label className="text-[12px]">Ad Account *</Label>
                 <Select value={form.ad_account_id} onValueChange={v => setForm(p => ({ ...p, ad_account_id: v }))}>
                   <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Select ad account" /></SelectTrigger>
-                  <SelectContent>{(assets?.ad_accounts || []).map(a => <SelectItem key={a.id} value={a.id}>{a.name} ({a.account_id})</SelectItem>)}</SelectContent>
+                  <SelectContent>{syncedAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name} ({a.account_id})</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
@@ -523,6 +560,13 @@ export default function MetaAdSpend() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MetaAccountSelectDialog
+        state={selDialog}
+        onChange={(next) => setSelDialog(s => s ? { ...s, chosen: next } : s)}
+        onConfirm={confirmSelection}
+        onCancel={() => setSelDialog(null)}
+      />
     </div>
   );
 }
