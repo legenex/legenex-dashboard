@@ -492,7 +492,7 @@ export default function LeadsTable({ view }) {
       </div>
 
       <Panel className="flex-1 min-h-0 overflow-auto" i={1}>
-          <table className="w-full text-[13px]">
+          <table className="min-w-full w-max text-[13px]">
             <thead>
               <tr className="border-b border-border bg-muted sticky top-0 z-10">
                 <th className="px-4 py-3 w-[40px]">
