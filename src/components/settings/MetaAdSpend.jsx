@@ -24,6 +24,8 @@ export default function MetaAdSpend() {
   const qc = useQueryClient();
   const [tokenOpen, setTokenOpen] = useState(false);
   const [token, setToken] = useState('');
+  const [masterToken, setMasterToken] = useState('');
+  const [savingMaster, setSavingMaster] = useState(false);
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -44,12 +46,26 @@ export default function MetaAdSpend() {
   const { data: brands = [] } = useQuery({ queryKey: ['brands'], queryFn: () => base44.entities.Brand.list() });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
 
+  // Open the connect dialog, prefilling the master token if one is stored.
+  const openTokenDialog = async () => {
+    setToken(''); setMasterToken('');
+    try {
+      const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
+      if (list[0]) {
+        const cfg = JSON.parse(list[0].config || '{}');
+        setMasterToken(cfg.system_user_token || cfg.master_token || '');
+      }
+    } catch { /* leave blank */ }
+    setTokenOpen(true);
+  };
+
   const saveToken = async () => {
     if (!token.trim()) { toast.error('Enter your Meta access token'); return; }
     setSaving(true);
     try {
       const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
-      const payload = JSON.stringify({ access_token: token.trim() });
+      const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
+      const payload = JSON.stringify({ ...existing, access_token: token.trim() });
       if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
       else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
       toast.success('Meta connected');
@@ -57,6 +73,26 @@ export default function MetaAdSpend() {
       await refetch();
     } catch { toast.error('Failed to save token'); }
     setSaving(false);
+  };
+
+  // Save the optional master (system-user) token without disturbing the
+  // login access_token. The backend prefers this token when present.
+  const saveMasterToken = async () => {
+    setSavingMaster(true);
+    try {
+      const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
+      const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
+      const next = { ...existing };
+      const val = masterToken.trim();
+      if (val) next.system_user_token = val;
+      else { delete next.system_user_token; delete next.master_token; }
+      const payload = JSON.stringify(next);
+      if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
+      else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
+      toast.success(val ? 'Master token saved' : 'Master token removed');
+      await refetch();
+    } catch { toast.error('Failed to save master token'); }
+    setSavingMaster(false);
   };
 
   const connectWithFacebook = async () => {
@@ -127,7 +163,7 @@ export default function MetaAdSpend() {
           </div>
           <div className="flex items-center gap-2">
             {connected && <Button size="sm" variant="outline" className="gap-1.5" onClick={runSync} disabled={syncing}><RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> Sync Now</Button>}
-            <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={() => setTokenOpen(true)}>
+            <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={openTokenDialog}>
               <Link2 className="w-3.5 h-3.5" /> {connected ? 'Reconnect' : 'Connect'}
             </Button>
           </div>
@@ -202,6 +238,24 @@ export default function MetaAdSpend() {
               <Label className="text-[12px]">Meta Access Token</Label>
               <Input value={token} onChange={e => setToken(e.target.value)} type="password" placeholder="Long-lived user or system-user token" className="mt-1 bg-background font-mono text-[12px]" />
               <p className="text-[11px] text-muted-foreground mt-1.5">Needs ads_read + leads_retrieval + pages_show_list. Generate a long-lived token in your Meta App and paste it here.</p>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-[12px]">Master Access Token</Label>
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">Optional</Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1 mb-2">
+                {connected
+                  ? 'You are already connected via Facebook login, so this is not required. Add a never-expiring system-user token if you want the unattended sync to keep running without reconnecting roughly every 60 days.'
+                  : 'Only needed for a token that never expires, so the unattended sync does not need reconnecting roughly every 60 days.'}
+              </p>
+              <Input value={masterToken} onChange={e => setMasterToken(e.target.value)} type="password" placeholder="System-user token (never expires)" className="bg-background font-mono text-[12px]" />
+              <div className="flex justify-end mt-2">
+                <Button size="sm" variant="outline" onClick={saveMasterToken} disabled={savingMaster} className="gap-1.5">
+                  <Save className="w-3.5 h-3.5" /> {savingMaster ? 'Saving…' : 'Save master token'}
+                </Button>
+              </div>
             </div>
           </div>
           <DialogFooter>
