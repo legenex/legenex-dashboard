@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Facebook, RefreshCw, Plus, Trash2, CheckCircle2, ShieldCheck, XCircle, Search, SlidersHorizontal } from 'lucide-react';
@@ -263,7 +262,7 @@ export default function MetaAdSpend() {
 
   const saveMapping = async () => {
     if (!form.ad_account_id) { toast.error('Select an ad account'); return; }
-    const acct = (assets?.ad_accounts || []).find(a => a.id === form.ad_account_id);
+    const acct = syncedAccounts.find(a => a.id === form.ad_account_id);
     await base44.entities.AdSpendMapping.create({ ...form, ad_account_name: acct?.name || '' });
     qc.invalidateQueries({ queryKey: ['adspend-mappings'] });
     setMapOpen(false);
