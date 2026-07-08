@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const params = new URLSearchParams({
       client_id: appId,
       redirect_uri: redirectUri,
-      scope: 'ads_read,business_management',
+      scope: 'ads_read,ads_management,business_management',
       response_type: 'code',
       state,
     });
