@@ -4,9 +4,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // reaches one Business Manager, so config.tokens = [{ id, label, token }] lets
 // one account cover ad accounts spread across several Businesses. A lone legacy
 // config.access_token is treated as one unlabeled token.
-// Writes account-level daily AdSpend rows so the Ad Spend cost dashboard fills
-// in automatically. Uses service role so the scheduled automation (no user)
-// can run it. Sync is account level only to avoid double counting.
+// Writes daily AdSpend rows at three levels (account, campaign, ad) so the cost
+// dashboard fills in automatically. Uses service role so the scheduled
+// automation (no user) can run it. The Ad Spend tab reads only account-level
+// rows to avoid double counting; campaign and ad rows drive granular views.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -62,7 +63,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Extract the Meta-reported lead count from a row's actions array. Sum the
+    // value of the first matching action_type present, in strict priority order,
+    // stopping at the first type that appears. Never invent a value.
+    const LEAD_ACTION_PRIORITY = ['offsite_conversion.fb_pixel_lead', 'lead', 'onsite_conversion.lead_grouped'];
+    const extractLeads = (actions: any): number => {
+      if (!Array.isArray(actions)) return 0;
+      for (const type of LEAD_ACTION_PRIORITY) {
+        const matches = actions.filter((a: any) => a && a.action_type === type);
+        if (matches.length) {
+          return matches.reduce((sum: number, a: any) => sum + (Number(a.value) || 0), 0);
+        }
+      }
+      return 0;
+    };
+
     let inserted = 0;
+    let campaignRowsInserted = 0;
+    let adRowsInserted = 0;
     let accountsSynced = 0;
     const usedMappingIds = new Set<string>();
 
@@ -70,43 +88,110 @@ Deno.serve(async (req) => {
       const node = acct.id; // act_XXXX
       const accountName = acct.name;
       const mapping = acctMappingById[node];
+      const supplierName = mapping?.supplier_name || '';
+      const supplierKey = supplierName.trim().toLowerCase();
 
-      const params = new URLSearchParams({
-        level: 'account',
-        fields: 'spend,impressions,clicks,date_start',
-        time_increment: '1',
-        date_preset: 'last_30d',
-      });
-      const url = `https://graph.facebook.com/${ver}/${node}/insights?${params}&access_token=${encodeURIComponent(acct.token)}`;
-      const r = await fetch(url);
-      const j = await r.json();
-      if (j.error) {
-        tokenErrors.push({ label: acct.token_label, error: `${node}: ${j.error.message}` });
+      const fetchInsights = async (level: string, fields: string) => {
+        const params = new URLSearchParams({
+          level,
+          fields,
+          time_increment: '1',
+          date_preset: 'last_30d',
+        });
+        const url = `https://graph.facebook.com/${ver}/${node}/insights?${params}&access_token=${encodeURIComponent(acct.token)}`;
+        const r = await fetch(url);
+        return await r.json();
+      };
+
+      // Pass A: account level.
+      const jAcct = await fetchInsights('account', 'spend,impressions,clicks,date_start,actions,cost_per_action_type');
+      if (jAcct.error) {
+        tokenErrors.push({ label: acct.token_label, error: `${node}: ${jAcct.error.message}` });
         continue;
       }
 
       accountsSynced++;
 
-      for (const row of j.data || []) {
+      const baseRow = (row: any) => ({
+        platform: 'meta',
+        mapping_id: mapping?.id || '',
+        date: row.date_start,
+        ad_account_id: node,
+        spend: Number(row.spend) || 0,
+        impressions: Number(row.impressions) || 0,
+        clicks: Number(row.clicks) || 0,
+        leads: extractLeads(row.actions),
+        vertical: mapping?.vertical || '',
+        brand: mapping?.brand || '',
+        supplier_name: supplierName,
+        supplier_key: supplierKey,
+        cost_source: accountName,
+      });
+
+      for (const row of jAcct.data || []) {
         const date = row.date_start;
-        // Upsert: delete existing rows for this account + date, then insert fresh.
-        const existing = await svc.entities.AdSpend.filter({ ad_account_id: node, date });
+        // Upsert account rows: delete only this account + date + level, then insert.
+        const existing = await svc.entities.AdSpend.filter({ ad_account_id: node, date, level: 'account' });
         for (const e of existing) await svc.entities.AdSpend.delete(e.id);
         await svc.entities.AdSpend.create({
-          platform: 'meta',
-          mapping_id: mapping?.id || '',
-          date,
-          ad_account_id: node,
+          ...baseRow(row),
+          level: 'account',
           meta_campaign_id: '',
-          spend: Number(row.spend) || 0,
-          impressions: Number(row.impressions) || 0,
-          clicks: Number(row.clicks) || 0,
-          vertical: mapping?.vertical || '',
-          brand: mapping?.brand || '',
-          supplier_name: mapping?.supplier_name || '',
-          cost_source: accountName,
+          meta_campaign_name: '',
+          adset_id: '',
+          adset_name: '',
+          ad_id: '',
+          ad_name: '',
         });
         inserted++;
+      }
+
+      // Pass B: campaign level.
+      const jCamp = await fetchInsights('campaign', 'spend,impressions,clicks,date_start,actions,cost_per_action_type,campaign_id,campaign_name');
+      if (jCamp.error) {
+        tokenErrors.push({ label: acct.token_label, error: `${node} campaign: ${jCamp.error.message}` });
+      } else {
+        for (const row of jCamp.data || []) {
+          const date = row.date_start;
+          const campaignId = row.campaign_id || '';
+          const existing = await svc.entities.AdSpend.filter({ ad_account_id: node, date, level: 'campaign', meta_campaign_id: campaignId });
+          for (const e of existing) await svc.entities.AdSpend.delete(e.id);
+          await svc.entities.AdSpend.create({
+            ...baseRow(row),
+            level: 'campaign',
+            meta_campaign_id: campaignId,
+            meta_campaign_name: row.campaign_name || '',
+            adset_id: '',
+            adset_name: '',
+            ad_id: '',
+            ad_name: '',
+          });
+          campaignRowsInserted++;
+        }
+      }
+
+      // Pass C: ad level.
+      const jAd = await fetchInsights('ad', 'spend,impressions,clicks,date_start,actions,cost_per_action_type,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name');
+      if (jAd.error) {
+        tokenErrors.push({ label: acct.token_label, error: `${node} ad: ${jAd.error.message}` });
+      } else {
+        for (const row of jAd.data || []) {
+          const date = row.date_start;
+          const adId = row.ad_id || '';
+          const existing = await svc.entities.AdSpend.filter({ ad_account_id: node, date, level: 'ad', ad_id: adId });
+          for (const e of existing) await svc.entities.AdSpend.delete(e.id);
+          await svc.entities.AdSpend.create({
+            ...baseRow(row),
+            level: 'ad',
+            meta_campaign_id: row.campaign_id || '',
+            meta_campaign_name: row.campaign_name || '',
+            adset_id: row.adset_id || '',
+            adset_name: row.adset_name || '',
+            ad_id: adId,
+            ad_name: row.ad_name || '',
+          });
+          adRowsInserted++;
+        }
       }
 
       if (mapping) usedMappingIds.add(mapping.id);
@@ -122,6 +207,8 @@ Deno.serve(async (req) => {
       success: true,
       accounts_synced: accountsSynced,
       rows_synced: inserted,
+      campaign_rows_inserted: campaignRowsInserted,
+      ad_rows_inserted: adRowsInserted,
       token_errors: tokenErrors,
     });
   } catch (error) {

@@ -18,8 +18,36 @@
     "ad_account_id": {
       "type": "string"
     },
+    "level": {
+      "type": "string",
+      "enum": [
+        "account",
+        "campaign",
+        "ad"
+      ],
+      "default": "account"
+    },
     "meta_campaign_id": {
       "type": "string"
+    },
+    "meta_campaign_name": {
+      "type": "string"
+    },
+    "adset_id": {
+      "type": "string"
+    },
+    "adset_name": {
+      "type": "string"
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "ad_name": {
+      "type": "string"
+    },
+    "supplier_key": {
+      "type": "string",
+      "description": "lowercased trimmed supplier_name, used to join spend to leads case-insensitively"
     },
     "spend": {
       "type": "number",
