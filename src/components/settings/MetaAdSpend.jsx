@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metaAssets } from '@/functions/metaAssets';
 import { syncMetaSpend } from '@/functions/syncMetaSpend';
+import { metaOauthStart } from '@/functions/metaOauthStart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ export default function MetaAdSpend() {
   const [tokenOpen, setTokenOpen] = useState(false);
   const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [form, setForm] = useState(null);
@@ -55,6 +57,19 @@ export default function MetaAdSpend() {
       await refetch();
     } catch { toast.error('Failed to save token'); }
     setSaving(false);
+  };
+
+  const connectWithFacebook = async () => {
+    setConnecting(true);
+    try {
+      const res = await metaOauthStart({});
+      const url = res?.data?.url;
+      if (url) window.location.href = url;
+      else toast.error(res?.data?.error || 'Could not start Meta connect');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Could not start Meta connect');
+      setConnecting(false);
+    }
   };
 
   const runSync = async () => {
@@ -174,6 +189,15 @@ export default function MetaAdSpend() {
         <DialogContent className="bg-popover border-border max-w-[480px]">
           <DialogHeader><DialogTitle>Connect Meta</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <Button onClick={connectWithFacebook} disabled={connecting} className="w-full gap-2">
+              <Facebook className="w-4 h-4" /> {connecting ? 'Redirecting...' : 'Continue with Facebook'}
+            </Button>
+            <p className="text-[11px] text-muted-foreground">Opens Facebook Login to grant ads access. You will be redirected back once connected.</p>
+            <div className="flex items-center gap-2 py-1">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[11px] text-muted-foreground">or paste a token</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
             <div>
               <Label className="text-[12px]">Meta Access Token</Label>
               <Input value={token} onChange={e => setToken(e.target.value)} type="password" placeholder="Long-lived user or system-user token" className="mt-1 bg-background font-mono text-[12px]" />

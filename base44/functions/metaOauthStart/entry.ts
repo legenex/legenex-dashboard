@@ -1,9 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// Admin only. Builds the Facebook Login dialog URL and redirects (302) the
-// browser there so the user can grant ads_read + business_management.
-// redirect_uri is fixed to the metaOauthCallback function. A random state
-// value is sent for basic CSRF protection.
+// Admin only. Builds the Facebook Login dialog URL. When called directly in the
+// browser (GET) it redirects there with a 302. When called via the SDK (which
+// sends the auth header) it returns the URL as JSON so the frontend can perform
+// a top-level navigation itself. redirect_uri is fixed to the metaOauthCallback
+// function. A random state value is sent for basic CSRF protection.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -29,6 +30,13 @@ Deno.serve(async (req) => {
     });
 
     const dialogUrl = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
+
+    // If the caller expects JSON (SDK invoke from the dashboard), return the URL
+    // so the frontend can navigate the top-level window to Facebook itself.
+    const accept = req.headers.get('accept') || '';
+    if (accept.includes('application/json')) {
+      return Response.json({ url: dialogUrl });
+    }
 
     return new Response(null, {
       status: 302,
