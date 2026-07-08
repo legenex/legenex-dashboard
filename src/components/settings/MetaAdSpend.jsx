@@ -4,13 +4,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metaAssets } from '@/functions/metaAssets';
 import { syncMetaSpend } from '@/functions/syncMetaSpend';
 import { metaOauthStart } from '@/functions/metaOauthStart';
+import { validateMetaToken } from '@/functions/validateMetaToken';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Facebook, Save, RefreshCw, Plus, Trash2, Link2, CheckCircle2 } from 'lucide-react';
+import { Facebook, Save, RefreshCw, Plus, Trash2, Link2, CheckCircle2, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SYNC_OPTIONS = [
@@ -27,6 +28,8 @@ export default function MetaAdSpend() {
   const [masterToken, setMasterToken] = useState('');
   const [savingMaster, setSavingMaster] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -80,19 +83,62 @@ export default function MetaAdSpend() {
   const saveMasterToken = async () => {
     setSavingMaster(true);
     try {
-      const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
-      const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
-      const next = { ...existing };
       const val = masterToken.trim();
-      if (val) next.system_user_token = val;
-      else { delete next.system_user_token; delete next.master_token; }
-      const payload = JSON.stringify(next);
-      if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
-      else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
-      toast.success(val ? 'Master token saved' : 'Master token removed');
+      // Validate the pasted token with Meta before storing. A broken or
+      // wrong-scope token is never saved, so the previous config stays intact.
+      if (val) {
+        const res = await validateMetaToken({ token: val });
+        const d = res?.data || {};
+        if (!d.valid) {
+          toast.error(`Meta rejected this token: ${d.error || 'invalid token'}`);
+          setSavingMaster(false);
+          return;
+        }
+        const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
+        const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
+        const payload = JSON.stringify({ ...existing, system_user_token: val });
+        if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
+        else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
+        toast.success(`Master token saved. Reaches ${d.account_count} ad account${d.account_count === 1 ? '' : 's'}.`);
+      } else {
+        const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
+        const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
+        const next = { ...existing };
+        delete next.system_user_token; delete next.master_token;
+        if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: JSON.stringify(next) });
+        toast.success('Master token removed');
+      }
       await refetch();
     } catch { toast.error('Failed to save master token'); }
     setSavingMaster(false);
+  };
+
+  // Validate the currently active stored token (master if set, else login).
+  // Shows validity, reachable account count, and mapped-account coverage.
+  const testConnection = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await validateMetaToken({});
+      const d = res?.data || {};
+      if (!d.valid) {
+        setTestResult({ valid: false, error: d.error || 'Token validation failed' });
+      } else {
+        const reachableIds = new Set((d.ad_accounts || []).map(a => a.account_id));
+        const covered = mappings.filter(m => reachableIds.has(String(m.ad_account_id).replace(/^act_/, '')) || reachableIds.has(m.ad_account_id));
+        const missing = mappings.filter(m => !covered.includes(m));
+        setTestResult({
+          valid: true,
+          account_name: d.account_name,
+          account_count: d.account_count,
+          covered: covered.map(m => m.ad_account_name || m.ad_account_id),
+          missing: missing.map(m => m.ad_account_name || m.ad_account_id),
+        });
+      }
+    } catch (e) {
+      setTestResult({ valid: false, error: e?.response?.data?.error || 'Token validation failed' });
+    }
+    setTesting(false);
   };
 
   const connectWithFacebook = async () => {
@@ -162,6 +208,7 @@ export default function MetaAdSpend() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {connected && <Button size="sm" variant="outline" className="gap-1.5" onClick={testConnection} disabled={testing}><ShieldCheck className={`w-3.5 h-3.5 ${testing ? 'animate-pulse' : ''}`} /> Test connection and coverage</Button>}
             {connected && <Button size="sm" variant="outline" className="gap-1.5" onClick={runSync} disabled={syncing}><RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> Sync Now</Button>}
             <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={openTokenDialog}>
               <Link2 className="w-3.5 h-3.5" /> {connected ? 'Reconnect' : 'Connect'}
@@ -182,6 +229,36 @@ export default function MetaAdSpend() {
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {testResult && (
+          <div className={`mt-4 pt-4 border-t border-border rounded-lg`}>
+            {testResult.valid ? (
+              <div className="p-3 rounded-lg bg-status-sold border border-border">
+                <div className="text-[12px] status-sold inline-flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="w-4 h-4" /> Token valid — connected as {testResult.account_name}
+                </div>
+                <div className="text-[12px] text-foreground mt-1.5">Reaches {testResult.account_count} ad account{testResult.account_count === 1 ? '' : 's'}.</div>
+                {mappings.length > 0 && (
+                  <div className="mt-2 space-y-1 text-[11px]">
+                    {testResult.covered.length > 0 && (
+                      <div className="text-muted-foreground">Covered mappings: <span className="text-foreground">{testResult.covered.join(', ')}</span></div>
+                    )}
+                    {testResult.missing.length > 0 && (
+                      <div className="status-error">Missing (not reachable by this token): {testResult.missing.join(', ')}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-status-error border border-border">
+                <div className="text-[12px] status-error inline-flex items-center gap-1.5 font-medium">
+                  <XCircle className="w-4 h-4" /> Token invalid
+                </div>
+                <div className="text-[12px] text-foreground mt-1.5">{testResult.error}</div>
+              </div>
+            )}
           </div>
         )}
       </div>
