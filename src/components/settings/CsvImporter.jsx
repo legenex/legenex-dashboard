@@ -350,14 +350,33 @@ export default function CsvImporter() {
 
         const chunkSize = 100;
         setProgress({ done: 0, total: clean.length });
+        let createdCount = 0;
+        let failedCount = 0;
+        const failedRecords = [];
         for (let i = 0; i < clean.length; i += chunkSize) {
           const chunk = clean.slice(i, i + chunkSize);
-          await base44.entities.Lead.bulkCreate(chunk);
+          try {
+            await base44.entities.Lead.bulkCreate(chunk);
+            createdCount += chunk.length;
+          } catch {
+            // One bad row can fail the whole chunk, so retry the chunk one
+            // record at a time and skip only the genuinely bad rows.
+            for (const rec of chunk) {
+              try {
+                await base44.entities.Lead.create(rec);
+                createdCount += 1;
+              } catch {
+                failedCount += 1;
+                failedRecords.push(rec.email || `${rec.first_name || ''} ${rec.last_name || ''}`.trim() || '(no email)');
+              }
+            }
+          }
           setProgress({ done: Math.min(i + chunk.length, clean.length), total: clean.length });
         }
         setProgress(null);
         qc.invalidateQueries({ queryKey: ['report-leads'] });
-        toast.success(`Imported ${clean.length} leads, skipped ${skipped} duplicates`);
+        if (failedCount) console.warn('CSV import failed records:', failedRecords);
+        toast.success(`Imported ${createdCount} leads, skipped ${skipped} duplicates${failedCount ? `, ${failedCount} failed` : ''}`);
         reset();
         setBusy(false);
         return;
