@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Loader2, Sparkles, Check, ArrowRight, Save, Copy, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import Papa from 'papaparse';
 
 // Core target fields per entity. Custom fields (for leads) are appended at runtime.
 const LEAD_FIELDS = ['first_name', 'last_name', 'email', 'mobile', 'supplier_name', 'revenue', 'conv_value', 'final_status', 'email_valid'];
@@ -126,13 +127,24 @@ export default function CsvImporter() {
     if (!file) return;
     setBusy(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const extract = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: { type: 'object', properties: { rows: { type: 'array', items: { type: 'object', additionalProperties: true } } } },
-      });
-      const parsed = extract?.output?.rows || extract?.output || [];
-      const list = Array.isArray(parsed) ? parsed : [];
+      const name = (file.name || '').toLowerCase();
+      const isDelimited = name.endsWith('.csv') || name.endsWith('.tsv');
+      let list = [];
+      if (isDelimited) {
+        // Parse CSV/TSV in the browser. Reliable on large or wide files with
+        // quoted fields containing line breaks, where AI extraction fails.
+        const text = await file.text();
+        const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+        list = Array.isArray(result?.data) ? result.data : [];
+      } else {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const extract = await base44.integrations.Core.ExtractDataFromUploadedFile({
+          file_url,
+          json_schema: { type: 'object', properties: { rows: { type: 'array', items: { type: 'object', additionalProperties: true } } } },
+        });
+        const parsed = extract?.output?.rows || extract?.output || [];
+        list = Array.isArray(parsed) ? parsed : [];
+      }
       if (!list.length) { toast.error('No rows found in the file'); setBusy(false); return; }
       const cols = Object.keys(list[0] || {});
       setRows(list); setColumns(cols);
@@ -273,7 +285,7 @@ export default function CsvImporter() {
               </Select>
             </div>
           </div>
-          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.json" className="hidden" onChange={handleFile} />
+          <input ref={fileRef} type="file" accept=".csv,.tsv,.xlsx,.xls,.json" className="hidden" onChange={handleFile} />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={busy}
