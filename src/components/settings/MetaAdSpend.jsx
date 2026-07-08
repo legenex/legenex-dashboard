@@ -3,15 +3,13 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metaAssets } from '@/functions/metaAssets';
 import { syncMetaSpend } from '@/functions/syncMetaSpend';
-import { metaOauthStart } from '@/functions/metaOauthStart';
-import { validateMetaToken } from '@/functions/validateMetaToken';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Facebook, Save, RefreshCw, Plus, Trash2, Link2, CheckCircle2, ShieldCheck, XCircle } from 'lucide-react';
+import { Facebook, RefreshCw, Plus, Trash2, CheckCircle2, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SYNC_OPTIONS = [
@@ -21,25 +19,67 @@ const SYNC_OPTIONS = [
   { value: 'daily', label: 'Daily' },
 ];
 
+// Mask a token so only its last 4 characters are visible.
+const maskToken = (tok) => {
+  const s = String(tok || '');
+  if (s.length <= 4) return '••••';
+  return `••••••••${s.slice(-4)}`;
+};
+
+const genId = () => `tok_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+// Read the stored meta config, returning the IntegrationConfig record (or null) and parsed config object.
+const loadMetaConfig = async () => {
+  const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
+  const record = list[0] || null;
+  let config = {};
+  try { config = JSON.parse(record?.config || '{}'); } catch { config = {}; }
+  return { record, config };
+};
+
+// Normalize whatever is stored into a tokens array, migrating a legacy single token.
+const readTokens = (config) => {
+  if (Array.isArray(config.tokens) && config.tokens.length) {
+    return config.tokens.filter(t => t && t.token).map((t, i) => ({ id: t.id || `token_${i}`, label: t.label || `Token ${i + 1}`, token: t.token }));
+  }
+  const legacy = config.system_user_token || config.master_token || config.access_token || '';
+  if (legacy) return [{ id: 'default', label: 'Default', token: legacy }];
+  return [];
+};
+
 export default function MetaAdSpend() {
   const qc = useQueryClient();
-  const [tokenOpen, setTokenOpen] = useState(false);
-  const [token, setToken] = useState('');
-  const [masterToken, setMasterToken] = useState('');
-  const [savingMaster, setSavingMaster] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [storedTokens, setStoredTokens] = useState([]);
+  const [newLabel, setNewLabel] = useState('');
+  const [newToken, setNewToken] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [removingId, setRemovingId] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
-  const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [form, setForm] = useState(null);
 
-  const { data: assets, isLoading, refetch } = useQuery({
+  const { data: assets, refetch } = useQuery({
     queryKey: ['meta-assets'],
     queryFn: async () => (await metaAssets({})).data,
   });
-  const connected = !!assets?.connected;
+
+  // Load the stored token list (labels + tokens for masking) alongside the live summary.
+  useQuery({
+    queryKey: ['meta-config-tokens'],
+    queryFn: async () => {
+      const { config } = await loadMetaConfig();
+      const toks = readTokens(config);
+      setStoredTokens(toks);
+      return toks;
+    },
+  });
+
+  const tokenSummaries = assets?.tokens || [];
+  const validCount = tokenSummaries.filter(t => t.valid).length;
+  const connected = validCount > 0;
+  const adAccountCount = assets?.ad_accounts?.length || 0;
 
   const { data: mappings = [] } = useQuery({
     queryKey: ['adspend-mappings'],
@@ -49,109 +89,61 @@ export default function MetaAdSpend() {
   const { data: brands = [] } = useQuery({ queryKey: ['brands'], queryFn: () => base44.entities.Brand.list() });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
 
-  // Open the connect dialog, prefilling the master token if one is stored.
-  const openTokenDialog = async () => {
-    setToken(''); setMasterToken('');
-    try {
-      const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
-      if (list[0]) {
-        const cfg = JSON.parse(list[0].config || '{}');
-        setMasterToken(cfg.system_user_token || cfg.master_token || '');
-      }
-    } catch { /* leave blank */ }
-    setTokenOpen(true);
+  // Persist the given tokens array onto the meta config, then refresh both the
+  // stored list and the live per-token summary from metaAssets.
+  const persistTokens = async (tokens) => {
+    const { record, config } = await loadMetaConfig();
+    const payload = JSON.stringify({ ...config, tokens });
+    if (record) await base44.entities.IntegrationConfig.update(record.id, { config: payload });
+    else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
+    setStoredTokens(tokens);
+    await refetch();
+    qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
   };
 
-  const saveToken = async () => {
-    if (!token.trim()) { toast.error('Enter your Meta access token'); return; }
-    setSaving(true);
+  const addToken = async () => {
+    if (!newLabel.trim()) { toast.error('Enter a Business Manager label'); return; }
+    if (!newToken.trim()) { toast.error('Enter a Meta system-user token'); return; }
+    setAdding(true);
     try {
-      const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
-      const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
-      const payload = JSON.stringify({ ...existing, access_token: token.trim() });
-      if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
-      else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
-      toast.success('Meta connected');
-      setTokenOpen(false); setToken('');
-      await refetch();
-    } catch { toast.error('Failed to save token'); }
-    setSaving(false);
+      const { config } = await loadMetaConfig();
+      const current = readTokens(config);
+      const next = [...current, { id: genId(), label: newLabel.trim(), token: newToken.trim() }];
+      await persistTokens(next);
+      setNewLabel(''); setNewToken('');
+      toast.success('Token added');
+    } catch { toast.error('Failed to add token'); }
+    setAdding(false);
   };
 
-  // Save the optional master (system-user) token without disturbing the
-  // login access_token. The backend prefers this token when present.
-  const saveMasterToken = async () => {
-    setSavingMaster(true);
+  const removeToken = async (id) => {
+    setRemovingId(id);
     try {
-      const val = masterToken.trim();
-      // Validate the pasted token with Meta before storing. A broken or
-      // wrong-scope token is never saved, so the previous config stays intact.
-      if (val) {
-        const res = await validateMetaToken({ token: val });
-        const d = res?.data || {};
-        if (!d.valid) {
-          toast.error(`Meta rejected this token: ${d.error || 'invalid token'}`);
-          setSavingMaster(false);
-          return;
-        }
-        const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
-        const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
-        const payload = JSON.stringify({ ...existing, system_user_token: val });
-        if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: payload });
-        else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
-        toast.success(`Master token saved. Reaches ${d.account_count} ad account${d.account_count === 1 ? '' : 's'}.`);
-      } else {
-        const list = await base44.entities.IntegrationConfig.filter({ name: 'meta' });
-        const existing = (() => { try { return JSON.parse(list[0]?.config || '{}'); } catch { return {}; } })();
-        const next = { ...existing };
-        delete next.system_user_token; delete next.master_token;
-        if (list[0]) await base44.entities.IntegrationConfig.update(list[0].id, { config: JSON.stringify(next) });
-        toast.success('Master token removed');
-      }
-      await refetch();
-    } catch { toast.error('Failed to save master token'); }
-    setSavingMaster(false);
+      const { config } = await loadMetaConfig();
+      const next = readTokens(config).filter(t => t.id !== id);
+      await persistTokens(next);
+      toast.success('Token removed');
+    } catch { toast.error('Failed to remove token'); }
+    setRemovingId('');
   };
 
-  // Validate the currently active stored token (master if set, else login).
-  // Shows validity, reachable account count, and mapped-account coverage.
+  // Refresh the live summary and show combined + per-token coverage.
   const testConnection = async () => {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await validateMetaToken({});
-      const d = res?.data || {};
-      if (!d.valid) {
-        setTestResult({ valid: false, error: d.error || 'Token validation failed' });
-      } else {
-        const reachableIds = new Set((d.ad_accounts || []).map(a => a.account_id));
-        const covered = mappings.filter(m => reachableIds.has(String(m.ad_account_id).replace(/^act_/, '')) || reachableIds.has(m.ad_account_id));
-        const missing = mappings.filter(m => !covered.includes(m));
-        setTestResult({
-          valid: true,
-          account_name: d.account_name,
-          account_count: d.account_count,
-          covered: covered.map(m => m.ad_account_name || m.ad_account_id),
-          missing: missing.map(m => m.ad_account_name || m.ad_account_id),
-        });
-      }
+      const fresh = (await metaAssets({})).data;
+      qc.setQueryData(['meta-assets'], fresh);
+      const summaries = fresh?.tokens || [];
+      setTestResult({
+        total_accounts: fresh?.ad_accounts?.length || 0,
+        valid: summaries.filter(t => t.valid).length,
+        tokens: summaries,
+      });
     } catch (e) {
-      setTestResult({ valid: false, error: e?.response?.data?.error || 'Token validation failed' });
+      setTestResult({ error: e?.response?.data?.error || 'Connection test failed' });
     }
     setTesting(false);
-  };
-
-  const connectWithFacebook = async () => {
-    setConnecting(true);
-    try {
-      const res = await metaOauthStart({});
-      const url = res?.data?.url;
-      if (url) window.location.href = url;
-      else toast.error(res?.data?.error || 'Could not start Meta connect');
-    } catch (e) {
-      toast.error(e?.response?.data?.error || 'Could not start Meta connect');
-      setConnecting(false);
-    }
   };
 
   const runSync = async () => {
@@ -189,6 +181,12 @@ export default function MetaAdSpend() {
     toast.success('Mapping removed');
   };
 
+  // Merge stored token metadata (label, masked value) with the live summary by id.
+  const rows = storedTokens.map(st => {
+    const summary = tokenSummaries.find(s => s.id === st.id) || {};
+    return { ...st, valid: summary.valid, accounts: summary.accounts || 0, error: summary.error || '' };
+  });
+
   return (
     <div className="space-y-5">
       {/* Connection card */}
@@ -198,10 +196,10 @@ export default function MetaAdSpend() {
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Facebook className="w-5 h-5 text-primary" /></div>
             <div>
               <div className="text-[14px] font-semibold text-foreground">Meta (Facebook) Ads</div>
-              <div className="text-[12px] text-muted-foreground mt-0.5">Connect to sync ad spend and calculate true CPL per supplier & source.</div>
-              {connected && assets?.account && (
+              <div className="text-[12px] text-muted-foreground mt-0.5">Add one system-user token per Business Manager to sync ad spend and calculate true CPL per supplier and source.</div>
+              {connected && (
                 <div className="text-[11px] status-sold inline-flex items-center gap-1 mt-1.5 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected as {assets.account.name}
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected with {validCount} valid token{validCount === 1 ? '' : 's'}
                 </div>
               )}
               {assets?.error && <div className="text-[11px] text-destructive mt-1.5">{assets.error}</div>}
@@ -210,19 +208,15 @@ export default function MetaAdSpend() {
           <div className="flex items-center gap-2">
             {connected && <Button size="sm" variant="outline" className="gap-1.5" onClick={testConnection} disabled={testing}><ShieldCheck className={`w-3.5 h-3.5 ${testing ? 'animate-pulse' : ''}`} /> Test connection and coverage</Button>}
             {connected && <Button size="sm" variant="outline" className="gap-1.5" onClick={runSync} disabled={syncing}><RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> Sync Now</Button>}
-            <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={openTokenDialog}>
-              <Link2 className="w-3.5 h-3.5" /> {connected ? 'Reconnect' : 'Connect'}
-            </Button>
           </div>
         </div>
 
         {connected && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border">
+          <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
             {[
-              { label: 'Business Managers', n: assets.businesses?.length || 0 },
-              { label: 'Ad Accounts', n: assets.ad_accounts?.length || 0 },
-              { label: 'Pages', n: assets.pages?.length || 0 },
-              { label: 'Lead Forms', n: assets.lead_forms?.length || 0 },
+              { label: 'Business Managers', n: validCount },
+              { label: 'Ad Accounts', n: adAccountCount },
+              { label: 'Tokens', n: rows.length },
             ].map(s => (
               <div key={s.label} className="text-center">
                 <div className="text-[18px] font-bold text-foreground font-mono">{s.n}</div>
@@ -232,31 +226,73 @@ export default function MetaAdSpend() {
           </div>
         )}
 
-        {testResult && (
-          <div className={`mt-4 pt-4 border-t border-border rounded-lg`}>
-            {testResult.valid ? (
-              <div className="p-3 rounded-lg bg-status-sold border border-border">
-                <div className="text-[12px] status-sold inline-flex items-center gap-1.5 font-medium">
-                  <CheckCircle2 className="w-4 h-4" /> Token valid - connected as {testResult.account_name}
-                </div>
-                <div className="text-[12px] text-foreground mt-1.5">Reaches {testResult.account_count} ad account{testResult.account_count === 1 ? '' : 's'}.</div>
-                {mappings.length > 0 && (
-                  <div className="mt-2 space-y-1 text-[11px]">
-                    {testResult.covered.length > 0 && (
-                      <div className="text-muted-foreground">Covered mappings: <span className="text-foreground">{testResult.covered.join(', ')}</span></div>
-                    )}
-                    {testResult.missing.length > 0 && (
-                      <div className="status-error">Missing (not reachable by this token): {testResult.missing.join(', ')}</div>
-                    )}
+        {/* Token manager */}
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="text-[13px] font-semibold text-foreground mb-2">Business Manager Tokens</div>
+          {rows.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground py-2">No tokens yet. Add a system-user token for each Business Manager below.</p>
+          ) : (
+            <div className="space-y-2">
+              {rows.map(r => (
+                <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[13px] text-foreground font-medium truncate">{r.label}</div>
+                    <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{maskToken(r.token)}</div>
                   </div>
-                )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {r.valid === true ? (
+                      <span className="text-[11px] status-sold inline-flex items-center gap-1 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Valid · {r.accounts} account{r.accounts === 1 ? '' : 's'}
+                      </span>
+                    ) : r.valid === false ? (
+                      <span className="text-[11px] status-error inline-flex items-center gap-1 font-medium max-w-[260px] truncate" title={r.error}>
+                        <XCircle className="w-3.5 h-3.5 shrink-0" /> {r.error || 'Invalid token'}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">Checking…</span>
+                    )}
+                    <button onClick={() => removeToken(r.id)} disabled={removingId === r.id} className="text-muted-foreground hover:text-destructive p-1 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add token */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr_auto] gap-2 mt-3">
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Business Manager label</Label>
+              <Input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="e.g. Acme BM" className="mt-1 bg-background text-[13px]" />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">System-user token</Label>
+              <Input value={newToken} onChange={e => setNewToken(e.target.value)} type="password" placeholder="Long-lived system-user token" className="mt-1 bg-background font-mono text-[12px]" />
+            </div>
+            <div className="flex items-end">
+              <Button size="sm" className="gap-1.5 w-full" onClick={addToken} disabled={adding}><Plus className="w-3.5 h-3.5" /> {adding ? 'Adding…' : 'Add'}</Button>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1.5">Each token needs ads_read plus leads_retrieval plus pages_show_list. A system-user token reaches one Business Manager, so add one per Business Manager.</p>
+        </div>
+
+        {testResult && (
+          <div className="mt-4 pt-4 border-t border-border">
+            {testResult.error ? (
+              <div className="p-3 rounded-lg bg-status-error border border-border">
+                <div className="text-[12px] status-error inline-flex items-center gap-1.5 font-medium"><XCircle className="w-4 h-4" /> {testResult.error}</div>
               </div>
             ) : (
-              <div className="p-3 rounded-lg bg-status-error border border-border">
-                <div className="text-[12px] status-error inline-flex items-center gap-1.5 font-medium">
-                  <XCircle className="w-4 h-4" /> Token invalid
+              <div className="p-3 rounded-lg bg-status-sold border border-border">
+                <div className="text-[12px] status-sold inline-flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="w-4 h-4" /> {testResult.valid} valid token{testResult.valid === 1 ? '' : 's'} reaching {testResult.total_accounts} ad account{testResult.total_accounts === 1 ? '' : 's'} combined
                 </div>
-                <div className="text-[12px] text-foreground mt-1.5">{testResult.error}</div>
+                <div className="mt-2 space-y-1 text-[11px]">
+                  {testResult.tokens.map(t => (
+                    <div key={t.id} className={t.valid ? 'text-foreground' : 'status-error'}>
+                      <span className="font-medium">{t.label}:</span> {t.valid ? `valid, ${t.accounts} account${t.accounts === 1 ? '' : 's'}` : (t.error || 'invalid token')}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -297,51 +333,6 @@ export default function MetaAdSpend() {
         </div>
       )}
 
-      {/* Token dialog */}
-      <Dialog open={tokenOpen} onOpenChange={setTokenOpen}>
-        <DialogContent className="bg-popover border-border max-w-[480px]">
-          <DialogHeader><DialogTitle>Connect Meta</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Button onClick={connectWithFacebook} disabled={connecting} className="w-full gap-2">
-              <Facebook className="w-4 h-4" /> {connecting ? 'Redirecting...' : 'Continue with Facebook'}
-            </Button>
-            <p className="text-[11px] text-muted-foreground">Opens Facebook Login to grant ads access. You will be redirected back once connected.</p>
-            <div className="flex items-center gap-2 py-1">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-[11px] text-muted-foreground">or paste a token</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div>
-              <Label className="text-[12px]">Meta Access Token</Label>
-              <Input value={token} onChange={e => setToken(e.target.value)} type="password" placeholder="Long-lived user or system-user token" className="mt-1 bg-background font-mono text-[12px]" />
-              <p className="text-[11px] text-muted-foreground mt-1.5">Needs ads_read + leads_retrieval + pages_show_list. Generate a long-lived token in your Meta App and paste it here.</p>
-            </div>
-
-            <div className="border-t border-border pt-3">
-              <div className="flex items-center gap-2">
-                <Label className="text-[12px]">Master Access Token</Label>
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">Optional</Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1 mb-2">
-                {connected
-                  ? 'You are already connected via Facebook login, so this is not required. Add a never-expiring system-user token if you want the unattended sync to keep running without reconnecting roughly every 60 days.'
-                  : 'Only needed for a token that never expires, so the unattended sync does not need reconnecting roughly every 60 days.'}
-              </p>
-              <Input value={masterToken} onChange={e => setMasterToken(e.target.value)} type="password" placeholder="System-user token (never expires)" className="bg-background font-mono text-[12px]" />
-              <div className="flex justify-end mt-2">
-                <Button size="sm" variant="outline" onClick={saveMasterToken} disabled={savingMaster} className="gap-1.5">
-                  <Save className="w-3.5 h-3.5" /> {savingMaster ? 'Saving...' : 'Save master token'}
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setTokenOpen(false)}>Cancel</Button>
-            <Button onClick={saveToken} disabled={saving} className="gap-1.5"><Save className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save & Connect'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Mapping dialog */}
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
         <DialogContent className="bg-popover border-border max-w-[480px]">
@@ -376,21 +367,21 @@ export default function MetaAdSpend() {
                 <div>
                   <Label className="text-[12px]">Vertical</Label>
                   <Select value={form.vertical} onValueChange={v => setForm(p => ({ ...p, vertical: v }))}>
-                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>{verticals.map(v => <SelectItem key={v.id} value={v.code}>{v.code}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label className="text-[12px]">Brand</Label>
                   <Select value={form.brand} onValueChange={v => setForm(p => ({ ...p, brand: v }))}>
-                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>{brands.map(b => <SelectItem key={b.id} value={b.brand_code}>{b.brand_code}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label className="text-[12px]">Supplier</Label>
                   <Select value={form.supplier_name} onValueChange={v => setForm(p => ({ ...p, supplier_name: v }))}>
-                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
