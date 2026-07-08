@@ -7,7 +7,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // browser back to the Settings Integrations page; on error it redirects back
 // with an error query param.
 Deno.serve(async (req) => {
-  const settingsUrl = 'https://app.legenex.com/settings?tab=integrations';
+  const settingsUrl = 'https://dashboard.legenex.com/settings?tab=integrations';
 
   const redirectBack = (extra: string) =>
     new Response(null, {
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `https://app.legenex.com/settings?tab=integrations&meta_error=${encodeURIComponent((error as Error).message)}`,
+        Location: `https://dashboard.legenex.com/settings?tab=integrations&meta_error=${encodeURIComponent((error as Error).message)}`,
       },
     });
   }
