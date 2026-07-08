@@ -30,6 +30,87 @@ const normalizeStatus = (raw) => STATUS_LOOKUP[String(raw ?? '').trim().toLowerC
 const normEmail = (v) => String(v ?? '').trim().toLowerCase();
 const normMobile = (v) => String(v ?? '').replace(/\D/g, '');
 
+// ---- Deterministic auto-mapping helpers -------------------------------------
+
+// Lowercase and strip everything except a-z0-9 so "First Name", "first_name"
+// and "FirstName" all collapse to the same key.
+const normKey = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Source columns whose normalized key means "lead status / disposition" always
+// map to final_status (the field that drives Sold/Unsold/Disqualified), never
+// to a lead_status custom field.
+const STATUS_COLUMN_KEYS = new Set([
+  'leadstatus', 'status', 'disposition', 'dispo', 'leaddisposition', 'outcome', 'result', 'finalstatus',
+]);
+
+// Synonyms / abbreviations -> target field_name. Keys are normalized.
+const SYNONYMS = {
+  phone: 'mobile', tel: 'mobile', telephone: 'mobile', cell: 'mobile', cellphone: 'mobile', phonenumber: 'mobile',
+  fname: 'first_name', first: 'first_name', givenname: 'first_name',
+  lname: 'last_name', surname: 'last_name', last: 'last_name',
+  email: 'email', mail: 'email', emailaddress: 'email',
+  postal: 'zip', postcode: 'zip', postalcode: 'zip', zipcode: 'zip',
+  rev: 'revenue', amount: 'revenue',
+};
+
+// Dice coefficient on character bigrams -> similarity ratio 0..1.
+const diceCoefficient = (a, b) => {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bigrams = (s) => {
+    const m = new Map();
+    for (let i = 0; i < s.length - 1; i++) {
+      const g = s.slice(i, i + 2);
+      m.set(g, (m.get(g) || 0) + 1);
+    }
+    return m;
+  };
+  const aB = bigrams(a);
+  const bB = bigrams(b);
+  let overlap = 0;
+  let total = 0;
+  aB.forEach((count, g) => { total += count; });
+  bB.forEach((count, g) => {
+    total += count;
+    const inA = aB.get(g) || 0;
+    if (inA > 0) overlap += Math.min(inA, count);
+  });
+  return (2 * overlap) / total;
+};
+
+// Layered matcher: decides one source column, stopping at the first hit.
+// entries: [{ field, keys: [normKey(field_name), normKey(label)] }]. Returns a
+// target field_name or null when nothing confident matched (leave as Ignore).
+const matchColumn = (col, entries) => {
+  const key = normKey(col);
+  if (!key) return null;
+
+  // 1. Status override.
+  if (STATUS_COLUMN_KEYS.has(key)) {
+    return entries.some(e => e.field === 'final_status') ? 'final_status' : null;
+  }
+
+  const byKey = new Map();
+  entries.forEach(e => e.keys.forEach(k => { if (k && !byKey.has(k)) byKey.set(k, e.field); }));
+
+  // 2. Normalized exact match against field_name or label.
+  if (byKey.has(key)) return byKey.get(key);
+
+  // 3. Synonym / abbreviation dictionary (only if the target field exists).
+  const syn = SYNONYMS[key];
+  if (syn && entries.some(e => e.field === syn)) return syn;
+
+  // 4. Fuzzy similarity, accept only above ~0.82.
+  let best = null;
+  let bestScore = 0;
+  byKey.forEach((field, k) => {
+    const score = diceCoefficient(key, k);
+    if (score > bestScore) { bestScore = score; best = field; }
+  });
+  return bestScore >= 0.82 ? best : null;
+};
+
 export default function CsvImporter() {
   const qc = useQueryClient();
   const fileRef = useRef();
@@ -50,6 +131,15 @@ export default function CsvImporter() {
   const targetFields = target === 'lead'
     ? [...LEAD_FIELDS, ...customFields.map(f => f.field_name).filter(n => n && !LEAD_FIELDS.includes(n))]
     : BANK_FIELDS;
+
+  // Matcher entries: each target field plus the normalized keys to match on
+  // (field_name, and the custom field label when present).
+  const fieldEntries = targetFields.map(f => {
+    const cf = customFields.find(c => c.field_name === f);
+    const keys = [normKey(f)];
+    if (cf?.label) keys.push(normKey(cf.label));
+    return { field: f, keys };
+  });
 
   const reset = () => { setStep('upload'); setRows([]); setColumns([]); setMapping({}); setTemplateName(''); setDupResult(null); if (fileRef.current) fileRef.current.value = ''; };
 
@@ -149,14 +239,29 @@ export default function CsvImporter() {
       const cols = Object.keys(list[0] || {});
       setRows(list); setColumns(cols);
 
-      // AI auto-map the columns to our target fields.
-      const ai = await base44.integrations.Core.InvokeLLM({
-        prompt: `Map each source CSV column to the best matching target field. Source columns: ${JSON.stringify(cols)}. Target fields: ${JSON.stringify(targetFields)}. If a column has no good match, map it to "${IGNORE}". Return a JSON object of source column -> target field.`,
-        response_json_schema: { type: 'object', properties: { mapping: { type: 'object', additionalProperties: { type: 'string' } } } },
-      });
-      const auto = ai?.mapping || {};
+      // Deterministic layered auto-map: status override -> normalized exact ->
+      // synonyms -> fuzzy. Each column stops at the first confident hit.
       const finalMap = {};
-      cols.forEach(c => { finalMap[c] = targetFields.includes(auto[c]) ? auto[c] : IGNORE; });
+      const unmatched = [];
+      cols.forEach(c => {
+        const hit = matchColumn(c, fieldEntries);
+        if (hit) finalMap[c] = hit;
+        else { finalMap[c] = IGNORE; unmatched.push(c); }
+      });
+
+      // AI fallback ONLY for columns still unmatched after the deterministic layers.
+      if (unmatched.length) {
+        try {
+          const ai = await base44.integrations.Core.InvokeLLM({
+            prompt: `Map each source CSV column to the best matching target field. Source columns: ${JSON.stringify(unmatched)}. Target fields: ${JSON.stringify(targetFields)}. If a column has no good match, map it to "${IGNORE}". Return a JSON object of source column -> target field.`,
+            response_json_schema: { type: 'object', properties: { mapping: { type: 'object', additionalProperties: { type: 'string' } } } },
+          });
+          const auto = ai?.mapping || {};
+          unmatched.forEach(c => { if (targetFields.includes(auto[c])) finalMap[c] = auto[c]; });
+        } catch {
+          // Deterministic mapping already applied; leave unmatched as Ignore.
+        }
+      }
       setMapping(finalMap);
       setStep('review');
     } catch (err) {
