@@ -65,7 +65,6 @@ export default function MetaAdSpend() {
   const [mapOpen, setMapOpen] = useState(false);
   const [form, setForm] = useState(null);
   const [syncedIds, setSyncedIds] = useState([]);
-  const [syncedKeyMissing, setSyncedKeyMissing] = useState(true);
   const [acctSearch, setAcctSearch] = useState('');
 
   const { data: assets, refetch } = useQuery({
