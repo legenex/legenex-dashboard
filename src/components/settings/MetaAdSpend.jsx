@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Facebook, RefreshCw, Plus, Trash2, CheckCircle2, ShieldCheck, XCircle } from 'lucide-react';
+import { Facebook, RefreshCw, Plus, Trash2, CheckCircle2, ShieldCheck, XCircle, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 const SYNC_OPTIONS = [
@@ -61,6 +62,10 @@ export default function MetaAdSpend() {
   const [syncing, setSyncing] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [form, setForm] = useState(null);
+  const [syncedIds, setSyncedIds] = useState([]);
+  const [syncedKeyMissing, setSyncedKeyMissing] = useState(true);
+  const [acctSearch, setAcctSearch] = useState('');
+  const [savingSync, setSavingSync] = useState(false);
 
   const { data: assets, refetch } = useQuery({
     queryKey: ['meta-assets'],
@@ -74,6 +79,9 @@ export default function MetaAdSpend() {
       const { config } = await loadMetaConfig();
       const toks = readTokens(config);
       setStoredTokens(toks);
+      const hasKey = Array.isArray(config.synced_account_ids);
+      setSyncedKeyMissing(!hasKey);
+      setSyncedIds(hasKey ? config.synced_account_ids : []);
       return toks;
     },
   });
@@ -101,6 +109,32 @@ export default function MetaAdSpend() {
     setStoredTokens(tokens);
     await refetch();
     qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
+  };
+
+  // Persist the synced account id selection onto the meta config immediately.
+  const persistSyncedIds = async (ids) => {
+    const prevIds = syncedIds;
+    const prevMissing = syncedKeyMissing;
+    setSyncedIds(ids);
+    setSyncedKeyMissing(false);
+    setSavingSync(true);
+    try {
+      const { record, config } = await loadMetaConfig();
+      const payload = JSON.stringify({ ...config, synced_account_ids: ids });
+      if (record) await base44.entities.IntegrationConfig.update(record.id, { config: payload });
+      else await base44.entities.IntegrationConfig.create({ name: 'meta', config: payload });
+      qc.invalidateQueries({ queryKey: ['meta-config-tokens'] });
+    } catch {
+      setSyncedIds(prevIds);
+      setSyncedKeyMissing(prevMissing);
+      toast.error('Failed to save sync selection');
+    }
+    setSavingSync(false);
+  };
+
+  const toggleSyncedId = (id) => {
+    const on = syncedIds.includes(id);
+    persistSyncedIds(on ? syncedIds.filter(x => x !== id) : [...syncedIds, id]);
   };
 
   const addToken = async () => {
@@ -292,6 +326,70 @@ export default function MetaAdSpend() {
           )}
           <p className="text-[11px] text-muted-foreground mt-1.5">Each token needs ads_read plus leads_retrieval plus pages_show_list. A system-user token reaches one Business Manager, so add one per Business Manager.</p>
         </div>
+
+        {/* Ad account sync selection */}
+        {connected && (() => {
+          const allAccounts = assets?.ad_accounts || [];
+          const q = acctSearch.trim().toLowerCase();
+          const filtered = q
+            ? allAccounts.filter(a =>
+                `${a.name || ''} ${a.account_id || ''} ${a.token_label || ''}`.toLowerCase().includes(q))
+            : allAccounts;
+          const selectedCount = allAccounts.filter(a => syncedIds.includes(a.id)).length;
+          return (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-[13px] font-semibold text-foreground">Ad Accounts</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {selectedCount} of {allAccounts.length} account{allAccounts.length === 1 ? '' : 's'} selected for sync
+                    {savingSync && <span className="ml-2 text-muted-foreground">Saving…</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={savingSync} onClick={() => persistSyncedIds(allAccounts.map(a => a.id))}>Select all</Button>
+                  <Button size="sm" variant="outline" disabled={savingSync} onClick={() => persistSyncedIds([])}>Clear all</Button>
+                </div>
+              </div>
+
+              {syncedKeyMissing && (
+                <div className="mt-2 text-[11px] tag-neutral inline-flex items-center gap-1.5 rounded-md px-2 py-1">
+                  No accounts selected yet. Nothing will sync until you pick some.
+                </div>
+              )}
+
+              <div className="relative mt-3">
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input value={acctSearch} onChange={e => setAcctSearch(e.target.value)} placeholder="Search accounts by name, id or Business Manager" className="pl-8 bg-background text-[13px]" />
+              </div>
+
+              {allAccounts.length === 0 ? (
+                <p className="text-[12px] text-muted-foreground py-3">No ad accounts discovered yet. Add a valid token or run the coverage test.</p>
+              ) : filtered.length === 0 ? (
+                <p className="text-[12px] text-muted-foreground py-3">No accounts match "{acctSearch}".</p>
+              ) : (
+                <div className="mt-3 space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  {filtered.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[13px] text-foreground font-medium truncate">{a.name || a.account_id}</div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <span className="text-[11px] text-muted-foreground font-mono">{a.account_id}</span>
+                          {a.currency && <Badge variant="outline" className="text-[10px]">{a.currency}</Badge>}
+                          {a.token_label && <Badge variant="outline" className="text-[10px]">{a.token_label}</Badge>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Label className="text-[11px] text-muted-foreground">Sync spend</Label>
+                        <Switch checked={syncedIds.includes(a.id)} disabled={savingSync} onCheckedChange={() => toggleSyncedId(a.id)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {testResult && (
           <div className="mt-4 pt-4 border-t border-border">
