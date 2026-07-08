@@ -1,6 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// Syncs Meta ad spend for every ad account the active token can access.
+// Syncs Meta ad spend across every configured token. A system-user token only
+// reaches one Business Manager, so config.tokens = [{ id, label, token }] lets
+// one account cover ad accounts spread across several Businesses. A lone legacy
+// config.access_token is treated as one unlabeled token.
 // Writes account-level daily AdSpend rows so the Ad Spend cost dashboard fills
 // in automatically. Uses service role so the scheduled automation (no user)
 // can run it. Sync is account level only to avoid double counting.
@@ -14,14 +17,21 @@ Deno.serve(async (req) => {
 
     const svc = base44.asServiceRole;
     const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'meta' });
-    // Prefer a configured system-user / master token, otherwise fall back to
-    // the long-lived user token saved by the Facebook login OAuth flow.
-    let token = '';
+
+    // Resolve tokens: prefer config.tokens, fall back to a single legacy token.
+    let tokens: { id: string; label: string; token: string }[] = [];
     try {
       const cfg = JSON.parse(cfgList[0]?.config || '{}');
-      token = cfg.system_user_token || cfg.master_token || cfg.access_token || '';
-    } catch { token = ''; }
-    if (!token) return Response.json({ error: 'Meta not connected' }, { status: 400 });
+      if (Array.isArray(cfg.tokens) && cfg.tokens.length) {
+        tokens = cfg.tokens
+          .filter((t: any) => t && t.token)
+          .map((t: any, i: number) => ({ id: t.id || `token_${i}`, label: t.label || `Token ${i + 1}`, token: t.token }));
+      } else {
+        const legacy = cfg.system_user_token || cfg.master_token || cfg.access_token || '';
+        if (legacy) tokens = [{ id: 'default', label: 'Default', token: legacy }];
+      }
+    } catch { tokens = []; }
+    if (!tokens.length) return Response.json({ error: 'Meta not connected' }, { status: 400 });
 
     const ver = 'v21.0';
 
@@ -35,22 +45,30 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch the accessible ad accounts for the active token.
-    const acctUrl = `https://graph.facebook.com/${ver}/me/adaccounts?fields=id,name,account_id,currency&access_token=${encodeURIComponent(token)}`;
-    const acctRes = await fetch(acctUrl);
-    const acctJson = await acctRes.json();
-    if (acctJson.error) {
-      return Response.json({ error: acctJson.error.message || 'Failed to load ad accounts' }, { status: 400 });
+    // Build the deduped account list across all tokens; each account keeps the
+    // token that can access it. Note any token that fails to load accounts.
+    const accountsById: Record<string, any> = {};
+    const tokenErrors: any[] = [];
+    for (const t of tokens) {
+      const acctUrl = `https://graph.facebook.com/${ver}/me/adaccounts?fields=id,name,account_id,currency&limit=200&access_token=${encodeURIComponent(t.token)}`;
+      const acctRes = await fetch(acctUrl);
+      const acctJson = await acctRes.json();
+      if (acctJson.error) {
+        tokenErrors.push({ label: t.label, error: acctJson.error.message || 'Failed to load ad accounts' });
+        continue;
+      }
+      for (const a of acctJson.data || []) {
+        if (!accountsById[a.id]) accountsById[a.id] = { id: a.id, name: a.name || a.id, token: t.token, token_label: t.label };
+      }
     }
-    const accounts = acctJson.data || [];
 
     let inserted = 0;
     let accountsSynced = 0;
     const usedMappingIds = new Set<string>();
 
-    for (const acct of accounts) {
+    for (const acct of Object.values(accountsById)) {
       const node = acct.id; // act_XXXX
-      const accountName = acct.name || node;
+      const accountName = acct.name;
       const mapping = acctMappingById[node];
 
       const params = new URLSearchParams({
@@ -59,10 +77,13 @@ Deno.serve(async (req) => {
         time_increment: '1',
         date_preset: 'last_30d',
       });
-      const url = `https://graph.facebook.com/${ver}/${node}/insights?${params}&access_token=${encodeURIComponent(token)}`;
+      const url = `https://graph.facebook.com/${ver}/${node}/insights?${params}&access_token=${encodeURIComponent(acct.token)}`;
       const r = await fetch(url);
       const j = await r.json();
-      if (j.error) continue;
+      if (j.error) {
+        tokenErrors.push({ label: acct.token_label, error: `${node}: ${j.error.message}` });
+        continue;
+      }
 
       accountsSynced++;
 
@@ -97,7 +118,12 @@ Deno.serve(async (req) => {
       await svc.entities.AdSpendMapping.update(id, { last_synced_at: now });
     }
 
-    return Response.json({ success: true, accounts_synced: accountsSynced, rows_synced: inserted });
+    return Response.json({
+      success: true,
+      accounts_synced: accountsSynced,
+      rows_synced: inserted,
+      token_errors: tokenErrors,
+    });
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 500 });
   }
