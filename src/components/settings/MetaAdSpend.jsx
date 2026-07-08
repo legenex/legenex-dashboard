@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metaAssets } from '@/functions/metaAssets';
 import { syncMetaSpend } from '@/functions/syncMetaSpend';
+import { validateMetaToken } from '@/functions/validateMetaToken';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +54,7 @@ export default function MetaAdSpend() {
   const [newLabel, setNewLabel] = useState('');
   const [newToken, setNewToken] = useState('');
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState('');
   const [removingId, setRemovingId] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -102,17 +104,28 @@ export default function MetaAdSpend() {
   };
 
   const addToken = async () => {
+    setAddError('');
     if (!newLabel.trim()) { toast.error('Enter a Business Manager label'); return; }
     if (!newToken.trim()) { toast.error('Enter a Meta system-user token'); return; }
     setAdding(true);
     try {
+      // Validate the pasted token against the Graph API before saving it.
+      const check = (await validateMetaToken({ token: newToken.trim() })).data || {};
+      if (!check.valid) {
+        setAddError(check.error || 'Meta rejected this token');
+        setAdding(false);
+        return;
+      }
       const { config } = await loadMetaConfig();
       const current = readTokens(config);
       const next = [...current, { id: genId(), label: newLabel.trim(), token: newToken.trim() }];
       await persistTokens(next);
       setNewLabel(''); setNewToken('');
-      toast.success('Token added');
-    } catch { toast.error('Failed to add token'); }
+      const n = check.account_count || 0;
+      toast.success(`Token added${check.account_name ? ` for ${check.account_name}` : ''}, reaching ${n} ad account${n === 1 ? '' : 's'}`);
+    } catch (e) {
+      setAddError(e?.response?.data?.error || 'Failed to validate token');
+    }
     setAdding(false);
   };
 
@@ -266,12 +279,17 @@ export default function MetaAdSpend() {
             </div>
             <div>
               <Label className="text-[11px] text-muted-foreground">System-user token</Label>
-              <Input value={newToken} onChange={e => setNewToken(e.target.value)} type="password" placeholder="Long-lived system-user token" className="mt-1 bg-background font-mono text-[12px]" />
+              <Input value={newToken} onChange={e => { setNewToken(e.target.value); setAddError(''); }} type="password" placeholder="Long-lived system-user token" className="mt-1 bg-background font-mono text-[12px]" />
             </div>
             <div className="flex items-end">
-              <Button size="sm" className="gap-1.5 w-full" onClick={addToken} disabled={adding}><Plus className="w-3.5 h-3.5" /> {adding ? 'Adding…' : 'Add'}</Button>
+              <Button size="sm" className="gap-1.5 w-full" onClick={addToken} disabled={adding}><Plus className="w-3.5 h-3.5" /> {adding ? 'Checking…' : 'Add'}</Button>
             </div>
           </div>
+          {addError && (
+            <div className="mt-2 text-[11px] status-error inline-flex items-start gap-1.5 font-medium">
+              <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {addError}
+            </div>
+          )}
           <p className="text-[11px] text-muted-foreground mt-1.5">Each token needs ads_read plus leads_retrieval plus pages_show_list. A system-user token reaches one Business Manager, so add one per Business Manager.</p>
         </div>
 
