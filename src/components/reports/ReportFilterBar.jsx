@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Panel } from '@/components/settings/settingsUi';
 import { Filter, Plus, X } from 'lucide-react';
-import { format } from 'date-fns';
-import { STANDARD_PERIODS, resolvePeriod } from '@/lib/periodRange';
+import { formatInTimeZone } from 'date-fns-tz';
+import { STANDARD_PERIODS, resolvePeriod, APP_TZ } from '@/lib/periodRange';
 
 const OPTIONAL_FILTERS = [
   { key: 'utm_source', label: 'UTM Source' },
@@ -14,7 +14,7 @@ const OPTIONAL_FILTERS = [
   { key: 'state', label: 'State' },
 ];
 
-const fmt = (d) => format(d, 'yyyy-MM-dd');
+const fmt = (d) => formatInTimeZone(d, APP_TZ, 'yyyy-MM-dd');
 
 // Report-level filter bar. Matches the Leads filter bar styling.
 // value = { date_from, date_to, campaign, vertical, supplier_name, buyer_id, brand, ...optional }

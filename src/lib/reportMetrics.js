@@ -61,8 +61,8 @@ export function applyFilters(leads, filters = {}) {
   if (entries.length === 0) return leads;
   return leads.filter((l) =>
     entries.every(([field, value]) => {
-      if (field === 'date_from') return leadEventInstant(l) >= new Date(value);
-      if (field === 'date_to') return leadEventInstant(l) <= new Date(value + 'T23:59:59');
+      if (field === 'date_from') return leadEventInstant(l) >= fromZonedTime(value + 'T00:00:00', APP_TZ);
+      if (field === 'date_to') return leadEventInstant(l) <= fromZonedTime(value + 'T23:59:59', APP_TZ);
       const lv = leadField(l, field);
       return String(lv ?? '').toLowerCase() === String(value).toLowerCase();
     })
