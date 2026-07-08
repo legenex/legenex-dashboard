@@ -13,8 +13,13 @@ Deno.serve(async (req) => {
 
     const svc = base44.asServiceRole;
     const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'meta' });
+    // Prefer a configured system-user / master token, otherwise fall back to
+    // the long-lived user token saved by the Facebook login OAuth flow.
     let token = '';
-    try { token = JSON.parse(cfgList[0]?.config || '{}').access_token || ''; } catch { token = ''; }
+    try {
+      const cfg = JSON.parse(cfgList[0]?.config || '{}');
+      token = cfg.system_user_token || cfg.master_token || cfg.access_token || '';
+    } catch { token = ''; }
     if (!token) return Response.json({ error: 'Meta not connected' }, { status: 400 });
 
     const ver = 'v21.0';
