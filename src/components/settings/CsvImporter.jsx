@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Loader2, Sparkles, Check, ArrowRight, Save } from 'lucide-react';
+import { Upload, Loader2, Sparkles, Check, ArrowRight, Save, Copy, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Core target fields per entity. Custom fields (for leads) are appended at runtime.
@@ -40,6 +40,8 @@ export default function CsvImporter() {
   const [columns, setColumns] = useState([]);
   const [mapping, setMapping] = useState({});
   const [templateName, setTemplateName] = useState('');
+  const [dupChecking, setDupChecking] = useState(false);
+  const [dupResult, setDupResult] = useState(null); // { newCount, dupCount }
 
   const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('sort_order') });
   const { data: templates = [] } = useQuery({ queryKey: ['import-templates'], queryFn: () => base44.entities.ImportTemplate.list('-created_date') });
@@ -48,7 +50,76 @@ export default function CsvImporter() {
     ? [...LEAD_FIELDS, ...customFields.map(f => f.field_name).filter(n => n && !LEAD_FIELDS.includes(n))]
     : BANK_FIELDS;
 
-  const reset = () => { setStep('upload'); setRows([]); setColumns([]); setMapping({}); setTemplateName(''); if (fileRef.current) fileRef.current.value = ''; };
+  const reset = () => { setStep('upload'); setRows([]); setColumns([]); setMapping({}); setTemplateName(''); setDupResult(null); if (fileRef.current) fileRef.current.value = ''; };
+
+  // First few non-empty sample values for a source column.
+  const sampleValues = (col, max = 3) => {
+    const out = [];
+    for (const r of rows) {
+      const v = r?.[col];
+      if (v != null && String(v).trim() !== '') out.push(String(v).trim());
+      if (out.length >= max) break;
+    }
+    return out;
+  };
+
+  // Which target fields are currently mapped.
+  const mappedFields = new Set(Object.values(mapping).filter(f => f && f !== IGNORE));
+  // Required-field validation. Returns a list of human-readable missing requirements.
+  const missingRequired = (() => {
+    if (target === 'lead') {
+      return mappedFields.has('email') || mappedFields.has('mobile') ? [] : ['email or mobile'];
+    }
+    const miss = [];
+    if (!mappedFields.has('date')) miss.push('date');
+    if (!mappedFields.has('amount')) miss.push('amount');
+    return miss;
+  })();
+
+  const checkDuplicates = async () => {
+    setDupChecking(true);
+    try {
+      const records = rows.map(r => {
+        const out = {};
+        Object.entries(mapping).forEach(([col, field]) => { if (field && field !== IGNORE) out[field] = r[col]; });
+        return out;
+      });
+      let existingEmails = new Set();
+      let existingMobiles = new Set();
+      if (target === 'lead') {
+        let page = 0;
+        const pageSize = 500;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const batch = await base44.entities.Lead.list('-created_date', pageSize, page * pageSize);
+          batch.forEach(l => {
+            const e = normEmail(l.email); if (e) existingEmails.add(e);
+            const m = normMobile(l.mobile); if (m) existingMobiles.add(m);
+          });
+          if (batch.length < pageSize) break;
+          page += 1;
+        }
+      }
+      const seenEmails = new Set();
+      const seenMobiles = new Set();
+      let newCount = 0;
+      let dupCount = 0;
+      records.forEach(r => {
+        const e = normEmail(r.email);
+        const m = normMobile(r.mobile);
+        const dupExisting = (e && existingEmails.has(e)) || (m && existingMobiles.has(m));
+        const dupIntra = (e && seenEmails.has(e)) || (m && seenMobiles.has(m));
+        if (dupExisting || dupIntra) { dupCount += 1; return; }
+        if (e) seenEmails.add(e);
+        if (m) seenMobiles.add(m);
+        newCount += 1;
+      });
+      setDupResult({ newCount, dupCount });
+    } catch {
+      toast.error('Could not check duplicates');
+    }
+    setDupChecking(false);
+  };
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -238,11 +309,21 @@ export default function CsvImporter() {
               <tbody className="divide-y divide-border">
                 {columns.map(col => (
                   <tr key={col}>
-                    <td className="px-4 py-2 font-mono text-foreground">{col}</td>
-                    <td className="px-4 py-2 text-muted-foreground truncate max-w-[160px]">{String(rows[0]?.[col] ?? '')}</td>
-                    <td className="px-4 py-2 text-muted-foreground"><ArrowRight className="w-3.5 h-3.5" /></td>
-                    <td className="px-4 py-2">
-                      <Select value={mapping[col]} onValueChange={v => setMapping(p => ({ ...p, [col]: v }))}>
+                    <td className="px-4 py-2 font-mono text-foreground align-top">{col}</td>
+                    <td className="px-4 py-2 text-muted-foreground max-w-[200px] align-top">
+                      {(() => {
+                        const vals = sampleValues(col);
+                        if (!vals.length) return <span className="italic opacity-60">empty</span>;
+                        return (
+                          <div className="space-y-0.5">
+                            {vals.map((v, i) => <div key={i} className="truncate">{v}</div>)}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground align-top"><ArrowRight className="w-3.5 h-3.5" /></td>
+                    <td className="px-4 py-2 align-top">
+                      <Select value={mapping[col]} onValueChange={v => { setMapping(p => ({ ...p, [col]: v })); setDupResult(null); }}>
                         <SelectTrigger className="bg-background text-[12px] h-8 w-[220px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value={IGNORE}>— Ignore —</SelectItem>
@@ -263,12 +344,24 @@ export default function CsvImporter() {
             </div>
             <div className="flex items-center gap-3">
               {progress && <span className="text-[12px] text-muted-foreground">created {progress.done} of {progress.total}</span>}
-              <Button size="sm" onClick={commit} disabled={busy} className="gap-1.5">
+              {dupResult && <span className="text-[12px] text-muted-foreground">{dupResult.newCount} new, {dupResult.dupCount} duplicates</span>}
+              <Button size="sm" variant="outline" onClick={checkDuplicates} disabled={dupChecking || busy} className="gap-1.5">
+                {dupChecking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                Check duplicates
+              </Button>
+              <Button size="sm" onClick={commit} disabled={busy || missingRequired.length > 0} className="gap-1.5">
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Import {rows.length} {target === 'lead' ? 'Leads' : 'Transactions'}
               </Button>
             </div>
           </div>
+
+          {missingRequired.length > 0 && (
+            <div className="flex items-center gap-2 text-[12px] text-primary bg-status-error-bg rounded-[8px] px-3 py-2">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>Map {missingRequired.join(' and ')} before importing.</span>
+            </div>
+          )}
 
           {templates.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
