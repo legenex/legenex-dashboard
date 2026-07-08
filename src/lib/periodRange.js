@@ -2,6 +2,15 @@
 import {
   startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears,
 } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+
+// All dashboard date bucketing is computed in the app's operating timezone so
+// leads are attributed to the correct calendar day regardless of import time.
+export const APP_TZ = 'America/Saskatchewan';
+
+// Compute a day boundary in APP_TZ and return it as a UTC instant.
+// `fn` is a date-fns boundary helper (startOfDay/endOfDay/startOfMonth/...).
+const zoned = (date, fn) => fromZonedTime(fn(toZonedTime(date, APP_TZ)), APP_TZ);
 
 export const PERIODS = [
   { value: 'today', label: 'Today' },
@@ -15,35 +24,36 @@ export const PERIODS = [
 
 // Resolve a period value (+ optional custom {from,to}) into a { start, end } window.
 export function resolvePeriod(value, custom) {
+  // "now" in APP_TZ so day boundaries land on the correct local calendar day.
   const now = new Date();
   switch (value) {
     case 'today':
-      return { start: startOfDay(now), end: endOfDay(now) };
+      return { start: zoned(now, startOfDay), end: zoned(now, endOfDay) };
     case 'yesterday': {
       const y = subDays(now, 1);
-      return { start: startOfDay(y), end: endOfDay(y) };
+      return { start: zoned(y, startOfDay), end: zoned(y, endOfDay) };
     }
     case 'last7':
-      return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
+      return { start: zoned(subDays(now, 6), startOfDay), end: zoned(now, endOfDay) };
     case 'this_month':
-      return { start: startOfMonth(now), end: endOfDay(now) };
+      return { start: zoned(now, startOfMonth), end: zoned(now, endOfDay) };
     case 'last_month': {
       const lm = subMonths(now, 1);
-      return { start: startOfMonth(lm), end: endOfMonth(lm) };
+      return { start: zoned(lm, startOfMonth), end: zoned(lm, endOfMonth) };
     }
     case 'last60':
-      return { start: startOfDay(subDays(now, 59)), end: endOfDay(now) };
+      return { start: zoned(subDays(now, 59), startOfDay), end: zoned(now, endOfDay) };
     case 'last_year': {
       const ly = subYears(now, 1);
-      return { start: startOfYear(ly), end: endOfYear(ly) };
+      return { start: zoned(ly, startOfYear), end: zoned(ly, endOfYear) };
     }
     case 'custom':
       return {
-        start: custom?.from ? startOfDay(new Date(custom.from)) : startOfDay(subDays(now, 29)),
-        end: custom?.to ? endOfDay(new Date(custom.to)) : endOfDay(now),
+        start: custom?.from ? zoned(new Date(custom.from), startOfDay) : zoned(subDays(now, 29), startOfDay),
+        end: custom?.to ? zoned(new Date(custom.to), endOfDay) : zoned(now, endOfDay),
       };
     default:
-      return { start: startOfMonth(now), end: endOfDay(now) };
+      return { start: zoned(now, startOfMonth), end: zoned(now, endOfDay) };
   }
 }
 

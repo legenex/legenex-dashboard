@@ -46,7 +46,7 @@ const RISK_LABEL = { Overdue: 'Short Paid', Outstanding: 'No Payment Source', Ov
 export default function Overview() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [period, setPeriod] = useState('last60');
+  const [period, setPeriod] = useState('this_month');
   const [custom, setCustom] = useState({ from: '', to: '' });
   const [compare, setCompare] = useState(false);
 
