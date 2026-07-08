@@ -36,7 +36,21 @@ export default function Leads() {
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
-    queryFn: () => base44.entities.Lead.filter({ archived: false }, '-created_date', 2000),
+    queryFn: async () => {
+      // Page through all matching leads. A single call is capped at 500, so
+      // loop until a page returns fewer than 500 rows.
+      const all = [];
+      let page = 0;
+      const pageSize = 500;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const batch = await base44.entities.Lead.filter({ archived: false }, '-created_date', pageSize, page * pageSize);
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        page += 1;
+      }
+      return all;
+    },
   });
 
   // Fetch error log entries to enrich error pills
