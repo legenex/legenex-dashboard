@@ -9,7 +9,10 @@ const inWin = (d, win) => d && isWithinInterval(new Date(d), { start: win.start,
 
 // The full financial picture for a period window.
 export function financialTruth({ leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns }, win) {
-  const wLeads = leads.filter(l => isWithinInterval(leadEventInstant(l), { start: win.start, end: win.end }));
+  const wLeads = leads.filter(l => {
+    const t = leadEventInstant(l);
+    return t instanceof Date && !isNaN(t.getTime()) && t >= win.start && t <= win.end;
+  });
 
   const reconRows = reconcile({ leads: wLeads, buyers, suppliers, invoices, payments, payouts, adSpend });
   const wb = workbench(reconRows, invoices);

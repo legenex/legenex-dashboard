@@ -41,14 +41,18 @@ const S = (l) => String(l.final_status || '');
 export function leadEventInstant(lead) {
   const ts = leadField(lead, 'timestamp');
   if (typeof ts === 'string' && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(ts.trim())) {
-    return fromZonedTime(ts.trim().replace(' ', 'T'), APP_TZ);
+    const d = fromZonedTime(ts.trim().replace(' ', 'T'), APP_TZ);
+    if (!isNaN(d.getTime())) return d;
   }
-  return new Date(lead.created_date);
+  const created = new Date(lead.created_date);
+  return isNaN(created.getTime()) ? null : created;
 }
 
-// The lead's APP_TZ calendar day as "yyyy-MM-dd".
+// The lead's APP_TZ calendar day as "yyyy-MM-dd", or null if it has no valid date.
 export function leadEventDayKey(lead) {
-  return formatInTimeZone(leadEventInstant(lead), APP_TZ, 'yyyy-MM-dd');
+  const d = leadEventInstant(lead);
+  if (!d || isNaN(d.getTime())) return null;
+  return formatInTimeZone(d, APP_TZ, 'yyyy-MM-dd');
 }
 
 // Apply a filter object { field: value } to a list of leads.
@@ -160,7 +164,7 @@ export function dailySeries(leads, adSpendRows = [], days = 14) {
   }
   for (const l of leads) {
     const key = leadEventDayKey(l);
-    if (!map[key]) continue;
+    if (!key || !map[key]) continue;
     map[key].revenue += num(l.revenue);
     map[key].cost += num(l.cost);
     map[key].leads += 1;

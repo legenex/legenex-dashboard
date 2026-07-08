@@ -6,11 +6,19 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 // All dashboard date bucketing is computed in the app's operating timezone so
 // leads are attributed to the correct calendar day regardless of import time.
-export const APP_TZ = 'America/Saskatchewan';
+// America/Regina is the canonical IANA id for Saskatchewan time (UTC-6, no DST).
+// 'America/Saskatchewan' is NOT a valid Intl zone and makes date-fns-tz return
+// Invalid Date for every boundary, so we must use America/Regina here.
+export const APP_TZ = 'America/Regina';
 
 // Compute a day boundary in APP_TZ and return it as a UTC instant.
 // `fn` is a date-fns boundary helper (startOfDay/endOfDay/startOfMonth/...).
-const zoned = (date, fn) => fromZonedTime(fn(toZonedTime(date, APP_TZ)), APP_TZ);
+// If zone conversion yields an Invalid Date, fall back to applying the boundary
+// to the original date so resolvePeriod can never return an Invalid Date.
+const zoned = (date, fn) => {
+  const converted = fromZonedTime(fn(toZonedTime(date, APP_TZ)), APP_TZ);
+  return isNaN(converted.getTime()) ? fn(date) : converted;
+};
 
 export const PERIODS = [
   { value: 'today', label: 'Today' },
