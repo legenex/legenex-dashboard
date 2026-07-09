@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Menu } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Menu, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import Sidebar from './Sidebar';
 import DrawerNav from './DrawerNav';
+import MobileBottomTabs from './MobileBottomTabs';
 import DataBotWidget from '@/components/databot/DataBotWidget';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { navGroups } from './navConfig';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 // Resolve a human page title from the nav config for the current path.
 function usePageTitle() {
@@ -29,6 +31,17 @@ function usePageTitle() {
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const title = usePageTitle();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const scrollRef = useRef(null);
+
+  // Pull-to-refresh only on the data-heavy list dashboards.
+  const ptrEnabled = location.pathname === '/' || location.pathname === '/leads';
+  const { pull, refreshing, threshold } = usePullToRefresh(
+    scrollRef,
+    () => queryClient.invalidateQueries(),
+    { enabled: ptrEnabled }
+  );
 
   const { data: errorCount = 0 } = useQuery({
     queryKey: ['layout-error-count'],
@@ -73,10 +86,22 @@ export default function AppLayout() {
       </Sheet>
 
       <main className="h-screen lg:ml-[var(--sidebar-width,248px)]">
-        <div className="app-scroll h-[calc(100%-52px-env(safe-area-inset-top))] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8">
+        {(pull > 0 || refreshing) && (
+          <div
+            className="lg:hidden flex items-center justify-center text-muted-foreground overflow-hidden"
+            style={{ height: `${Math.min(pull, threshold)}px`, opacity: Math.min(pull / threshold, 1) }}
+          >
+            <Loader2 className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </div>
+        )}
+        <div
+          ref={scrollRef}
+          className="app-scroll h-[calc(100%-52px-env(safe-area-inset-top))] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8"
+        >
           <Outlet />
         </div>
       </main>
+      <MobileBottomTabs />
       <DataBotWidget />
     </div>
   );
