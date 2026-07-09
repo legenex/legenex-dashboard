@@ -36,11 +36,16 @@ export const roasText = (v) => (v == null ? '-' : n(v).toFixed(2) + 'x');
 /*  Benchmark bands                                                    */
 /*  Thresholds live here so a single edit retunes every heat cell.     */
 /* ------------------------------------------------------------------ */
+// Tones reuse the app's existing status palette from index.css so the Ad
+// Manager reads as native rather than as a bolt-on with its own colours.
+export const TONE = { good: '#3DD68C', warn: '#E8A33D', bad: '#E5484D', neutral: '#8B95A8' };
 export const BAND_TONE = {
-  Excellent: 'var(--am-good)', Good: 'var(--am-good)', Healthy: 'var(--am-good)',
-  Average: 'var(--am-warn)', Watch: 'var(--am-warn)',
-  Poor: 'var(--am-bad)', Critical: 'var(--am-bad)',
+  Excellent: TONE.good, Good: TONE.good, Healthy: TONE.good,
+  Average: TONE.warn, Watch: TONE.warn,
+  Poor: TONE.bad, Critical: TONE.bad,
 };
+export const cplTone = (v) => (v == null ? TONE.neutral : BAND_TONE[cplBand(v)]);
+export const roasTone = (v) => (v == null ? TONE.neutral : BAND_TONE[roasBand(v)]);
 export const cplBand = (v) => (v == null ? null : v <= 40 ? 'Excellent' : v <= 50 ? 'Good' : v <= 65 ? 'Average' : 'Poor');
 export const roasBand = (v) => (v == null ? null : v >= 4 ? 'Excellent' : v >= 3 ? 'Good' : v >= 2.2 ? 'Average' : 'Poor');
 export const ctrBand = (v) => (v == null ? null : v >= 2 ? 'Good' : v >= 1 ? 'Average' : 'Poor');
