@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/theme';
 import {
   LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
   BarChart3, Wallet, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
-  SlidersHorizontal,
+  SlidersHorizontal, Megaphone,
 } from 'lucide-react';
 import ViewAsSwitcher from './ViewAsSwitcher';
 import SidebarProfile from './SidebarProfile';
@@ -65,6 +65,15 @@ const navGroups = [
       { label: 'Active States', path: '/operations/active-states', permKey: 'operations' },
       { label: 'Billing Reports', path: '/operations/billing-reports', permKey: 'operations' },
       { label: 'Buyer Onboarding', path: '/operations/buyer-onboarding', permKey: 'operations' },
+    ],
+  },
+  {
+    label: 'Ad Manager', icon: Megaphone, type: 'dropdown', path: '/ad-manager', permKey: 'ad_manager',
+    children: [
+      { label: 'Performance Dashboard', path: '/ad-manager', permKey: 'ad_manager' },
+      { label: 'Ad Reports', path: '/ad-manager/reports', permKey: 'ad_manager' },
+      { label: 'Creative Analyzer', path: '/ad-manager/creative-analyzer', permKey: 'ad_manager' },
+      { label: 'Ad Builder', path: '/ad-manager/builder', permKey: 'ad_manager' },
     ],
   },
   {
