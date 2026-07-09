@@ -8,6 +8,7 @@ import LeadDetailModal from '@/components/leads/LeadDetailModal';
 import LeadsFilterBar from '@/components/leads/LeadsFilterBar';
 import LeadsShell from '@/components/leads/LeadsShell';
 import BulkActionBar from '@/components/leads/BulkActionBar';
+import LeadCard from '@/components/leads/LeadCard';
 import { Panel, Tag, riseIn } from '@/components/settings/settingsUi';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -518,7 +519,20 @@ export default function LeadsTable({ view }) {
       />
       </div>
 
-      <Panel className="flex-1 min-h-0 overflow-auto" i={1}>
+      {/* Mobile card list: below lg only */}
+      <div className="lg:hidden flex-1 min-h-0 overflow-y-auto space-y-2">
+        {isLoading && (
+          <div className="px-4 py-8 text-center text-muted-foreground">Loading...</div>
+        )}
+        {!isLoading && filtered.length === 0 && (
+          <div className="px-4 py-8 text-center text-muted-foreground">No leads found</div>
+        )}
+        {paged.map((lead) => (
+          <LeadCard key={lead.id} lead={lead} onOpen={openLeadDetail} />
+        ))}
+      </div>
+
+      <Panel className="hidden lg:block flex-1 min-h-0 overflow-auto" i={1}>
           <table className="min-w-full w-max text-[13px]">
             <thead>
               <tr className="border-b border-border bg-muted sticky top-0 z-10">
