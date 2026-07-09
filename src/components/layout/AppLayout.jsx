@@ -47,11 +47,14 @@ export default function AppLayout() {
       </div>
 
       {/* Mobile top header: below lg only */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 bg-background/95 backdrop-blur border-b border-border" style={{ height: '52px' }}>
+      <header
+        className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 bg-background/95 backdrop-blur border-b border-border"
+        style={{ height: 'calc(52px + env(safe-area-inset-top))', paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
-          className="relative w-[38px] h-[38px] flex items-center justify-center rounded-lg bg-card border border-border"
+          className="tap-target relative w-[38px] h-[38px] flex items-center justify-center rounded-lg bg-card border border-border"
         >
           <Menu className="w-[18px] h-[18px]" />
           {errorCount > 0 && (
@@ -70,7 +73,7 @@ export default function AppLayout() {
       </Sheet>
 
       <main className="h-screen lg:ml-[var(--sidebar-width,248px)]">
-        <div className="h-[calc(100%-52px)] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8">
+        <div className="app-scroll h-[calc(100%-52px-env(safe-area-inset-top))] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8">
           <Outlet />
         </div>
       </main>
