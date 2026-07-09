@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, ShieldCheck, TrendingUp, Eye, Skull, Play, Image as ImageIcon, Brain } from 'lucide-react';
 import { BAND_TONE, TONE } from '@/lib/adManagerMetrics';
 
+// Re-exported so every Ad Manager component pulls tones from one place.
+export { TONE };
+
 // Shared atoms for the Ad Manager. Structure and proportions come straight from
 // the approved design. Colours resolve through the app's theme tokens so the
 // section matches the rest of the dashboard in both themes, with the verified
