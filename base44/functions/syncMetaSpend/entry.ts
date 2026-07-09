@@ -78,6 +78,14 @@ Deno.serve(async (req) => {
       return 0;
     };
 
+    // Sum an action-style array (video_play_actions, video_thruplay_watched_actions).
+    // Meta returns these as [{ action_type, value }]. Absent for image ads, which
+    // correctly yields 0 and is rendered as unavailable rather than as a real zero.
+    const sumActionValues = (actions: any): number => {
+      if (!Array.isArray(actions)) return 0;
+      return actions.reduce((sum: number, a: any) => sum + (Number(a?.value) || 0), 0);
+    };
+
     let inserted = 0;
     let campaignRowsInserted = 0;
     let adRowsInserted = 0;
@@ -171,7 +179,7 @@ Deno.serve(async (req) => {
       }
 
       // Pass C: ad level.
-      const jAd = await fetchInsights('ad', 'spend,impressions,clicks,date_start,actions,cost_per_action_type,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name');
+      const jAd = await fetchInsights('ad', 'spend,impressions,clicks,date_start,actions,cost_per_action_type,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,video_play_actions,video_thruplay_watched_actions');
       if (jAd.error) {
         tokenErrors.push({ label: acct.token_label, error: `${node} ad: ${jAd.error.message}` });
       } else {
@@ -189,6 +197,8 @@ Deno.serve(async (req) => {
             adset_name: row.adset_name || '',
             ad_id: adId,
             ad_name: row.ad_name || '',
+            video_3s_views: sumActionValues(row.video_play_actions),
+            video_thruplays: sumActionValues(row.video_thruplay_watched_actions),
           });
           adRowsInserted++;
         }
