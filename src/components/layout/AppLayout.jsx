@@ -70,7 +70,7 @@ export default function AppLayout() {
       </Sheet>
 
       <main className="h-screen lg:ml-[var(--sidebar-width,248px)]">
-        <div className="h-[calc(100%-52px)] lg:h-full overflow-y-auto p-4 lg:p-8">
+        <div className="h-[calc(100%-52px)] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8">
           <Outlet />
         </div>
       </main>

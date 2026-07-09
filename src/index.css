@@ -157,9 +157,11 @@
 /* Neutral grey tag for operation / meta tags (Default, conditions, etc.) */
 .tag-neutral { color: #8B95A8; background-color: rgba(139, 149, 168, 0.12); }
 
-/* Utility: hide scrollbar while keeping scroll (used by the mobile sub-nav rail) */
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+/* Utility: hide scrollbar while keeping scroll (used by the mobile sub-nav rail and tab strips) */
+@layer utilities {
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+}
 
 /* Scrollbar styling — light theme: thin, soft red */
 ::-webkit-scrollbar { width: 4px; height: 4px; }

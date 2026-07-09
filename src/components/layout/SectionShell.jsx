@@ -35,7 +35,7 @@ export default function SectionShell({ nav, children }) {
         <div ref={headerRef} className="shrink-0" />
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:gap-3 lg:items-stretch">
           {nav}
-          <div className="flex-1 min-w-0 h-full overflow-y-auto">
+          <div className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden">
             {children}
           </div>
         </div>
