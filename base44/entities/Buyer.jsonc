@@ -167,7 +167,8 @@
     },
     "active": {
       "type": "boolean",
-      "default": true
+      "default": false,
+      "description": "Derived from status: true only when status equals active, false for draft, launching, paused, or terminated. The live pipeline reads this boolean. Must be recomputed on every write."
     }
   },
   "required": [
