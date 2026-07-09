@@ -65,6 +65,16 @@
       "type": "number",
       "default": 0
     },
+    "video_3s_views": {
+      "type": "number",
+      "default": 0,
+      "description": "Meta video_play_actions (3 second views). Ad level only. Thumbstop rate is this divided by impressions."
+    },
+    "video_thruplays": {
+      "type": "number",
+      "default": 0,
+      "description": "Meta video_thruplay_watched_actions. Ad level only. Hold rate is this divided by impressions."
+    },
     "vertical": {
       "type": "string"
     },
