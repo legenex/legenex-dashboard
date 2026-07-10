@@ -8,7 +8,7 @@ import { getBuyerColumnDef } from './buyerColumns';
 // config. The Actions column is always appended and is not part of the config.
 export default function BuyerTable({
   buyers, config, ctx, sortKey, sortDir, onSort,
-  onTransition, onPause, onTerminate, onDelete,
+  onTransition, onPause, onTerminate, onDelete, onRowClick,
 }) {
   const cols = config.columns
     .map((c) => getBuyerColumnDef(c.key))
@@ -41,7 +41,11 @@ export default function BuyerTable({
         </thead>
         <tbody className="divide-y divide-border">
           {buyers.map((b) => (
-            <tr key={b.id} className="hover:bg-accent/40 transition-colors">
+            <tr
+              key={b.id}
+              onClick={() => onRowClick && onRowClick(b)}
+              className="hover:bg-accent/40 transition-colors cursor-pointer"
+            >
               {cols.map((col) => (
                 <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
                   {col.special === 'status'
@@ -49,7 +53,7 @@ export default function BuyerTable({
                     : col.accessor(b, ctx)}
                 </td>
               ))}
-              <td className="px-4 py-3">
+              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                 <BuyerRowActions
                   buyer={b}
                   onTransition={onTransition}

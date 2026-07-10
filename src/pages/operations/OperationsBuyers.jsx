@@ -11,6 +11,7 @@ import BuyerTable from '@/components/operations/buyers/BuyerTable';
 import BuyersEmptyState from '@/components/operations/buyers/BuyersEmptyState';
 import BuyerActionDialog from '@/components/operations/buyers/BuyerActionDialog';
 import BuyerDeleteDialog from '@/components/operations/buyers/BuyerDeleteDialog';
+import BuyerDetailDrawer from '@/components/operations/buyers/BuyerDetailDrawer';
 import { computeBlastRadius } from '@/components/operations/buyers/buyerListModel';
 import {
   BUYER_AVAILABLE_COLUMNS, loadBuyerColumnConfig, saveBuyerColumnConfig, getBuyerColumnDef,
@@ -42,6 +43,7 @@ export default function OperationsBuyers() {
 
   const [actionState, setActionState] = useState(null); // { action, buyer, closesStates }
   const [deleteState, setDeleteState] = useState(null); // { buyer }
+  const [drawerBuyerId, setDrawerBuyerId] = useState(null);
 
   const { data: buyers = [] } = useQuery({
     queryKey: ['op-buyers'],
@@ -57,6 +59,14 @@ export default function OperationsBuyers() {
     queryKey: ['op-state-status'],
     queryFn: () => base44.entities.StateStatus.list('', 2000),
   });
+
+  const { data: verticals = [] } = useQuery({
+    queryKey: ['op-verticals'],
+    queryFn: () => base44.entities.Vertical.filter({ active: true }, 'sort_order', 200),
+  });
+
+  // Resolve the drawer's buyer from the live list so edits reflect immediately.
+  const drawerBuyer = buyers.find((b) => b.id === drawerBuyerId) || null;
 
   const ctx = { cplRows };
 
@@ -186,6 +196,7 @@ export default function OperationsBuyers() {
             onPause={openPause}
             onTerminate={openTerminate}
             onDelete={(buyer) => setDeleteState({ buyer })}
+            onRowClick={(buyer) => setDrawerBuyerId(buyer.id)}
           />
         </>
       )}
@@ -204,6 +215,13 @@ export default function OperationsBuyers() {
         onOpenChange={(v) => { if (!v) setDeleteState(null); }}
         buyer={deleteState?.buyer}
         onConfirm={confirmDelete}
+      />
+
+      <BuyerDetailDrawer
+        open={!!drawerBuyer}
+        onOpenChange={(v) => { if (!v) setDrawerBuyerId(null); }}
+        buyer={drawerBuyer}
+        verticals={verticals}
       />
     </div>
   );
