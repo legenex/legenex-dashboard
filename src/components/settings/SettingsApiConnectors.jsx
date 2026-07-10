@@ -12,6 +12,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import JsonViewer from '@/components/shared/JsonViewer';
 import { testCapiConnector } from '@/functions/testCapiConnector';
 import EventLogsTab from '@/components/settings/EventLogsTab';
@@ -193,6 +194,7 @@ export default function SettingsApiConnectors() {
   const [ioOpen, setIoOpen] = useState(false);
   const [rowTesting, setRowTesting] = useState(null);
   const [rowResult, setRowResult] = useState({});
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data: connectors = [] } = useQuery({
     queryKey: ['api-connectors'],
@@ -291,6 +293,12 @@ export default function SettingsApiConnectors() {
     await base44.entities.ApiConnector.delete(id);
     toast.success('Connector deleted');
     qc.invalidateQueries({ queryKey: ['api-connectors'] });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await deleteConnector(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   const toggleEnabled = async (conn) => {
@@ -716,7 +724,7 @@ export default function SettingsApiConnectors() {
                               <Button size="sm" variant="ghost" onClick={() => toggleEnabled(conn)} className="text-[11px]">
                                 {conn.enabled ? 'Disable' : 'Enable'}
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => deleteConnector(conn.id)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(conn)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
                             </div>
                           </div>
                           {isCapi && rowResult[conn.id] && (() => {
@@ -767,6 +775,23 @@ export default function SettingsApiConnectors() {
       </DragDropContext>
       </>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent className="bg-popover border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversion event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import JsonViewer from '@/components/shared/JsonViewer';
 import { testLeadByteConnector } from '@/functions/testLeadByteConnector';
 import DeliveryLogsTab from '@/components/settings/DeliveryLogsTab';
@@ -200,6 +201,7 @@ export default function SettingsLeadByte() {
 
   const [editingMapping, setEditingMapping] = useState(null);
   const [savingMapping, setSavingMapping] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data: connectors = [] } = useQuery({
     queryKey: ['lb-connectors-all'],
@@ -334,6 +336,12 @@ export default function SettingsLeadByte() {
     await base44.entities.LeadByteConnector.delete(id);
     toast.success('Destination deleted');
     qc.invalidateQueries({ queryKey: ['lb-connectors-all'] });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await deleteConnector(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   const duplicateConnector = async (conn) => {
@@ -719,7 +727,7 @@ export default function SettingsLeadByte() {
                     <Button size="sm" variant="ghost" onClick={() => toggleEnabled(conn)} className="text-[11px]">
                       {conn.enabled ? 'Disable' : 'Enable'}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteConnector(conn.id)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(conn)} className="h-7 w-7 p-0 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>
                 </Panel>
               </motion.div>
@@ -743,6 +751,23 @@ export default function SettingsLeadByte() {
       )}
 
       {activeTab === 'logs' && <DeliveryLogsTab />}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent className="bg-popover border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete destination?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.api_name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
