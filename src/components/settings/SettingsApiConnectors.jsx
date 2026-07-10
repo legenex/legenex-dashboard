@@ -22,6 +22,7 @@ import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { HighlightedPayloadEditor } from '@/components/settings/HighlightedPayloadEditor';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { verticalColor, triggerTagClass, TAG_NEUTRAL } from '@/lib/tagColors';
+import { flattenConditions, normalizeConditionTree } from '@/lib/conditionGroups';
 import { Plus, Save, Trash2, Play, Loader2, Eye, EyeOff, Zap, Globe, Copy, GripVertical, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
@@ -692,10 +693,10 @@ export default function SettingsApiConnectors() {
                                   {brands.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Brands: {brands.join(', ')}</Badge>}
                                   {suppliersFiltered.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Suppliers: {suppliersFiltered.length}</Badge>}
                                   {types.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Types: {types.join(', ')}</Badge>}
-                                  {parseJsonArray(conn.filter_conditions).map((c, i) => (
+                                  {flattenConditions(normalizeConditionTree(conn.filter_conditions)).map((c, i) => (
                                     <Badge key={i} className={`text-[9px] ${TAG_NEUTRAL}`}>{c.field} {c.operator} {c.value || ''}</Badge>
                                   ))}
-                                  {brands.length === 0 && suppliersFiltered.length === 0 && types.length === 0 && parseJsonArray(conn.filter_conditions).length === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
+                                  {brands.length === 0 && suppliersFiltered.length === 0 && types.length === 0 && flattenConditions(normalizeConditionTree(conn.filter_conditions)).length === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
                                 </div>
                                 {isCapi && <div className="font-mono text-[11px] text-muted-foreground mt-1">Pixel: {conn.fb_pixel_id || 'not set'}</div>}
                                 {!isCapi && <div className="font-mono text-[11px] text-muted-foreground mt-1 truncate max-w-[400px]">{conn.target_url || 'not set'}</div>}

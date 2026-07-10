@@ -19,6 +19,7 @@ import TokenReferencePanel from '@/components/settings/TokenReferencePanel';
 import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { verticalColor, triggerTagClass, TAG_NEUTRAL, statusTextClass } from '@/lib/tagColors';
+import { countConditions, normalizeConditionTree } from '@/lib/conditionGroups';
 import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
@@ -678,7 +679,7 @@ export default function SettingsLeadByte() {
               const triggers = parseJsonArray(conn.triggers);
               const brands = parseJsonArray(conn.filter_brands);
               const verticals = parseJsonArray(conn.filter_verticals);
-              const conditions = parseJsonArray(conn.filter_conditions);
+              const conditionCount = countConditions(normalizeConditionTree(conn.filter_conditions));
               return (
               <motion.div key={conn.id} variants={rise} initial="hidden" animate="show" custom={i}>
                 <Panel className="px-5 py-4 flex flex-col md:flex-row md:items-center gap-3">
@@ -705,8 +706,8 @@ export default function SettingsLeadByte() {
                       {triggers.map(t => <Badge key={t} className={`text-[9px] ${triggerTagClass(t)}`}>{statusLabelFor(t)}</Badge>)}
                       {conn.is_default && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Default</Badge>}
                       {brands.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>Brands: {brands.join(', ')}</Badge>}
-                      {conditions.length > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>{conditions.length} condition(s)</Badge>}
-                      {triggers.length === 0 && brands.length === 0 && conditions.length === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
+                      {conditionCount > 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>{conditionCount} condition(s)</Badge>}
+                      {triggers.length === 0 && brands.length === 0 && conditionCount === 0 && <Badge className={`text-[9px] ${TAG_NEUTRAL}`}>All leads</Badge>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 md:justify-end flex-wrap">
