@@ -3,6 +3,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import SupplierStatusPill from './SupplierStatusPill';
 import SupplierChannelsCell from './SupplierChannelsCell';
 import SupplierPayoutTab from './SupplierPayoutTab';
+import SupplierSourcesTab from './SupplierSourcesTab';
 import SupplierNotificationsTab from './SupplierNotificationsTab';
 
 // Right side drawer for a single supplier. Sibling of BuyerDetailDrawer: header
@@ -36,6 +37,7 @@ export default function SupplierDetailDrawer({ open, onOpenChange, supplier, ini
               <div className="flex gap-1 mt-4">
                 {[
                   { key: 'payout', label: 'Payout' },
+                  { key: 'sources', label: 'Sources' },
                   { key: 'notifications', label: 'Notifications' },
                 ].map((t) => (
                   <button
@@ -52,9 +54,9 @@ export default function SupplierDetailDrawer({ open, onOpenChange, supplier, ini
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
-              {tab === 'payout'
-                ? <SupplierPayoutTab supplier={supplier} />
-                : <SupplierNotificationsTab supplier={supplier} />}
+              {tab === 'payout' && <SupplierPayoutTab supplier={supplier} />}
+              {tab === 'sources' && <SupplierSourcesTab supplier={supplier} />}
+              {tab === 'notifications' && <SupplierNotificationsTab supplier={supplier} />}
             </div>
           </>
         )}
