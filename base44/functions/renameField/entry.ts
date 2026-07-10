@@ -53,19 +53,42 @@ Deno.serve(async (req) => {
       } catch { return jsonStr; }
     };
 
-    // Rewrite condition arrays [{field, operator, value}] where field === old_name.
+    // Rewrite condition field references where field === old_name. Handles both the
+    // legacy flat array [{field, operator, value}] and the newer nested group tree
+    // { type: 'group', match, name, children: [ ...condition or nested group nodes ] }.
     const rewriteConditions = (jsonStr) => {
       if (!jsonStr) return jsonStr;
+      let root;
       try {
-        const arr = JSON.parse(jsonStr);
-        if (!Array.isArray(arr)) return jsonStr;
-        let touched = false;
-        const next = arr.map((c) => {
-          if (c && c.field === old_name) { touched = true; return { ...c, field: new_name }; }
-          return c;
-        });
-        return touched ? JSON.stringify(next) : jsonStr;
+        root = JSON.parse(jsonStr);
       } catch { return jsonStr; }
+
+      let touched = false;
+      const rewriteNode = (node) => {
+        // Legacy flat shape: an array of plain condition objects.
+        if (Array.isArray(node)) {
+          return node.map((el) => {
+            if (el && el.field === old_name) { touched = true; return { ...el, field: new_name }; }
+            return el;
+          });
+        }
+        if (node && typeof node === 'object') {
+          if (node.type === 'condition') {
+            if (node.field === old_name) { touched = true; return { ...node, field: new_name }; }
+            return node;
+          }
+          if (node.type === 'group') {
+            return {
+              ...node,
+              children: Array.isArray(node.children) ? node.children.map(rewriteNode) : node.children,
+            };
+          }
+        }
+        return node;
+      };
+
+      const next = rewriteNode(root);
+      return touched ? JSON.stringify(next) : jsonStr;
     };
 
     // 2. LeadByteConnector payload templates.
