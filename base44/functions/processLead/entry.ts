@@ -39,6 +39,39 @@ function evalConditionalCondition(ctx, cond) {
   }
 }
 
+// Normalize a calc rule's conditions value into an AND/OR group tree. Accepts a
+// legacy flat array of {field, operator, value}, an already-built group object,
+// or null/undefined. The value is already parsed, not a JSON string. Uses the
+// calc operator set via evalConditionalCondition, not the delivery-side operators.
+function normalizeCalcConditions(raw) {
+  if (Array.isArray(raw)) {
+    return {
+      type: 'group',
+      match: 'all',
+      children: raw.map((c) => ({ type: 'condition', field: c.field, operator: c.operator, value: c.value })),
+    };
+  }
+  if (raw && typeof raw === 'object' && raw.type === 'group') {
+    return raw;
+  }
+  return { type: 'group', match: 'all', children: [] };
+}
+
+// Recursively evaluate a calc condition group. Leaf conditions run through
+// evalConditionalCondition (the calc operator set). An empty group matches, so a
+// rule with no conditions still fires, exactly as [].every(...) returned true.
+function evalCalcNode(ctx, node, depth = 0) {
+  if (depth > 25) return true;
+  if (node.type === 'condition') return evalConditionalCondition(ctx, node);
+  if (node.type === 'group') {
+    const children = Array.isArray(node.children) ? node.children : [];
+    if (children.length === 0) return true;
+    if (node.match === 'any') return children.some((c) => evalCalcNode(ctx, c, depth + 1));
+    return children.every((c) => evalCalcNode(ctx, c, depth + 1));
+  }
+  return true;
+}
+
 function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName, supplierType) {
   const enriched = { ...leadData };
   enriched[phoneVerifiedFieldName || 'phone_verified'] = resolvePhoneVerified(hlrResult, phoneVerifiedSource);
@@ -88,8 +121,7 @@ function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneV
         const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
         let output = cfg.fallback ?? '';
         for (const rule of rules) {
-          const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
-          const allMatch = conditions.every(cond => evalConditionalCondition(ctx, cond));
+          const allMatch = evalCalcNode(ctx, normalizeCalcConditions(rule.conditions));
           if (allMatch) { output = rule.output ?? ''; break; }
         }
         enriched[calc.output_token] = output;
