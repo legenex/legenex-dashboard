@@ -400,7 +400,7 @@ export default function SettingsLeadByte() {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="sticky top-0 z-30 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border py-3">
             <h3 className="text-[15px] font-semibold text-foreground">{editing.id ? 'Edit Destination' : 'New Destination'}</h3>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
@@ -625,7 +625,7 @@ export default function SettingsLeadByte() {
   // ── List view ────────────────────────────────────────────────────────────
   return (
     <div>
-      <div className="flex gap-1 border-b border-border mb-5">
+      <div className="sticky top-0 z-30 flex gap-1 border-b border-border bg-background/95 backdrop-blur-sm py-2">
         {[{ k: 'connectors', l: 'Destinations' }, { k: 'responses', l: 'Response Builder' }, { k: 'logs', l: 'Delivery Logs' }].map(({ k, l }) => (
           <button key={k} onClick={() => setActiveTab(k)}
             className={`px-4 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px
@@ -637,7 +637,7 @@ export default function SettingsLeadByte() {
 
       {activeTab === 'connectors' && (
         <div>
-          <div className="flex justify-between items-center mb-4 gap-3">
+          <div className="sticky top-[49px] z-20 flex justify-between items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border py-3">
             <div className="flex items-center gap-2">
               <Label className="text-[12px] whitespace-nowrap">Vertical</Label>
               <SearchableSelect

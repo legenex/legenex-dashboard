@@ -360,7 +360,7 @@ export default function SettingsApiConnectors() {
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="sticky top-0 z-30 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border py-3">
           <h3 className="text-[15px] font-semibold text-foreground">{editing.id ? 'Edit Connector' : 'New Connector'}</h3>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
@@ -600,7 +600,7 @@ export default function SettingsApiConnectors() {
   return (
     <div>
       {/* Platform tabs */}
-      <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
+      <div className="sticky top-0 z-30 flex gap-1 border-b border-border overflow-x-auto bg-background/95 backdrop-blur-sm py-2">
         {PLATFORMS.map(p => (
           <button key={p.value} onClick={() => setActivePlatform(p.value)}
             className={`px-4 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px whitespace-nowrap
@@ -620,7 +620,7 @@ export default function SettingsApiConnectors() {
       ) : (
       <>
       {/* Status filter + Add */}
-      <div className="flex justify-between items-center mb-4 gap-3">
+      <div className="sticky top-[45px] z-20 flex justify-between items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border py-3">
         <div className="flex items-center gap-2">
           <Label className="text-[12px] whitespace-nowrap">Status</Label>
           <SearchableSelect
