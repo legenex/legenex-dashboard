@@ -128,6 +128,33 @@
       "type": "string",
       "description": "Payment link URL for this buyer. Nullable."
     },
+    "payment_provider": {
+      "type": "string",
+      "enum": [
+        "xero_link",
+        "stripe_card"
+      ],
+      "default": "xero_link",
+      "description": "How this buyer pays. Most buyers pay through a Xero invoice link with fees included (xero_link). Some pay by card through Stripe (stripe_card)."
+    },
+    "payment_reference": {
+      "type": "string",
+      "description": "The stored provider side reference used to bill this buyer again later without re collecting details. For xero_link this is the Xero contact reference, for stripe_card this is the Stripe customer or payment method reference. Nullable."
+    },
+    "prepay_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Only meaningful when billing_type is prepay. The remaining value of the deposit the buyer has paid."
+    },
+    "prepay_leads_remaining": {
+      "type": "number",
+      "default": 0,
+      "description": "Leads still owed against the current deposit."
+    },
+    "taxpayer_form_url": {
+      "type": "string",
+      "description": "Link to the signed taxpayer identification form collected at onboarding. Nullable."
+    },
     "onboarded_at": {
       "type": "string",
       "format": "date-time",
