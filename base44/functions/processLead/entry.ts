@@ -589,16 +589,54 @@ function connectorMatchesFilters(conn, leadData, supplierAttribution, supplierRe
   return true;
 }
 
+// Normalize a raw filter_conditions value into a recursive AND/OR group tree.
+// Accepts a JSON string, an array, an object, null, or undefined. Legacy flat
+// arrays of {field, operator, value} become an all-match group so every saved
+// record keeps behaving exactly as before.
+function normalizeConditionTree(raw) {
+  if (!raw) return { type: 'group', match: 'all', children: [] };
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); }
+    catch { return { type: 'group', match: 'all', children: [] }; }
+  }
+  if (Array.isArray(parsed)) {
+    if (parsed.length === 0) return { type: 'group', match: 'all', children: [] };
+    return {
+      type: 'group',
+      match: 'all',
+      children: parsed.map((c) => ({ type: 'condition', field: c.field, operator: c.operator, value: c.value })),
+    };
+  }
+  if (parsed && typeof parsed === 'object' && parsed.type === 'group') {
+    return parsed;
+  }
+  return { type: 'group', match: 'all', children: [] };
+}
+
+// Recursively evaluate a condition tree node against the enriched lead data.
+// A depth cap guards against cycles; beyond it, and for any unrecognised node
+// type, we return true so a malformed node never silently blocks a delivery.
+function evalConditionNode(node, leadData, depth = 0) {
+  if (depth > 25) return true;
+  if (!node || typeof node !== 'object') return true;
+  if (node.type === 'condition') {
+    return applyOperator(leadData[node.field], node.operator, node.value || '');
+  }
+  if (node.type === 'group') {
+    const children = Array.isArray(node.children) ? node.children : [];
+    if (children.length === 0) return true;
+    if (node.match === 'any') return children.some((c) => evalConditionNode(c, leadData, depth + 1));
+    return children.every((c) => evalConditionNode(c, leadData, depth + 1));
+  }
+  return true;
+}
+
 // Check if a connector's field conditions match the enriched lead data.
 // Uses the same applyOperator used for response mapping.
 function connectorMatchesConditions(conn, leadData) {
-  const conditions = parseJsonArray(conn.filter_conditions);
-  if (conditions.length === 0) return true;
-  for (const cond of conditions) {
-    const actual = leadData[cond.field];
-    if (!applyOperator(actual, cond.operator, cond.value || '')) return false;
-  }
-  return true;
+  const root = normalizeConditionTree(conn.filter_conditions);
+  return evalConditionNode(root, leadData);
 }
 
 // Does the current lead_route match a verification settings' route filter?
