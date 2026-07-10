@@ -12,6 +12,7 @@ import SuppliersEmptyState from '@/components/operations/suppliers/SuppliersEmpt
 import SupplierActionDialog from '@/components/operations/suppliers/SupplierActionDialog';
 import SupplierDeleteDialog from '@/components/operations/suppliers/SupplierDeleteDialog';
 import NoChannelBanner from '@/components/operations/suppliers/NoChannelBanner';
+import SupplierDetailDrawer from '@/components/operations/suppliers/SupplierDetailDrawer';
 import { suppliersWithNoChannel } from '@/components/operations/suppliers/supplierListModel';
 import {
   SUPPLIER_AVAILABLE_COLUMNS, loadSupplierColumnConfig, saveSupplierColumnConfig, getSupplierColumnDef,
@@ -40,6 +41,7 @@ export default function OperationsSuppliers() {
 
   const [actionState, setActionState] = useState(null); // { action, supplier }
   const [deleteState, setDeleteState] = useState(null); // { supplier }
+  const [drawer, setDrawer] = useState(null); // { supplierId, tab }
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['op-suppliers'],
@@ -121,9 +123,13 @@ export default function OperationsSuppliers() {
     qc.invalidateQueries({ queryKey: ['op-suppliers'] });
   };
 
-  // The detail drawer arrives in the next build. For now, opening a row (and the
-  // No channel Fix link) is a no-op placeholder.
-  const openSupplier = () => {};
+  // Open the detail drawer. Row click lands on Payout; the Channels Fix link
+  // lands on Notifications.
+  const openSupplier = (supplier) => setDrawer({ supplierId: supplier.id, tab: 'payout' });
+  const fixChannel = (supplier) => setDrawer({ supplierId: supplier.id, tab: 'notifications' });
+
+  // Resolve the live record so the drawer reflects list refreshes after saves.
+  const drawerSupplier = drawer ? suppliers.find((s) => s.id === drawer.supplierId) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -172,7 +178,7 @@ export default function OperationsSuppliers() {
             onTerminate={openTerminate}
             onDelete={(supplier) => setDeleteState({ supplier })}
             onRowClick={openSupplier}
-            onFixChannel={openSupplier}
+            onFixChannel={fixChannel}
           />
         </>
       )}
@@ -190,6 +196,13 @@ export default function OperationsSuppliers() {
         onOpenChange={(v) => { if (!v) setDeleteState(null); }}
         supplier={deleteState?.supplier}
         onConfirm={confirmDelete}
+      />
+
+      <SupplierDetailDrawer
+        open={!!drawer}
+        onOpenChange={(v) => { if (!v) setDrawer(null); }}
+        supplier={drawerSupplier}
+        initialTab={drawer?.tab || 'payout'}
       />
     </div>
   );
