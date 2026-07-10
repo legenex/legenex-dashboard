@@ -976,6 +976,76 @@ function checkRequiredFields(customFields, leadData) {
   return missing;
 }
 
+// Evaluate a single dry-run qualification condition (advisory only). Supports a
+// fixed op set. Malformed inputs never throw here; the caller wraps parsing in
+// try/catch and treats any failure as no advisory.
+function evalDryRunCondition(leadData, cond) {
+  const raw = leadData[cond.field];
+  const present = raw !== null && raw !== undefined && String(raw).trim() !== '';
+  switch (cond.op) {
+    case 'eq': return String(raw ?? '') === String(cond.value ?? '');
+    case 'neq': return String(raw ?? '') !== String(cond.value ?? '');
+    case 'in': return Array.isArray(cond.value) && cond.value.map(String).includes(String(raw ?? ''));
+    case 'not_in': return Array.isArray(cond.value) && !cond.value.map(String).includes(String(raw ?? ''));
+    case 'gt': return parseFloat(raw) > parseFloat(cond.value);
+    case 'gte': return parseFloat(raw) >= parseFloat(cond.value);
+    case 'lt': return parseFloat(raw) < parseFloat(cond.value);
+    case 'lte': return parseFloat(raw) <= parseFloat(cond.value);
+    case 'exists': return present;
+    case 'not_exists': return !present;
+    case 'matches': return new RegExp(String(cond.value)).test(String(raw ?? ''));
+    case 'within_months': {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return false;
+      const months = Number(cond.value);
+      if (isNaN(months)) return false;
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - months);
+      return d >= cutoff && d <= new Date();
+    }
+    case 'between': {
+      if (!Array.isArray(cond.value) || cond.value.length !== 2) return false;
+      const n = parseFloat(raw);
+      return n >= parseFloat(cond.value[0]) && n <= parseFloat(cond.value[1]);
+    }
+    default: return false;
+  }
+}
+
+// Recursively evaluate a dry-run qualification node. Groups: all, any, not.
+// Leaves are {field, op, value}. Depth-capped; unrecognised nodes pass.
+function evalDryRunNode(leadData, node, depth = 0) {
+  if (depth > 25) return true;
+  if (!node || typeof node !== 'object') return true;
+  if (Array.isArray(node.all)) return node.all.every((c) => evalDryRunNode(leadData, c, depth + 1));
+  if (Array.isArray(node.any)) return node.any.some((c) => evalDryRunNode(leadData, c, depth + 1));
+  if (node.not !== undefined) return !evalDryRunNode(leadData, node.not, depth + 1);
+  if (node.field && node.op) return evalDryRunCondition(leadData, node);
+  return true;
+}
+
+// Normalize inbound field aliases onto leadPayload and return the resolved
+// core identity locals. Pure: same coalescing and same leadPayload assignments,
+// in the same order, as the original inline block.
+function applyInboundAliases(leadPayload) {
+  const mobile = leadPayload.mobile || leadPayload.phone1 || leadPayload.phone || leadPayload.phone_number || '';
+  const firstName = leadPayload.first_name || leadPayload.firstname || '';
+  const lastName = leadPayload.last_name || leadPayload.lastname || '';
+  const email = leadPayload.email || '';
+
+  if (!leadPayload.first_name && firstName) leadPayload.first_name = firstName;
+  if (!leadPayload.last_name && lastName) leadPayload.last_name = lastName;
+  if (!leadPayload.mobile && mobile) leadPayload.mobile = mobile;
+  if (!leadPayload.ip_address && leadPayload.ipaddress) leadPayload.ip_address = leadPayload.ipaddress;
+  if (!leadPayload.optin_url && leadPayload.optinurl) leadPayload.optin_url = leadPayload.optinurl;
+  if (!leadPayload.trustedform_url && leadPayload.trustedform_cert) leadPayload.trustedform_url = leadPayload.trustedform_cert;
+  if (!leadPayload.jornaya_token && leadPayload.jornaya_leadid) leadPayload.jornaya_token = leadPayload.jornaya_leadid;
+  if (!leadPayload.supplier_brand && leadPayload.brand) leadPayload.supplier_brand = leadPayload.brand;
+  if (!leadPayload.ad_label && leadPayload.utm_ad_label) leadPayload.ad_label = leadPayload.utm_ad_label;
+
+  return { firstName, lastName, mobile, email };
+}
+
 // Patterns that indicate a LeadByte rejection is due to missing/invalid fields
 const QUEUE_REJECTION_PATTERNS = ['missing', 'required', 'invalid', 'not provided'];
 
@@ -1061,8 +1131,12 @@ Deno.serve(async (req) => {
 
     const leadPayload = { ...payload };
     const inboundPhoneVerified = String(payload.phone_verified || '').trim();
+    const isDryRun = payload._dry_run === true;
+    const dryRunCampaignRef = payload._campaign;
     delete leadPayload['X-API-KEY'];
     delete leadPayload._supplier_key;
+    delete leadPayload._dry_run;
+    delete leadPayload._campaign;
     delete leadPayload.phone_verified;
 
     // ── a. AUTH ──────────────────────────────────────────────────────────
@@ -1087,6 +1161,62 @@ Deno.serve(async (req) => {
 
     const supplierAttribution = apiKeyRecord.type === 'master'
       ? 'Master' : (apiKeyRecord.supplier_name || 'Unknown');
+
+    // ── DRY RUN: validate only, zero side effects ─────────────────────────
+    // Runs after auth + supplierAttribution, before any entity write. A
+    // validation is not a request: the ApiKey usage counters are NOT touched.
+    if (isDryRun) {
+      const dryCustomFields = await db.entities.CustomField.list();
+      applyInboundAliases(leadPayload);
+      const missing = checkRequiredFields(dryCustomFields, leadPayload);
+
+      const trustedformUrl = leadPayload.trustedform_url || leadPayload.trustedform_cert || '';
+      const certMissing = String(trustedformUrl).trim() === '';
+
+      // Optional qualification advisory. Never influences live routing.
+      let qualification = null;
+      let certRequired = false;
+      if (dryRunCampaignRef !== undefined && dryRunCampaignRef !== null && String(dryRunCampaignRef).trim() !== '') {
+        let campaign = null;
+        try {
+          const byId = await db.entities.Campaign.filter({ id: String(dryRunCampaignRef) });
+          if (byId.length > 0) campaign = byId[0];
+          if (!campaign) {
+            const byName = await db.entities.Campaign.filter({ name: String(dryRunCampaignRef) });
+            if (byName.length > 0) campaign = byName[0];
+          }
+        } catch { campaign = null; }
+        if (campaign) {
+          certRequired = campaign.trustedform_required === true;
+          if (campaign.qualification_rules) {
+            try {
+              const rules = JSON.parse(campaign.qualification_rules);
+              qualification = { passed: evalDryRunNode(leadPayload, rules) };
+            } catch { qualification = null; }
+          }
+        }
+      }
+
+      const certBlocked = certRequired && certMissing;
+      const disqualified = qualification && qualification.passed === false;
+      let wouldBeStatus;
+      if (missing.length > 0 || certBlocked) wouldBeStatus = 'Queued';
+      else if (disqualified) wouldBeStatus = 'Disqualified';
+      else wouldBeStatus = 'Accepted';
+
+      const valid = missing.length === 0 && !certBlocked && !disqualified;
+
+      return Response.json({
+        dry_run: true,
+        valid,
+        missing,
+        invalid: [],
+        cert_missing: certMissing,
+        qualification,
+        would_be_status: wouldBeStatus,
+        trace_id: traceId,
+      }, { status: 200 });
+    }
 
     await db.entities.ApiKey.update(apiKeyRecord.id, {
       last_used_at: new Date().toISOString(),
@@ -1147,20 +1277,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Normalize field aliases ──────────────────────────────────────────
-    const mobile = leadPayload.mobile || leadPayload.phone1 || leadPayload.phone || leadPayload.phone_number || '';
-    const firstName = leadPayload.first_name || leadPayload.firstname || '';
-    const lastName = leadPayload.last_name || leadPayload.lastname || '';
-    const email = leadPayload.email || '';
-
-    if (!leadPayload.first_name && firstName) leadPayload.first_name = firstName;
-    if (!leadPayload.last_name && lastName) leadPayload.last_name = lastName;
-    if (!leadPayload.mobile && mobile) leadPayload.mobile = mobile;
-    if (!leadPayload.ip_address && leadPayload.ipaddress) leadPayload.ip_address = leadPayload.ipaddress;
-    if (!leadPayload.optin_url && leadPayload.optinurl) leadPayload.optin_url = leadPayload.optinurl;
-    if (!leadPayload.trustedform_url && leadPayload.trustedform_cert) leadPayload.trustedform_url = leadPayload.trustedform_cert;
-    if (!leadPayload.jornaya_token && leadPayload.jornaya_leadid) leadPayload.jornaya_token = leadPayload.jornaya_leadid;
-    if (!leadPayload.supplier_brand && leadPayload.brand) leadPayload.supplier_brand = leadPayload.brand;
-    if (!leadPayload.ad_label && leadPayload.utm_ad_label) leadPayload.ad_label = leadPayload.utm_ad_label;
+    const { firstName, lastName, mobile, email } = applyInboundAliases(leadPayload);
 
     await db.entities.Lead.update(leadId, {
       mapped_fields: JSON.stringify(leadPayload),
