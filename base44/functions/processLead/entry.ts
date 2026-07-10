@@ -1065,6 +1065,11 @@ Deno.serve(async (req) => {
     const now = new Date();
     const appSettingsArr = await db.entities.AppSettings.list();
     const appSettings = appSettingsArr[0] || {};
+    // Gateway mode: live (default), test, or capture_only. Anything missing,
+    // blank, or unrecognised is treated as live. Never throws.
+    const gatewayModeRaw = String(appSettings.gateway_mode || '').trim().toLowerCase();
+    const gatewayMode = ['live', 'test', 'capture_only'].includes(gatewayModeRaw) ? gatewayModeRaw : 'live';
+    const captureOnly = gatewayMode === 'capture_only';
     const tsFmt = appSettings.timestamp_format || 'MM/DD/YYYY HH:MM:SS';
     leadPayload.timestamp = formatTimestamp(now, tsFmt);
 
@@ -1479,6 +1484,80 @@ Deno.serve(async (req) => {
       const customTrigger = triggerKeyForStatus(leadStatusVal);
       fireConnectors(db, apiConnectors, customTrigger, enrichedData, leadId, supplierAttribution, supplierRecord);
       if (!routeIs.event) fireDeliveries(db, allDestinations, customTrigger, enrichedData, leadId, supplierAttribution, supplierRecord);
+    }
+
+    // ── CAPTURE-ONLY: enrich + evaluate, suppress all outbound delivery ──
+    // Runs before the direct/event bypass and before the no-connector error
+    // check, so capture-only never returns Sold and never errors/writes an
+    // ErrorLog when no default LeadByte connector exists. The lead is still
+    // fully enriched and gated above. We record which destinations WOULD have
+    // fired (and why), then queue the lead with no outbound call made.
+    if (captureOnly) {
+      const suppressed = [];
+
+      // Same trigger/filter/condition logic as fireConnectors / fireDeliveries,
+      // evaluated at the on_received trigger since that is when they would fire.
+      const evalTrigger = 'on_received';
+      const evalWouldFire = (conn, kind, triggers) => {
+        if (conn.enabled === false) return { would_fire: false, reason: 'Connector disabled' };
+        if (triggers.length > 0 && !triggers.includes(evalTrigger)) {
+          return { would_fire: false, reason: `Trigger mismatch: no ${evalTrigger} trigger` };
+        }
+        if (triggers.length === 0 && evalTrigger !== 'on_received') {
+          return { would_fire: false, reason: 'Trigger mismatch: empty triggers fire at intake only' };
+        }
+        if (!connectorMatchesFilters(conn, enrichedData, supplierAttribution, supplierRecord)) {
+          return { would_fire: false, reason: 'Filter mismatch' };
+        }
+        if (!connectorMatchesConditions(conn, enrichedData)) {
+          return { would_fire: false, reason: 'Condition mismatch' };
+        }
+        return { would_fire: true, reason: `Matched filters and ${evalTrigger} trigger` };
+      };
+
+      for (const conn of apiConnectors) {
+        const res = evalWouldFire(conn, conn.kind || 'facebook_capi', parseJsonArray(conn.triggers));
+        suppressed.push({ connector: conn.name, kind: conn.kind || 'facebook_capi', trigger: evalTrigger, would_fire: res.would_fire, reason: res.reason });
+      }
+      for (const dest of allDestinations) {
+        if (dest.is_default) continue; // default connector is evaluated separately as leadbyte
+        const res = evalWouldFire(dest, 'delivery', parseJsonArray(dest.triggers));
+        suppressed.push({ connector: dest.api_name, kind: 'delivery', trigger: evalTrigger, would_fire: res.would_fire, reason: res.reason });
+      }
+      if (leadByteConnector) {
+        const lbTriggers = parseJsonArray(leadByteConnector.triggers);
+        const lbAllowedByTrigger = lbTriggers.length === 0 || lbTriggers.includes(evalTrigger);
+        let lbWouldFire;
+        let lbReason;
+        if (!lbAllowedByTrigger) {
+          lbWouldFire = false; lbReason = `Trigger mismatch: no ${evalTrigger} trigger`;
+        } else if (!connectorMatchesFilters(leadByteConnector, enrichedData, supplierAttribution, supplierRecord)) {
+          lbWouldFire = false; lbReason = 'Filter mismatch';
+        } else if (!connectorMatchesConditions(leadByteConnector, enrichedData)) {
+          lbWouldFire = false; lbReason = 'Condition mismatch';
+        } else {
+          lbWouldFire = true; lbReason = `Matched filters and ${evalTrigger} trigger`;
+        }
+        suppressed.push({ connector: leadByteConnector.api_name || leadByteConnector.name || 'LeadByte', kind: 'leadbyte', trigger: evalTrigger, would_fire: lbWouldFire, reason: lbReason });
+      }
+
+      const captureReason = 'Captured for testing. Outbound delivery intentionally suppressed.';
+      const suppressedJson = JSON.stringify(suppressed);
+      const captureResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'queued',
+        code: 'CAPTURE_ONLY', reason: captureReason,
+        message: 'Lead captured. No downstream delivery was attempted.', Response: 'Queued',
+      });
+      await db.entities.Lead.update(leadId, {
+        final_status: 'Queued',
+        queue_reason_code: 'CAPTURE_ONLY',
+        queue_reason: captureReason,
+        suppressed_deliveries: suppressedJson,
+        processed_at: new Date().toISOString(),
+        process_time_ms: Date.now() - startTime,
+        response_returned: JSON.stringify(captureResponse),
+      });
+      return Response.json(captureResponse, { status: 200 });
     }
 
     // ── e. ROUTE: direct / event bypass LeadByte ────────────────────────
