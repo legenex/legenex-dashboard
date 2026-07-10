@@ -4,8 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Truck, Plus } from 'lucide-react';
 
 // Shown when there are no suppliers at all. Explains where suppliers come from.
-// The create flow arrives in the next build, so the button is disabled.
-export default function SuppliersEmptyState() {
+export default function SuppliersEmptyState({ onCreate }) {
   return (
     <Card className="bg-card border-border">
       <CardContent className="py-14 flex flex-col items-center text-center">
@@ -17,12 +16,9 @@ export default function SuppliersEmptyState() {
           Suppliers are created in Operations and flow through to Lead Distribution, where their
           sources and payouts drive attribution and cost.
         </p>
-        <Button disabled className="gap-1.5 mt-5">
+        <Button onClick={onCreate} className="gap-1.5 mt-5">
           <Plus className="w-4 h-4" /> Create Supplier
         </Button>
-        <p className="text-[11px] text-muted-foreground/70 mt-2">
-          The create flow arrives in the next build.
-        </p>
       </CardContent>
     </Card>
   );

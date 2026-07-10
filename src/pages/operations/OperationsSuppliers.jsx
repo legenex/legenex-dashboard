@@ -3,12 +3,15 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/lib/theme';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import SectionHeader from '@/components/shared/SectionHeader';
 import RefreshButton from '@/components/shared/RefreshButton';
 import ColumnManager from '@/components/leads/ColumnManager';
 import { PulseDot } from '@/components/settings/settingsUi';
 import SupplierTable from '@/components/operations/suppliers/SupplierTable';
 import SuppliersEmptyState from '@/components/operations/suppliers/SuppliersEmptyState';
+import SupplierCreateModal from '@/components/operations/suppliers/SupplierCreateModal';
 import SupplierActionDialog from '@/components/operations/suppliers/SupplierActionDialog';
 import SupplierDeleteDialog from '@/components/operations/suppliers/SupplierDeleteDialog';
 import NoChannelBanner from '@/components/operations/suppliers/NoChannelBanner';
@@ -42,6 +45,7 @@ export default function OperationsSuppliers() {
   const [actionState, setActionState] = useState(null); // { action, supplier }
   const [deleteState, setDeleteState] = useState(null); // { supplier }
   const [drawer, setDrawer] = useState(null); // { supplierId, tab }
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['op-suppliers'],
@@ -123,6 +127,13 @@ export default function OperationsSuppliers() {
     qc.invalidateQueries({ queryKey: ['op-suppliers'] });
   };
 
+  // After a create, refresh the table then open the new supplier on Sources,
+  // since a supplier with no source falls back to its supplier level payout.
+  const onCreated = async (created) => {
+    await refresh();
+    setDrawer({ supplierId: created.id, tab: 'sources' });
+  };
+
   // Open the detail drawer. Row click lands on Payout; the Channels Fix link
   // lands on Notifications.
   const openSupplier = (supplier) => setDrawer({ supplierId: supplier.id, tab: 'payout' });
@@ -138,10 +149,13 @@ export default function OperationsSuppliers() {
           <PulseDot /> Live
         </span>
         <RefreshButton onClick={refresh} />
+        <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
+          <Plus className="w-4 h-4" /> Create Supplier
+        </Button>
       </SectionHeader>
 
       {suppliers.length === 0 ? (
-        <SuppliersEmptyState />
+        <SuppliersEmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
         <>
           <NoChannelBanner count={noChannelCount} />
@@ -203,6 +217,12 @@ export default function OperationsSuppliers() {
         onOpenChange={(v) => { if (!v) setDrawer(null); }}
         supplier={drawerSupplier}
         initialTab={drawer?.tab || 'payout'}
+      />
+
+      <SupplierCreateModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={onCreated}
       />
     </div>
   );
