@@ -1739,14 +1739,22 @@ Deno.serve(async (req) => {
         code: 'LB_ERROR', reason: 'No active LeadByte connector configured',
         message: 'No active LeadByte connector configured', Response: 'Error',
       });
+      const noConnStatus = String(enrichedData.lead_status || leadPayload.lead_status || '').trim();
+      const noConnFinalStatus = {
+        Qualified: 'Qualified', Disqualified: 'Disqualified', Sold: 'Sold',
+        Unsold: 'Unsold', Rejected: 'Unsold', Duplicate: 'Duplicate',
+        Duplicates: 'Duplicate', Queued: 'Queued',
+      }[noConnStatus] || 'Queued';
       await db.entities.Lead.update(leadId, {
-        final_status: 'Error', error_stage: 'leadbyte',
+        final_status: noConnFinalStatus,
+        delivery_error: 'No active LeadByte connector configured',
+        error_stage: 'leadbyte',
         processed_at: new Date().toISOString(),
         process_time_ms: Date.now() - startTime,
         response_returned: JSON.stringify(noConnResponse),
       });
       await db.entities.ErrorLog.create({
-        lead_id: leadId, stage: 'leadbyte', severity: 'critical',
+        lead_id: leadId, stage: 'leadbyte', severity: 'info',
         message: 'No active LeadByte connector configured',
         supplier_name: supplierAttribution,
       });
