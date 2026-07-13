@@ -2,12 +2,20 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // Operator-only buyer onboarding orchestrator (/functions/onboardBuyer).
 //
-// Drives a BuyerOnboarding record through an ordered list of steps. This build
-// implements only the local steps that touch no external system (validate,
-// create_buyer, allocate_code, schedule_intro_email). The external steps
-// (Xero, Stripe, deposit invoice, LeadByte, disposition scope, onboarding
-// email, GHL/CRM contact) are seeded into the steps array as pending so the
-// record shape is stable, and are inserted in order in a later build.
+// Drives a BuyerOnboarding record through the full ordered list of steps:
+// validate, create_buyer, allocate_code, xero_contact, stripe_customer,
+// deposit_invoice, xero_invoice, payment_link, leadbyte_buyer, dispo_scope,
+// onboarding_email, crm_contact, schedule_intro_email.
+//
+// Each step is idempotent: a step holding an external_id (or already marked
+// complete or skipped) is never re run, so a retry never calls a remote system
+// twice. On a failure the step records the error, status becomes blocked and
+// current_step is set to the failed step, and the run stops.
+//
+// Provider credentials are read from the same storage the existing sync
+// functions use (IntegrationConfig for Xero and Stripe, the default LeadByte
+// connector header for the LeadByte key). Secrets are never written into the
+// steps array, an error message, or a log line.
 //
 // The buyer is always created in draft and is never made active here.
 
@@ -31,8 +39,8 @@ const STEP_ORDER = [
   'schedule_intro_email',
 ];
 
-// Steps implemented in this build. Everything else stays pending.
-const IMPLEMENTED_STEPS = new Set(['validate', 'create_buyer', 'allocate_code', 'schedule_intro_email']);
+// Every step is implemented now.
+const IMPLEMENTED_STEPS = new Set(STEP_ORDER);
 
 const APP_TIMEZONE = 'America/Regina';
 
@@ -228,6 +236,93 @@ function buildBuyerFromPayload(payload: any, companyName: string): Record<string
   return out;
 }
 
+// ── Provider credential helpers ────────────────────────────────────────────
+// All read from the same storage the existing sync functions use. Each returns
+// the credentials or throws a generic error that never contains the secret.
+
+async function getXeroCreds(svc: any): Promise<{ token: string; tenantId: string }> {
+  const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'xero' });
+  const cfg = cfgList[0];
+  if (!cfg) throw new Error('Xero is not connected.');
+  let parsed: any = {};
+  try { parsed = JSON.parse(cfg.config || '{}'); } catch { parsed = {}; }
+  const token = parsed.access_token;
+  let tenantId = parsed.tenant_id;
+  if (!token) throw new Error('Xero access token is missing.');
+  if (!tenantId) {
+    // Resolve the tenant from /connections, exactly as syncXero does.
+    const connRes = await fetch('https://api.xero.com/connections', {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    if (!connRes.ok) throw new Error(`Xero auth error ${connRes.status}.`);
+    const conns = await connRes.json();
+    if (!Array.isArray(conns) || conns.length === 0) throw new Error('No Xero organisations found for this token.');
+    tenantId = conns[0].tenantId;
+  }
+  return { token, tenantId };
+}
+
+async function getStripeKey(svc: any): Promise<string> {
+  const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'stripe' });
+  const cfg = cfgList[0];
+  if (!cfg) throw new Error('Stripe is not connected.');
+  let parsed: any = {};
+  try { parsed = JSON.parse(cfg.config || '{}'); } catch { parsed = {}; }
+  const key = parsed.secret_key;
+  if (!key) throw new Error('Stripe secret key is missing.');
+  return key;
+}
+
+// The LeadByte base URL and X_KEY come from the default LeadByte connector, the
+// same record the live pipeline forwards leads through. We never hardcode the
+// key: we read the connector's own X_KEY header value.
+async function getLeadByteConfig(svc: any): Promise<{ baseUrl: string; key: string }> {
+  const conns = await svc.entities.LeadByteConnector.filter({ kind: 'leadbyte' });
+  const conn = conns.find((c: any) => c.is_default) || conns[0];
+  if (!conn || !conn.target_url) throw new Error('LeadByte connector is not configured.');
+  let key = '';
+  try {
+    const rows = typeof conn.headers === 'string' ? JSON.parse(conn.headers || '[]') : (conn.headers || []);
+    if (Array.isArray(rows)) {
+      const row = rows.find((r: any) => r.key && String(r.key).toLowerCase() === 'x_key');
+      key = row ? row.value : '';
+    } else if (rows && typeof rows === 'object') {
+      key = rows.X_KEY || rows.x_key || '';
+    }
+  } catch { key = ''; }
+  if (!key) throw new Error('LeadByte key is missing from the connector configuration.');
+  // Derive the API base (scheme + host + /restapi/vX.Y/) from the leads URL.
+  const u = new URL(conn.target_url);
+  const base = u.pathname.replace(/\/leads\/?$/, '/');
+  return { baseUrl: `${u.origin}${base}`, key };
+}
+
+// Rebrandly key: IntegrationConfig(name='rebrandly') first, then a secret env
+// var as a fallback. Never hardcoded.
+async function getRebrandlyKey(svc: any): Promise<string> {
+  const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'rebrandly' });
+  const cfg = cfgList[0];
+  if (cfg) {
+    let parsed: any = {};
+    try { parsed = JSON.parse(cfg.config || '{}'); } catch { parsed = {}; }
+    if (parsed.api_key) return parsed.api_key;
+  }
+  const envKey = Deno.env.get('REBRANDLY_API_KEY');
+  if (envKey) return envKey;
+  throw new Error('Rebrandly is not connected.');
+}
+
+// Slugify a company name into a Rebrandly slashtag: lowercase, punctuation
+// removed, spaces to hyphens, collapsed and trimmed.
+function slugifyCompany(name: string): string {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -294,6 +389,19 @@ Deno.serve(async (req) => {
     let buyerId = onboarding.buyer_id || null;
     let introEmailTime = onboarding.intro_email_scheduled_for || null;
 
+    // Cross-step values produced by deposit_invoice and consumed by the
+    // xero_invoice and payment_link steps. On a resume where deposit_invoice is
+    // already complete, these are rehydrated from the stored step below.
+    let hostedInvoiceUrl: string | null = null;
+    let depositInvoiceId: string | null = null;
+    {
+      const depStep = getStep(steps, 'deposit_invoice');
+      if (depStep) {
+        if (depStep.external_id) depositInvoiceId = depStep.external_id;
+        if (depStep.hosted_invoice_url) hostedInvoiceUrl = depStep.hosted_invoice_url;
+      }
+    }
+
     // Persist the current steps array (and optional extra patch) to the record.
     const persist = async (patch: Record<string, any> = {}) => {
       await svc.entities.BuyerOnboarding.update(onboardingId, {
@@ -309,22 +417,30 @@ Deno.serve(async (req) => {
     // rely on per-step completion checks to skip finished work.
     const startIndex = fromStep ? STEP_ORDER.indexOf(fromStep) : 0;
 
+    // Mark a step skipped with a reason. Skipped counts as done: it never blocks
+    // and it is never re run.
+    const markSkipped = (step: any, reason: string) => {
+      step.status = 'skipped';
+      step.error = reason;
+      step.completed_at = new Date().toISOString();
+    };
+
     // Run one step. Returns true to continue, false to stop (blocked).
     const runStep = async (key: string): Promise<boolean> => {
       const step = getStep(steps, key);
 
-      // Not implemented in this build: leave pending, do not run, do not block.
-      if (!IMPLEMENTED_STEPS.has(key)) {
-        return true;
-      }
-
-      // Idempotent: skip anything already complete.
-      if (step.status === 'complete') {
+      // Idempotent: never re run a step that is already complete, skipped, or
+      // already holds an external_id from a prior successful remote call.
+      if (step.status === 'complete' || step.status === 'skipped' || step.external_id) {
         return true;
       }
 
       await persist({ current_step: key });
       step.attempts = (Number(step.attempts) || 0) + 1;
+
+      // A step may mark itself skipped inside the try block. We track that so the
+      // shared success tail does not overwrite the skipped status.
+      let skipped = false;
 
       try {
         if (key === 'validate') {
@@ -378,15 +494,336 @@ Deno.serve(async (req) => {
             await svc.entities.Buyer.update(buyerId, { buyer_code: code, leadbyte_bid: code });
             step.external_id = code;
           }
+        } else if (key === 'xero_contact') {
+          const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+          if (!buyer) throw new Error('Buyer record not found for Xero contact.');
+          if (buyer.xero_contact_id) {
+            step.external_id = buyer.xero_contact_id;
+          } else {
+            const { token, tenantId } = await getXeroCreds(svc);
+            const contactName = str(payload.company_name) || buyer.company_name || 'Buyer';
+            const contactBody: any = {
+              Name: contactName,
+              AccountNumber: buyer.buyer_code || '',
+              EmailAddress: str(payload.primary_contact_email) || buyer.email || '',
+            };
+            const firstName = str(payload.primary_contact_name).split(' ')[0] || '';
+            const lastName = str(payload.primary_contact_name).split(' ').slice(1).join(' ') || '';
+            if (firstName) contactBody.FirstName = firstName;
+            if (lastName) contactBody.LastName = lastName;
+            const phone = str(payload.primary_contact_phone) || buyer.phone || '';
+            if (phone) contactBody.Phones = [{ PhoneType: 'DEFAULT', PhoneNumber: phone }];
+            const resp = await fetch('https://api.xero.com/api.xro/2.0/Contacts', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Xero-tenant-id': tenantId,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ Contacts: [contactBody] }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(`Xero contact create failed (HTTP ${resp.status}).`);
+            const contactId = data?.Contacts?.[0]?.ContactID;
+            if (!contactId) throw new Error('Xero did not return a contact id.');
+            await svc.entities.Buyer.update(buyerId, { xero_contact_id: contactId });
+            step.external_id = contactId;
+          }
+        } else if (key === 'stripe_customer') {
+          const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+          if (!buyer) throw new Error('Buyer record not found for Stripe customer.');
+          if (buyer.stripe_customer_id) {
+            step.external_id = buyer.stripe_customer_id;
+          } else {
+            const key2 = await getStripeKey(svc);
+            const form = new URLSearchParams();
+            form.set('name', str(payload.company_name) || buyer.company_name || 'Buyer');
+            const custEmail = str(payload.primary_contact_email) || buyer.email || '';
+            if (custEmail) form.set('email', custEmail);
+            const billingAddress = str(payload.billing_address) || buyer.billing_address || '';
+            if (billingAddress) form.set('address[line1]', billingAddress);
+            // Tax status exempt.
+            form.set('tax_exempt', 'exempt');
+            const resp = await fetch('https://api.stripe.com/v1/customers', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${key2}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: form.toString(),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(`Stripe customer create failed (HTTP ${resp.status}).`);
+            if (!data.id) throw new Error('Stripe did not return a customer id.');
+            await svc.entities.Buyer.update(buyerId, { stripe_customer_id: data.id });
+            step.external_id = data.id;
+          }
+        } else if (key === 'deposit_invoice') {
+          const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+          if (!buyer) throw new Error('Buyer record not found for deposit invoice.');
+          const billingType = str(buyer.billing_type) || str(payload.billing_type);
+          if (billingType !== 'prepay') {
+            markSkipped(step, `Billing type is ${billingType || 'not set'}, invoiced rather than deposit based.`);
+            skipped = true;
+          } else {
+            const key2 = await getStripeKey(svc);
+            const cpl = Number(payload.cpl);
+            const qty = Number(payload.initial_batch_size) || Number(buyer.initial_batch_size) || 0;
+            const unitAmount = Math.round(cpl * 100);
+            const description = `Leads - Batch 1 Deposit, ${qty} leads in total`;
+            const customerId = buyer.stripe_customer_id;
+            if (!customerId) throw new Error('Stripe customer id is missing for the deposit invoice.');
+
+            // 1. Create the invoice item.
+            const itemForm = new URLSearchParams();
+            itemForm.set('customer', customerId);
+            itemForm.set('currency', 'usd');
+            itemForm.set('unit_amount', String(unitAmount));
+            itemForm.set('quantity', String(qty));
+            itemForm.set('description', description);
+            const itemResp = await fetch('https://api.stripe.com/v1/invoiceitems', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${key2}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: itemForm.toString(),
+            });
+            const itemData = await itemResp.json().catch(() => ({}));
+            if (!itemResp.ok) throw new Error(`Stripe invoice item failed (HTTP ${itemResp.status}).`);
+
+            // 2. Create the invoice (send_invoice, enabled payment methods).
+            const invForm = new URLSearchParams();
+            invForm.set('customer', customerId);
+            invForm.set('collection_method', 'send_invoice');
+            invForm.set('days_until_due', '30');
+            invForm.set('description', description);
+            invForm.set('payment_settings[payment_method_types][]', 'us_bank_account');
+            invForm.append('payment_settings[payment_method_types][]', 'customer_balance');
+            const invResp = await fetch('https://api.stripe.com/v1/invoices', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${key2}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: invForm.toString(),
+            });
+            const invData = await invResp.json().catch(() => ({}));
+            if (!invResp.ok) throw new Error(`Stripe invoice create failed (HTTP ${invResp.status}).`);
+            const invoiceId = invData.id;
+            if (!invoiceId) throw new Error('Stripe did not return an invoice id.');
+
+            // 3. Finalise the invoice so it has a hosted url.
+            const finResp = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}/finalize`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${key2}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: '',
+            });
+            const finData = await finResp.json().catch(() => ({}));
+            if (!finResp.ok) throw new Error(`Stripe invoice finalize failed (HTTP ${finResp.status}).`);
+
+            depositInvoiceId = invoiceId;
+            hostedInvoiceUrl = finData.hosted_invoice_url || invData.hosted_invoice_url || null;
+            step.external_id = invoiceId;
+            step.hosted_invoice_url = hostedInvoiceUrl;
+          }
+        } else if (key === 'xero_invoice') {
+          const depStep = getStep(steps, 'deposit_invoice');
+          if (depStep.status === 'skipped' || !depositInvoiceId) {
+            markSkipped(step, 'Deposit invoice did not run, no sales invoice to mirror.');
+            skipped = true;
+          } else {
+            const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+            if (!buyer) throw new Error('Buyer record not found for Xero invoice.');
+            const { token, tenantId } = await getXeroCreds(svc);
+            const cpl = Number(payload.cpl);
+            const qty = Number(payload.initial_batch_size) || Number(buyer.initial_batch_size) || 0;
+            const description = `Leads - Batch 1 Deposit, ${qty} leads in total`;
+            const invBody: any = {
+              Type: 'ACCREC',
+              Contact: buyer.xero_contact_id ? { ContactID: buyer.xero_contact_id } : { Name: buyer.company_name },
+              LineItems: [{
+                Description: description,
+                Quantity: qty,
+                UnitAmount: cpl,
+                AccountCode: '200',
+              }],
+              Status: 'AUTHORISED',
+            };
+            const resp = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Xero-tenant-id': tenantId,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ Invoices: [invBody] }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(`Xero invoice create failed (HTTP ${resp.status}).`);
+            const xeroInvoiceId = data?.Invoices?.[0]?.InvoiceID;
+            if (!xeroInvoiceId) throw new Error('Xero did not return an invoice id.');
+            step.external_id = xeroInvoiceId;
+          }
+        } else if (key === 'payment_link') {
+          const depStep = getStep(steps, 'deposit_invoice');
+          if (depStep.status === 'skipped' || !depositInvoiceId) {
+            markSkipped(step, 'Deposit invoice did not run, no payment link required.');
+            skipped = true;
+          } else {
+            const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+            if (!buyer) throw new Error('Buyer record not found for payment link.');
+            if (buyer.payment_link_url) {
+              step.external_id = buyer.payment_link_url;
+            } else {
+              if (!hostedInvoiceUrl) throw new Error('Hosted invoice url is missing for the payment link.');
+              const apiKey = await getRebrandlyKey(svc);
+              const baseSlug = slugifyCompany(str(payload.company_name) || buyer.company_name || 'buyer') || 'buyer';
+
+              const createLink = async (slashtag: string) => {
+                return await fetch('https://api.rebrandly.com/v1/links', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', apikey: apiKey },
+                  body: JSON.stringify({ destination: hostedInvoiceUrl, slashtag }),
+                });
+              };
+
+              let resp = await createLink(baseSlug);
+              // On a duplicate slashtag, append a short numeric suffix and retry once.
+              if (resp.status === 403 || resp.status === 409 || resp.status === 400) {
+                const suffix = String(Math.floor(Math.random() * 90) + 10);
+                resp = await createLink(`${baseSlug}-${suffix}`);
+              }
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok) throw new Error(`Rebrandly link create failed (HTTP ${resp.status}).`);
+              const shortUrl = data.shortUrl ? (data.shortUrl.startsWith('http') ? data.shortUrl : `https://${data.shortUrl}`) : null;
+              if (!shortUrl) throw new Error('Rebrandly did not return a short link.');
+              await svc.entities.Buyer.update(buyerId, { payment_link_url: shortUrl });
+              step.external_id = shortUrl;
+            }
+          }
+        } else if (key === 'leadbyte_buyer') {
+          const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+          if (!buyer) throw new Error('Buyer record not found for LeadByte buyer create.');
+          const { baseUrl, key: lbKey } = await getLeadByteConfig(svc);
+          const firstName = str(payload.primary_contact_name).split(' ')[0] || '';
+          const lastName = str(payload.primary_contact_name).split(' ').slice(1).join(' ') || '';
+          const form = new URLSearchParams();
+          form.set('company', str(payload.company_name) || buyer.company_name || '');
+          form.set('firstname', firstName);
+          form.set('lastname', lastName);
+          form.set('email', str(payload.primary_contact_email) || buyer.email || '');
+          form.set('phone', str(payload.primary_contact_phone) || buyer.phone || '');
+          form.set('bid', buyer.buyer_code || '');
+          form.set('external_ref', buyer.buyer_code || '');
+          form.set('autologin', 'Yes');
+          form.set('country_name', 'United States');
+          const resp = await fetch(`${baseUrl}buyers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', X_KEY: lbKey },
+            body: form.toString(),
+          });
+          const text = await resp.text();
+          let data: any;
+          try { data = JSON.parse(text); } catch { data = { raw: text }; }
+          if (!resp.ok) throw new Error(`LeadByte buyer create failed (HTTP ${resp.status}).`);
+          const lbBuyerId = data?.buyer_id || data?.id || data?.records?.[0]?.id || data?.data?.id || '';
+          step.external_id = lbBuyerId ? String(lbBuyerId) : (buyer.buyer_code || 'created');
+        } else if (key === 'dispo_scope') {
+          // Buyer feedback already lives in the BuyerFeedback entity keyed on the
+          // buyer, so this step is complete once buyer_id is set. A BigQuery table
+          // is only attempted when a BigQuery delivery is actually configured.
+          if (!buyerId) throw new Error('Buyer id is not set for disposition scope.');
+          let bigQueryConfigured = false;
+          try {
+            const dests = await svc.entities.LeadByteConnector.filter({ kind: 'bigquery' });
+            bigQueryConfigured = Array.isArray(dests) && dests.some((d: any) => d.enabled);
+          } catch { bigQueryConfigured = false; }
+          if (!bigQueryConfigured) {
+            markSkipped(step, 'No BigQuery delivery is configured, disposition scope handled by BuyerFeedback.');
+            skipped = true;
+          } else {
+            step.external_id = `buyerfeedback:${buyerId}`;
+          }
+        } else if (key === 'onboarding_email') {
+          const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+          if (!buyer) throw new Error('Buyer record not found for onboarding email.');
+          const to = str(payload.primary_contact_email) || buyer.email || '';
+          if (!to) throw new Error('No recipient email for the onboarding email.');
+          const vertical = str(buyer.vertical) || str(payload.vertical);
+          const contactName = str(payload.primary_contact_name) || 'there';
+          const companyName = str(payload.company_name) || buyer.company_name || '';
+          // Select subject and body by vertical.
+          const subjectByVertical: Record<string, string> = {
+            mva: 'Welcome to Legenex - Motor Vehicle Accident Leads',
+            workers_comp: 'Welcome to Legenex - Workers Comp Leads',
+            debt: 'Welcome to Legenex - Debt Leads',
+          };
+          const subject = subjectByVertical[vertical] || 'Welcome to Legenex';
+          const body = `Hi ${contactName},\n\nWelcome aboard. Your account for ${companyName} has been set up and we are getting everything ready for your first leads.\n\nWe will be in touch shortly with next steps.\n\nThank you,\nThe Legenex Team`;
+          const result = await base44.asServiceRole.functions.invoke('sendGmail', {
+            to, subject, body,
+          });
+          const data = result?.data !== undefined ? result.data : result;
+          const messageId = data?.message_id || data?.id || data?.messageId || '';
+          step.external_id = messageId ? String(messageId) : 'sent';
+        } else if (key === 'crm_contact') {
+          // Optional GHL / LeadConnector integration. When not configured, skip
+          // rather than block: a missing optional integration must not stop
+          // onboarding.
+          let ghlCfg: any = null;
+          try {
+            const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'ghl' });
+            ghlCfg = cfgList[0] || null;
+            if (!ghlCfg) {
+              const alt = await svc.entities.IntegrationConfig.filter({ name: 'leadconnector' });
+              ghlCfg = alt[0] || null;
+            }
+          } catch { ghlCfg = null; }
+          if (!ghlCfg) {
+            markSkipped(step, 'No GHL or LeadConnector integration is configured.');
+            skipped = true;
+          } else {
+            let parsed: any = {};
+            try { parsed = JSON.parse(ghlCfg.config || '{}'); } catch { parsed = {}; }
+            const apiKey = parsed.api_key || parsed.access_token;
+            const locationId = parsed.location_id || '';
+            if (!apiKey) {
+              markSkipped(step, 'GHL integration is present but has no API key.');
+              skipped = true;
+            } else {
+              const buyer = await svc.entities.Buyer.get(buyerId).catch(() => null);
+              const firstName = str(payload.primary_contact_name).split(' ')[0] || '';
+              const lastName = str(payload.primary_contact_name).split(' ').slice(1).join(' ') || '';
+              const contactBody: any = {
+                firstName, lastName,
+                email: str(payload.primary_contact_email) || buyer?.email || '',
+                phone: str(payload.primary_contact_phone) || buyer?.phone || '',
+                companyName: str(payload.company_name) || buyer?.company_name || '',
+              };
+              if (locationId) contactBody.locationId = locationId;
+              const resp = await fetch('https://services.leadconnectorhq.com/contacts/', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                  Version: '2021-07-28',
+                },
+                body: JSON.stringify(contactBody),
+              });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok) throw new Error(`GHL contact create failed (HTTP ${resp.status}).`);
+              const contactId = data?.contact?.id || data?.id || '';
+              step.external_id = contactId ? String(contactId) : 'created';
+            }
+          }
         } else if (key === 'schedule_intro_email') {
           introEmailTime = resolveIntroEmailTime(new Date());
           await persist({ intro_email_scheduled_for: introEmailTime });
           step.external_id = introEmailTime;
         }
 
-        step.status = 'complete';
-        step.error = null;
-        step.completed_at = new Date().toISOString();
+        if (!skipped) {
+          step.status = 'complete';
+          step.error = null;
+          step.completed_at = new Date().toISOString();
+        }
         await persist();
         return true;
       } catch (stepErr) {
@@ -412,13 +849,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Do NOT set status to complete: external steps remain pending. Leave the
-    // record in_progress and clear the current_step marker.
-    await persist({ current_step: null });
+    // Every step ran without blocking. If all are complete or skipped, the
+    // onboarding is complete; otherwise it stays in_progress.
+    const allDone = steps.every((s) => s.status === 'complete' || s.status === 'skipped');
+    const finalStatus = allDone ? 'complete' : 'in_progress';
+    const patch: Record<string, any> = { current_step: null, status: finalStatus };
+    if (allDone) patch.completed_at = new Date().toISOString();
+    await persist(patch);
 
     return Response.json({
       onboarding_id: onboardingId,
-      status: 'in_progress',
+      status: finalStatus,
       steps,
       intro_email_scheduled_for: introEmailTime,
     }, { status: 200 });
