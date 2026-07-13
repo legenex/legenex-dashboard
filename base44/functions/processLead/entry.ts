@@ -1741,7 +1741,7 @@ Deno.serve(async (req) => {
       });
       const noConnStatus = String(enrichedData.lead_status || leadPayload.lead_status || '').trim();
       const noConnFinalStatus = {
-        Qualified: 'Qualified', Disqualified: 'Disqualified', Sold: 'Sold',
+        Qualified: 'Sold', Disqualified: 'Disqualified', Sold: 'Sold',
         Unsold: 'Unsold', Rejected: 'Unsold', Duplicate: 'Duplicate',
         Duplicates: 'Duplicate', Queued: 'Queued',
       }[noConnStatus] || 'Queued';
