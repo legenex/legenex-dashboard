@@ -54,6 +54,43 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v.trim() : (v == null ? '' : String(v).trim());
 }
 
+function base64url(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function encodeHeader(s: string): string {
+  if (/^[\x00-\x7F]*$/.test(s)) return s;
+  const bytes = new TextEncoder().encode(s);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return `=?UTF-8?B?${btoa(bin)}?=`;
+}
+
+async function sendClientEmail(base44: any, to: string, subject: string, textBody: string): Promise<void> {
+  const { accessToken } = await base44.asServiceRole.connectors.getConnection('gmail');
+  const auth = { Authorization: `Bearer ${accessToken}` };
+  let from = '';
+  try {
+    const pr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', { headers: auth });
+    if (pr.ok) from = ((await pr.json()).emailAddress) || '';
+  } catch {}
+  const headers: string[] = [];
+  if (from) headers.push(`From: ${from}`);
+  headers.push(`To: ${to}`);
+  headers.push(`Subject: ${encodeHeader(subject)}`);
+  headers.push('MIME-Version: 1.0');
+  headers.push('Content-Type: text/plain; charset=UTF-8');
+  const rfc822 = headers.join('\r\n') + '\r\n\r\n' + textBody;
+  await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: { ...auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw: base64url(rfc822) }),
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method === 'GET') return Response.json({ status: 'ok' }, { status: 200, headers: CORS_HEADERS });
@@ -135,12 +172,37 @@ Deno.serve(async (req) => {
       if (rec.status === 'complete') {
         return Response.json({ status: 'duplicate', onboarding_id: rec.id, company_name: rec.company_name }, { status: 200, headers: CORS_HEADERS });
       }
+      const wasInvited = rec.status === 'invited';
       const patch: Record<string, any> = {
         form_payload: JSON.stringify(body),
         submitted_at: new Date().toISOString(),
       };
-      if (rec.status === 'invited') patch.status = 'submitted';
+      if (wasInvited) patch.status = 'submitted';
       await base44.asServiceRole.entities.BuyerOnboarding.update(rec.id, patch);
+
+      if (wasInvited) {
+        try {
+          const tplList = await base44.asServiceRole.entities.OnboardingEmailTemplate.filter({ event: 'submitted' });
+          const tpl = (Array.isArray(tplList) ? tplList : [])[0] || null;
+          if (tpl && tpl.enabled !== false) {
+            const buyer = rec.buyer_id ? await base44.asServiceRole.entities.Buyer.get(rec.buyer_id).catch(() => null) : null;
+            const to = str(body.primary_contact_email) || (buyer && buyer.email) || '';
+            if (to) {
+              const vars: Record<string, string> = {
+                company_name: (buyer && buyer.company_name) || rec.company_name || str(body.company_name) || '',
+                contact_name: str(body.primary_contact_name) || 'there',
+                buyer_code: (buyer && buyer.buyer_code) || '',
+                vertical: (buyer && buyer.vertical) || str(body.vertical) || '',
+              };
+              const renderTpl = (s: unknown) => String(s || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ''));
+              await sendClientEmail(base44, to, renderTpl(tpl.subject), renderTpl(tpl.body));
+            }
+          }
+        } catch (_e) {
+          // Non-fatal: the submission still succeeds even if the email fails.
+        }
+      }
+
       return Response.json({ status: 'ok', onboarding_id: rec.id, company_name: rec.company_name }, { status: 200, headers: CORS_HEADERS });
     }
 
