@@ -67,8 +67,23 @@ Deno.serve(async (req) => {
     }
 
     const link = `${linkBase}/apply?token=${onboarding.token}`;
-    const subject = 'Complete your Legenex onboarding' + (buyer.company_name ? ' - ' + buyer.company_name : '');
-    const body_text = `Hi,\n\nPlease complete your onboarding for ${buyer.company_name || 'your account'} using the secure link below. Your vertical and account details are already set up, so you only need to fill in the remaining information.\n\n${link}\n\nThank you,\nThe Legenex Team`;
+
+    const tplList = await svc.entities.OnboardingEmailTemplate.filter({ event: 'invite' });
+    const tpl = (Array.isArray(tplList) ? tplList : [])[0] || null;
+    const vars: Record<string, string> = {
+      company_name: buyer.company_name || '',
+      contact_name: 'there',
+      buyer_code: buyer.buyer_code || '',
+      vertical: buyer.vertical || '',
+      link,
+    };
+    const renderTpl = (s: unknown) => String(s || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ''));
+    const subject = tpl && tpl.subject
+      ? renderTpl(tpl.subject)
+      : ('Complete your Legenex onboarding' + (buyer.company_name ? ' - ' + buyer.company_name : ''));
+    const body_text = tpl && tpl.body
+      ? renderTpl(tpl.body)
+      : `Hi,\n\nPlease complete your onboarding for ${buyer.company_name || 'your account'} using the secure link below. Your vertical and account details are already set up, so you only need to fill in the remaining information.\n\n${link}\n\nThank you,\nThe Legenex Team`;
 
     await svc.functions.invoke('sendGmail', { to, subject, body: body_text });
 
