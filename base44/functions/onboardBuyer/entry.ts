@@ -743,23 +743,30 @@ Deno.serve(async (req) => {
           if (!buyer) throw new Error('Buyer record not found for onboarding email.');
           const to = str(payload.primary_contact_email) || buyer.email || '';
           if (!to) throw new Error('No recipient email for the onboarding email.');
-          const vertical = str(buyer.vertical) || str(payload.vertical);
           const contactName = str(payload.primary_contact_name) || 'there';
           const companyName = str(payload.company_name) || buyer.company_name || '';
-          // Select subject and body by vertical.
-          const subjectByVertical: Record<string, string> = {
-            mva: 'Welcome to Legenex - Motor Vehicle Accident Leads',
-            workers_comp: 'Welcome to Legenex - Workers Comp Leads',
-            debt: 'Welcome to Legenex - Debt Leads',
-          };
-          const subject = subjectByVertical[vertical] || 'Welcome to Legenex';
-          const body = `Hi ${contactName},\n\nWelcome aboard. Your account for ${companyName} has been set up and we are getting everything ready for your first leads.\n\nWe will be in touch shortly with next steps.\n\nThank you,\nThe Legenex Team`;
-          const result = await base44.asServiceRole.functions.invoke('sendGmail', {
-            to, subject, body,
-          });
-          const data = result?.data !== undefined ? result.data : result;
-          const messageId = data?.message_id || data?.id || data?.messageId || '';
-          step.external_id = messageId ? String(messageId) : 'sent';
+          const tplList = await svc.entities.OnboardingEmailTemplate.filter({ event: 'complete' });
+          const tpl = (Array.isArray(tplList) ? tplList : [])[0] || null;
+          if (tpl && tpl.enabled === false) {
+            markSkipped(step, 'Complete email is disabled in settings.');
+            skipped = true;
+          } else {
+            const vars: Record<string, string> = {
+              company_name: companyName,
+              contact_name: contactName,
+              buyer_code: buyer.buyer_code || '',
+              vertical: str(buyer.vertical) || str(payload.vertical) || '',
+            };
+            const renderTpl = (s: unknown) => String(s || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in vars ? String(vars[k]) : ''));
+            const subject = tpl && tpl.subject ? renderTpl(tpl.subject) : 'Welcome to Legenex';
+            const body = tpl && tpl.body
+              ? renderTpl(tpl.body)
+              : `Hi ${contactName},\n\nWelcome aboard. Your account for ${companyName} has been set up and we are getting everything ready for your first leads.\n\nWe will be in touch shortly with next steps.\n\nThank you,\nThe Legenex Team`;
+            const result = await base44.asServiceRole.functions.invoke('sendGmail', { to, subject, body });
+            const data = result?.data !== undefined ? result.data : result;
+            const messageId = data?.message_id || data?.id || data?.messageId || '';
+            step.external_id = messageId ? String(messageId) : 'sent';
+          }
         } else if (key === 'crm_contact') {
           // Optional GHL / LeadConnector integration. When not configured, skip
           // rather than block: a missing optional integration must not stop
@@ -837,6 +844,32 @@ Deno.serve(async (req) => {
     for (let i = startIndex; i < STEP_ORDER.length; i++) {
       const ok = await runStep(STEP_ORDER[i]);
       if (!ok) {
+        try {
+          const btplList = await svc.entities.OnboardingEmailTemplate.filter({ event: 'blocked' });
+          const btpl = (Array.isArray(btplList) ? btplList : [])[0] || null;
+          if (btpl && btpl.enabled !== false) {
+            let recips: string[] = [];
+            try { recips = JSON.parse(btpl.recipients || '[]'); } catch { recips = []; }
+            recips = (Array.isArray(recips) ? recips : []).map((r) => String(r).trim()).filter(Boolean);
+            if (recips.length > 0) {
+              const bbuyer = buyerId ? await svc.entities.Buyer.get(buyerId).catch(() => null) : null;
+              const failed = steps.find((s) => s.status === 'failed');
+              const bvars: Record<string, string> = {
+                company_name: (bbuyer && bbuyer.company_name) || str(payload.company_name) || onboarding.company_name || '',
+                buyer_code: (bbuyer && bbuyer.buyer_code) || '',
+                vertical: (bbuyer && bbuyer.vertical) || str(payload.vertical) || '',
+                failed_step: failed ? String(failed.key) : String(STEP_ORDER[i]),
+                contact_name: str(payload.primary_contact_name) || 'there',
+              };
+              const brender = (s: unknown) => String(s || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (k in bvars ? String(bvars[k]) : ''));
+              for (const to of recips) {
+                await base44.asServiceRole.functions.invoke('sendGmail', { to, subject: brender(btpl.subject), body: brender(btpl.body) });
+              }
+            }
+          }
+        } catch (_e) {
+          // Non-fatal: a failed alert must not change the blocked outcome.
+        }
         return Response.json({
           onboarding_id: onboardingId,
           status: 'blocked',
