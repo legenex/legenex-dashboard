@@ -1,19 +1,19 @@
 import React from 'react';
 import { ApplyField } from '../ApplyField';
-import StateMultiSelect from '../StateMultiSelect';
 import { CLIENT_TYPES, BILLING_TYPES } from '../applyConstants';
 
-// Step 2: coverage footprint plus the commercial terms — client type, CPL and
-// billing arrangement.
-export default function CommercialStep({ form, set, errors }) {
+// Step 4: commercial terms. Client type drives the default billing arrangement:
+// law firms pay upfront (prepay), aggregators are invoiced (invoiced_daily).
+export default function CommercialsStep({ form, set, errors }) {
+  const pickClientType = (ct) => {
+    set('client_type', ct);
+    // Apply the sensible default billing arrangement for the chosen client type.
+    if (ct === 'Law Firm') set('billing_type', 'prepay');
+    else if (ct === 'Aggregator') set('billing_type', 'invoiced_daily');
+  };
+
   return (
     <div className="space-y-5">
-      <StateMultiSelect
-        selected={form.target_states}
-        onChange={(v) => set('target_states', v)}
-        error={errors.target_states}
-      />
-
       <div>
         <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
           Client type<span className="text-primary ml-0.5">*</span>
@@ -25,7 +25,7 @@ export default function CommercialStep({ form, set, errors }) {
               <button
                 key={ct}
                 type="button"
-                onClick={() => set('client_type', ct)}
+                onClick={() => pickClientType(ct)}
                 className={`h-11 rounded-lg border text-[13px] font-medium transition-colors ${
                   on
                     ? 'border-primary bg-primary/15 text-primary'
@@ -51,11 +51,12 @@ export default function CommercialStep({ form, set, errors }) {
           required
         />
         <ApplyField
-          label="Primary vertical"
-          value={form.vertical}
-          onChange={(v) => set('vertical', v)}
-          error={errors.vertical}
-          placeholder="MVA, Mass Tort, etc."
+          label="Lead count for the first deposit"
+          type="number"
+          value={form.initial_batch_size}
+          onChange={(v) => set('initial_batch_size', v)}
+          error={errors.initial_batch_size}
+          placeholder="100"
         />
       </div>
 
@@ -81,6 +82,9 @@ export default function CommercialStep({ form, set, errors }) {
               </button>
             );
           })}
+        </div>
+        <div className="mt-2 text-[12px] text-muted-foreground">
+          Law firms pay upfront and aggregators are invoiced.
         </div>
         {errors.billing_type && <div className="mt-1 text-[12px] text-primary">{errors.billing_type}</div>}
       </div>
