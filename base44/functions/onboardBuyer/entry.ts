@@ -297,19 +297,16 @@ async function getLeadByteConfig(svc: any): Promise<{ baseUrl: string; key: stri
   return { baseUrl: `${u.origin}${base}`, key };
 }
 
-// Rebrandly key: IntegrationConfig(name='rebrandly') first, then a secret env
-// var as a fallback. Never hardcoded.
+// Rebrandly key: read from IntegrationConfig(name='rebrandly'), the same
+// storage the other integrations use. Never hardcoded.
 async function getRebrandlyKey(svc: any): Promise<string> {
   const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'rebrandly' });
   const cfg = cfgList[0];
-  if (cfg) {
-    let parsed: any = {};
-    try { parsed = JSON.parse(cfg.config || '{}'); } catch { parsed = {}; }
-    if (parsed.api_key) return parsed.api_key;
-  }
-  const envKey = Deno.env.get('REBRANDLY_API_KEY');
-  if (envKey) return envKey;
-  throw new Error('Rebrandly is not connected.');
+  if (!cfg) throw new Error('Rebrandly is not connected.');
+  let parsed: any = {};
+  try { parsed = JSON.parse(cfg.config || '{}'); } catch { parsed = {}; }
+  if (!parsed.api_key) throw new Error('Rebrandly API key is missing.');
+  return parsed.api_key;
 }
 
 // Slugify a company name into a Rebrandly slashtag: lowercase, punctuation
