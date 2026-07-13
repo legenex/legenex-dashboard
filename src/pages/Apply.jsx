@@ -277,8 +277,8 @@ export default function Apply() {
             >
               {step === 0 && <CompanyStep form={form} set={set} errors={errors} locked={!!inherited} />}
               {step === 1 && <ContactsStep form={form} set={set} errors={errors} />}
-              {step === 2 && <CoverageStep form={form} set={set} errors={errors} />}
-              {step === 3 && <CommercialsStep form={form} set={set} errors={errors} locked={!!inherited} />}
+              {step === 2 && <CoverageStep form={form} set={set} errors={errors} locked={!!inherited} />}
+              {step === 3 && <CommercialsStep form={form} set={set} errors={errors} />}
               {step === 4 && <DeliveryStep form={form} set={set} errors={errors} />}
               {step === 5 && <ComplianceStep form={form} set={set} errors={errors} />}
               {step === 6 && <BillingStep form={form} set={set} errors={errors} />}
