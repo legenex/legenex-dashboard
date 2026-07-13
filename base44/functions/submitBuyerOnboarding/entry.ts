@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
 
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
+    const token = str(body.token);
 
     // ── Server side validation. Never trust the client. ──────────────────
     const fieldErrors: Record<string, string> = {};
@@ -117,6 +118,30 @@ Deno.serve(async (req) => {
         { error: 'Some fields need attention.', field_errors: fieldErrors },
         { status: 400, headers: CORS_HEADERS },
       );
+    }
+
+    // Token flow: a buyer-first onboarding link. Update the existing invited
+    // record for this buyer instead of creating a new submission. buyer_id is
+    // already set on that record, so the submission stays tied to the buyer.
+    if (token) {
+      const list = await base44.asServiceRole.entities.BuyerOnboarding.filter({ token });
+      const rec = (Array.isArray(list) ? list : [])[0];
+      if (!rec) {
+        return Response.json({ error: 'Invalid or expired onboarding link.' }, { status: 404, headers: CORS_HEADERS });
+      }
+      if (rec.status === 'cancelled') {
+        return Response.json({ error: 'This onboarding link is no longer active.' }, { status: 410, headers: CORS_HEADERS });
+      }
+      if (rec.status === 'complete') {
+        return Response.json({ status: 'duplicate', onboarding_id: rec.id, company_name: rec.company_name }, { status: 200, headers: CORS_HEADERS });
+      }
+      const patch: Record<string, any> = {
+        form_payload: JSON.stringify(body),
+        submitted_at: new Date().toISOString(),
+      };
+      if (rec.status === 'invited') patch.status = 'submitted';
+      await base44.asServiceRole.entities.BuyerOnboarding.update(rec.id, patch);
+      return Response.json({ status: 'ok', onboarding_id: rec.id, company_name: rec.company_name }, { status: 200, headers: CORS_HEADERS });
     }
 
     // ── Duplicate guard: same company_name + email within ten minutes. ────
