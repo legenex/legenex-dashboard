@@ -19,6 +19,10 @@ function clean(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   if (s === '' || s === '-') return null;
+  // LeadByte sends the literal string "null" for some empty fields.
+  if (s.toLowerCase() === 'null') return null;
+  // Unresolved merge field, entirely wrapped in braces e.g. {supplier_brand}.
+  if (/^\{.*\}$/.test(s)) return null;
   return s;
 }
 
