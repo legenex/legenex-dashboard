@@ -58,6 +58,85 @@ function setIf(out: Record<string, any>, key: string, value: unknown) {
   if (value !== null && value !== undefined) out[key] = value;
 }
 
+// Translation map: webhook payload key -> app canonical field name. These land
+// in Lead.mapped_fields (never first-class outcome columns). Deliberate
+// exclusions: contact_trustedform_url (stays only in the raw payload),
+// accident_date (a Calculated field), supplier_source (feeds supplier_name on
+// create only).
+const CANONICAL_MAP: Record<string, string> = {
+  contact_first_name: 'first_name',
+  contact_last_name: 'last_name',
+  contact_email: 'email',
+  contact_phone: 'mobile',
+  contact_zip: 'zip',
+  contact_phone_verified: 'phone_verified',
+  contact_jornaya_token: 'jornaya_token',
+  contact_optin_url: 'optin_url',
+  contact_user_agent: 'user_agent',
+  geo_country: 'geoip_country',
+  geo_state: 'geoip_state',
+  geo_city: 'geoip_city',
+  geo_zip: 'geoip_zip',
+  geo_ip: 'ip_address',
+  geo_language: 'geo_language',
+  utm_source: 'utm_source',
+  utm_campaign: 'utm_campaign',
+  utm_medium: 'utm_medium',
+  utm_content: 'utm_content',
+  utm_terms: 'utm_terms',
+  utm_ad_label: 'ad_label',
+  supplier_sid: 'sid',
+  supplier_ssid: 'ssid',
+  supplier_s1: 's1',
+  supplier_s2: 's2',
+  supplier_s3: 's3',
+  supplier_brand: 'supplier_brand',
+  tc_id: 'tc_id',
+  leadshook_id: 'leadshook_id',
+  accident_state: 'accident_state',
+  accident_type: 'accident_type',
+  accident_details: 'accident_details',
+  incident_date: 'incident_date',
+  injured: 'injured',
+  injury_type: 'injury_type',
+  treatment: 'treatment',
+  treatment_type: 'treatment_type',
+  treatment_time: 'treatment_time',
+  fault: 'fault',
+  attorney: 'attorney',
+  attorney_change: 'attorney_change',
+  insurance: 'insurance',
+  police_report_filed: 'police_report',
+  lead_status: 'lead_status',
+  lead_revenue: 'revenue',
+  lead_vertical: 'vertical',
+  leadbyte_id: 'lead_id',
+  date_created: 'timestamp',
+};
+
+// Build the canonical object from the payload, keeping only cleaned present
+// values (clean skips null/empty/single-dash).
+function buildCanonical(body: Record<string, any>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [payloadKey, canonicalKey] of Object.entries(CANONICAL_MAP)) {
+    const value = clean(body[payloadKey]);
+    if (value !== null) out[canonicalKey] = value;
+  }
+  return out;
+}
+
+// Parse existing mapped_fields JSON to an object; null/empty/invalid -> {}.
+function parseMapped(v: unknown): Record<string, any> {
+  const s = clean(v);
+  if (s === null) return {};
+  try {
+    const parsed = JSON.parse(s);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -101,6 +180,7 @@ Deno.serve(async (req) => {
   try {
     const leadbyteId = num(body.leadbyte_id);
     const finalStatus = mapFinalStatus(body.lead_status);
+    const canonical = buildCanonical(body);
 
     // Outcome fields shared by update and create.
     const outcome: Record<string, any> = {};
@@ -144,6 +224,13 @@ Deno.serve(async (req) => {
       if (!clean(existing.last_name) && contactLast) patch.last_name = contactLast;
       if (!clean(existing.email) && contactEmail) patch.email = contactEmail;
       if (!clean(existing.mobile) && contactPhone) patch.mobile = contactPhone;
+      // Merge canonical fields into mapped_fields, filling only blanks so we
+      // never overwrite an existing non-empty value.
+      const mergedMapped = parseMapped(existing.mapped_fields);
+      for (const [key, value] of Object.entries(canonical)) {
+        if (clean(mergedMapped[key]) === null) mergedMapped[key] = value;
+      }
+      patch.mapped_fields = JSON.stringify(mergedMapped);
       await svc.entities.Lead.update(existing.id, patch);
       resultStatus = patch.final_status || existing.final_status || null;
     } else {
@@ -154,6 +241,7 @@ Deno.serve(async (req) => {
         // A create must always have a final_status; default to Processing when
         // the payload lead_status did not map.
         final_status: finalStatus || 'Processing',
+        mapped_fields: JSON.stringify(canonical),
       };
       if (leadbyteId !== null) createData.leadbyte_lead_id = leadbyteId;
       if (contactFirst) createData.first_name = contactFirst;
