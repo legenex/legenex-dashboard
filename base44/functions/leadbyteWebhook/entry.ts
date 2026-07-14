@@ -238,7 +238,17 @@ Deno.serve(async (req) => {
       await svc.entities.Lead.update(existing.id, patch);
       resultStatus = patch.final_status || existing.final_status || null;
     } else {
-      const supplierName = clean(body.supplier_source) || clean(body.supplier_brand) || 'LeadByte';
+      // Derive supplier_name from the real supplier identified by supplier_sid,
+      // not the ad platform (supplier_source) or brand.
+      let supplierName = 'LeadByte';
+      const sid = clean(body.supplier_sid);
+      if (sid) {
+        supplierName = sid;
+        const suppliers = await svc.entities.Supplier.filter({ sid });
+        const supplier = (Array.isArray(suppliers) ? suppliers : [])[0] || null;
+        const resolvedName = supplier ? clean(supplier.name) : null;
+        if (resolvedName) supplierName = resolvedName;
+      }
       const createData: Record<string, any> = {
         ...outcome,
         supplier_name: supplierName,
