@@ -65,8 +65,9 @@ function setIf(out: Record<string, any>, key: string, value: unknown) {
 // Translation map: webhook payload key -> app canonical field name. These land
 // in Lead.mapped_fields (never first-class outcome columns). Deliberate
 // exclusions: contact_trustedform_url (stays only in the raw payload),
-// accident_date (a Calculated field), supplier_source (feeds supplier_name on
-// create only).
+// accident_date (a Calculated field). supplier_source maps into the
+// "Supplier Source" canonical field like any other mapped field and no longer
+// feeds supplier_name.
 const CANONICAL_MAP: Record<string, string> = {
   contact_first_name: 'first_name',
   contact_last_name: 'last_name',
@@ -95,6 +96,7 @@ const CANONICAL_MAP: Record<string, string> = {
   supplier_s2: 's2',
   supplier_s3: 's3',
   supplier_brand: 'supplier_brand',
+  supplier_source: 'Supplier Source',
   tc_id: 'tc_id',
   leadshook_id: 'leadshook_id',
   accident_state: 'accident_state',
