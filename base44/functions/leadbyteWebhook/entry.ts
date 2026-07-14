@@ -46,11 +46,9 @@ function mapFinalStatus(v: unknown): string | null {
   if (s === null) return null;
   const map: Record<string, string> = {
     sold: 'Sold',
-    unsold: 'Unsold',
     returned: 'Returned',
-    duplicate: 'Duplicate',
-    disqualified: 'Disqualified',
-    qualified: 'Qualified',
+    unsold: 'Unsold',
+    rejected: 'Rejected',
   };
   return map[s.toLowerCase()] || null;
 }
