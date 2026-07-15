@@ -17,6 +17,7 @@ import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfMonth, su
 import { processLead } from '@/functions/processLead';
 import { loadColumnConfig, saveColumnConfig, getColumnDef, buildAvailableColumns } from '@/lib/columnConfig';
 import { leadEventInstant } from '@/lib/reportMetrics';
+import { invalidateLeadCaches } from '@/lib/leadCaches';
 
 function getFieldValue(lead, field) {
   if (lead[field] != null && lead[field] !== '') return String(lead[field]);
@@ -214,7 +215,7 @@ export default function LeadsTable({ view }) {
   // Keep the table (and Status column) in sync when leads change in the backend.
   useEffect(() => {
     const unsubscribe = base44.entities.Lead.subscribe(() => {
-      qc.invalidateQueries({ queryKey: ['leads-all-non-archived'] });
+      invalidateLeadCaches(qc);
     });
     return () => { if (typeof unsubscribe === 'function') unsubscribe(); };
   }, [qc]);
@@ -433,7 +434,7 @@ export default function LeadsTable({ view }) {
     toast.success(`${ids.length} lead${ids.length !== 1 ? 's' : ''} deleted`);
     clearSelection();
     setBulkDeleteOpen(false);
-    qc.invalidateQueries({ queryKey: ['leads'] });
+    invalidateLeadCaches(qc);
   };
 
   const handleBulkQueue = async () => {
@@ -443,7 +444,7 @@ export default function LeadsTable({ view }) {
     }
     toast.success(`${ids.length} lead${ids.length !== 1 ? 's' : ''} queued`);
     clearSelection();
-    qc.invalidateQueries({ queryKey: ['leads'] });
+    invalidateLeadCaches(qc);
   };
 
   const handleBulkResubmit = async () => {
@@ -470,7 +471,7 @@ export default function LeadsTable({ view }) {
     setResubmitting(false);
     setResubmitProgress(null);
     clearSelection();
-    qc.invalidateQueries({ queryKey: ['leads'] });
+    invalidateLeadCaches(qc);
   };
 
   const handleBulkEdit = () => {

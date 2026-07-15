@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { toZonedTime } from 'date-fns-tz';
 import { APP_TZ } from '@/lib/periodRange';
+import { invalidateLeadCaches } from '@/lib/leadCaches';
 
 // Core target fields per entity. Custom fields (for leads) are appended at runtime.
 const LEAD_FIELDS = ['first_name', 'last_name', 'email', 'mobile', 'supplier_name', 'revenue', 'conv_value', 'final_status', 'email_valid'];
@@ -619,7 +620,7 @@ export default function CsvImporter() {
           setProgress({ done: Math.min(i + chunk.length, clean.length), total: clean.length });
         }
         setProgress(null);
-        qc.invalidateQueries({ queryKey: ['report-leads'] });
+        invalidateLeadCaches(qc);
         if (failedCount) console.warn('CSV import failed records:', failedRecords);
         const unresolvedSuffix = importDiagnostics
           ? `${importDiagnostics.unresolvedSid ? `, ${importDiagnostics.unresolvedSid} unresolved supplier` : ''}${importDiagnostics.unparsedTs ? `, ${importDiagnostics.unparsedTs} unparsed timestamp` : ''}`
