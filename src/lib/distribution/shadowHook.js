@@ -34,7 +34,7 @@ export async function runShadow(db, ctx) {
 
     // 3. Load snapshot (bounded/paginated) and run the canonical engine.
     const t0 = clock();
-    const snap = await loadRoutingSnapshot(db, { campaignId, nowMs, capCountsFor: ctx.capCountsFor });
+    const snap = await loadRoutingSnapshot(db, { campaignId, nowMs });
     const decision = routeWaterfall(snap.groups, leadData || {}, {
       idempotencyKey, evalConditions: (t, d) => evalConditionTree(t, d, { nowMs }),
     });

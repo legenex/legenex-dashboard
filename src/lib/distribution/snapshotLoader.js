@@ -35,8 +35,9 @@ export async function hasActiveRouteGroup(db, campaignId, nowMs, ttlMs = 5000) {
 
 export function _clearActiveGroupCache() { activeGroupCache.clear(); }
 
-// Load a full snapshot for a campaign via bounded paginated reads.
-export async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId, capCountsFor }) {
+// Load a full snapshot for a campaign via bounded paginated reads. Cap counts are
+// pre-loaded here (async) and exposed to the pure mapper as a SYNC lookup.
+export async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId }) {
   const groups = await loadAllFiltered(db.entities.RouteGroup, { campaign_id: campaignId, active: true, lifecycle: 'active' }, { sort: 'order_index' });
   const groupIds = groups.map((g) => g.id);
   // Members for these groups only (filtered, never a full list).
@@ -53,8 +54,20 @@ export async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersion
   const health = [];
   for (const id of destIds) { const r = await db.entities.DestinationHealth.filter({ destination_id: id }); if (r && r[0]) health.push(r[0]); }
 
+  // Pre-load cap counters for these members (async), then hand the mapper a sync lookup.
+  const capMap = {};
+  if (db.entities.CapCounter) {
+    for (const m of members) {
+      try {
+        const rows = await db.entities.CapCounter.filter({ scope_type: 'route_member', scope_id: m.id });
+        for (const r of rows || []) if (r.window) capMap[`${m.id}:${r.window}`] = Number(r.count || 0);
+      } catch { /* no counters yet */ }
+    }
+  }
+  const capCountsFor = (memberId, window) => capMap[`${memberId}:${window}`] || 0;
+
   return buildRoutingSnapshot(
     { groups, members, buyers, destinations, health },
-    { campaignId, nowMs, configVersionId, capCountsFor: capCountsFor || (() => 0) },
+    { campaignId, nowMs, configVersionId, capCountsFor },
   );
 }

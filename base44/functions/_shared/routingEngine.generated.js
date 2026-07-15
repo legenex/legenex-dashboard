@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 2c07eb03f2754233d5a083e039aeca10b85c677db79de1794d69c0c9c8b89aa0
+// canonical-engine-sha256: b632d38ace1f289b557ad7a1339c54f0e2e7ada73dc78ef5714e3b0e95d8e07d
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -578,7 +578,7 @@ async function hasActiveRouteGroup(db, campaignId, nowMs, ttlMs = 5e3) {
 function _clearActiveGroupCache() {
   activeGroupCache.clear();
 }
-async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId, capCountsFor }) {
+async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId }) {
   const groups = await loadAllFiltered(db.entities.RouteGroup, { campaign_id: campaignId, active: true, lifecycle: "active" }, { sort: "order_index" });
   const groupIds = groups.map((g) => g.id);
   let members = [];
@@ -602,9 +602,20 @@ async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId, cap
     const r = await db.entities.DestinationHealth.filter({ destination_id: id });
     if (r && r[0]) health.push(r[0]);
   }
+  const capMap = {};
+  if (db.entities.CapCounter) {
+    for (const m of members) {
+      try {
+        const rows = await db.entities.CapCounter.filter({ scope_type: "route_member", scope_id: m.id });
+        for (const r of rows || []) if (r.window) capMap[`${m.id}:${r.window}`] = Number(r.count || 0);
+      } catch {
+      }
+    }
+  }
+  const capCountsFor = (memberId, window) => capMap[`${memberId}:${window}`] || 0;
   return buildRoutingSnapshot(
     { groups, members, buyers, destinations, health },
-    { campaignId, nowMs, configVersionId, capCountsFor: capCountsFor || (() => 0) }
+    { campaignId, nowMs, configVersionId, capCountsFor }
   );
 }
 
@@ -631,7 +642,7 @@ async function runShadow(db, ctx) {
       return { ran: false, reason: "no_route_config" };
     }
     const t0 = clock();
-    const snap = await loadRoutingSnapshot(db, { campaignId, nowMs, capCountsFor: ctx.capCountsFor });
+    const snap = await loadRoutingSnapshot(db, { campaignId, nowMs });
     const decision = routeWaterfall(snap.groups, leadData || {}, {
       idempotencyKey: idempotencyKey2,
       evalConditions: (t, d) => evalConditionTree(t, d, { nowMs })
@@ -675,6 +686,66 @@ function flattenTrace(trace) {
     out.push({ group_id: g.groupId, member_id: c.memberId, eligible: c.eligible, reason_code: c.reason, price: c.price });
   }
   return out;
+}
+
+// src/lib/distribution/simulateReport.js
+var REASON_TEXT = {
+  ELIGIBLE: "Eligible",
+  MEMBER_INACTIVE: "Route member inactive",
+  BUYER_LIFECYCLE_INELIGIBLE: "Buyer not active",
+  OUTSIDE_SCHEDULE: "Outside schedule",
+  FILTER_STATE: "State not covered",
+  FILTER_ZIP: "ZIP not covered",
+  FILTER_COUNTY: "County not covered",
+  FILTER_VERTICAL: "Vertical not accepted",
+  FILTER_BRAND: "Brand not accepted",
+  FILTER_SUPPLIER: "Supplier not accepted",
+  FILTER_SOURCE: "Source not accepted",
+  QUALIFICATION_FAILED: "Failed qualification",
+  SUPPRESSED: "Suppressed",
+  CAP_TOTAL: "Total cap reached",
+  CAP_HOURLY: "Hourly cap reached",
+  CAP_DAILY: "Daily cap reached",
+  CAP_WEEKLY: "Weekly cap reached",
+  CAP_MONTHLY: "Monthly cap reached",
+  LOW_BALANCE: "Wallet balance too low",
+  OVER_CREDIT_LIMIT: "Over credit limit",
+  DESTINATION_UNHEALTHY: "Destination circuit open",
+  BELOW_RESERVE: "Below reserve",
+  NO_ELIGIBLE_MEMBER: "No eligible route member"
+};
+async function runSimulation(db, { campaignId, leadData, nowMs }) {
+  const snap = await loadRoutingSnapshot(db, { campaignId, nowMs });
+  const decision = routeWaterfall(snap.groups, leadData || {}, {
+    idempotencyKey: "simulate",
+    evalConditions: (t, d) => evalConditionTree(t, d, { nowMs })
+  });
+  const explanation = (decision.trace || []).map((g) => ({
+    groupId: g.groupId,
+    method: g.method,
+    candidates: (g.candidates || []).map((c) => ({
+      memberId: c.memberId,
+      eligible: c.eligible,
+      reason: c.reason,
+      reasonText: REASON_TEXT[c.reason] || c.reason,
+      price: c.price
+    }))
+  }));
+  return {
+    simulated: true,
+    sideEffects: "none",
+    configVersion: snap.configHash,
+    configErrors: snap.configErrors,
+    decision: decision.winner ? {
+      winnerMemberId: decision.winner.id,
+      buyerId: decision.winner.buyerId ?? null,
+      groupId: decision.groupId,
+      method: decision.method,
+      price: decision.price,
+      fallthroughPath: decision.fallthroughPath
+    } : { winnerMemberId: null, reason: decision.reason || "NO_ELIGIBLE_MEMBER" },
+    explanation
+  };
 }
 
 // src/lib/distribution/capStore.js
@@ -1677,6 +1748,7 @@ export {
   runPingPost,
   runRetryWorker,
   runShadow,
+  runSimulation,
   selectAuction,
   selectHybrid,
   selectPriority,
