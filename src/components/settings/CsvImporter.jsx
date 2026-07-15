@@ -429,12 +429,20 @@ export default function CsvImporter() {
       const name = (file.name || '').toLowerCase();
       const isDelimited = name.endsWith('.csv') || name.endsWith('.tsv');
       let list = [];
+      // headerCols holds the authoritative column list. For CSV/TSV it is the
+      // parsed header row (result.meta.fields), which is complete even when
+      // individual data rows are short. For the extract path there is no header
+      // metadata, so we take the union of keys across all rows.
+      let headerCols = null;
       if (isDelimited) {
         // Parse CSV/TSV in the browser. Reliable on large or wide files with
         // quoted fields containing line breaks, where AI extraction fails.
         const text = await file.text();
         const result = Papa.parse(text, { header: true, skipEmptyLines: true });
         list = Array.isArray(result?.data) ? result.data : [];
+        if (Array.isArray(result?.meta?.fields) && result.meta.fields.length) {
+          headerCols = result.meta.fields;
+        }
       } else {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         const extract = await base44.integrations.Core.ExtractDataFromUploadedFile({
@@ -443,9 +451,16 @@ export default function CsvImporter() {
         });
         const parsed = extract?.output?.rows || extract?.output || [];
         list = Array.isArray(parsed) ? parsed : [];
+        // Union of keys across all rows, preserving first-seen order, since
+        // rows here are ragged objects with no shared header.
+        const seen = new Set();
+        const union = [];
+        list.forEach(r => Object.keys(r || {}).forEach(k => { if (!seen.has(k)) { seen.add(k); union.push(k); } }));
+        if (union.length) headerCols = union;
       }
       if (!list.length) { toast.error('No rows found in the file'); setBusy(false); return; }
-      const cols = Object.keys(list[0] || {});
+      // Fall back to the first row's keys only when neither source yielded columns.
+      const cols = headerCols || Object.keys(list[0] || {});
       setRows(list); setColumns(cols);
 
       // Deterministic layered auto-map: status override -> normalized exact ->
