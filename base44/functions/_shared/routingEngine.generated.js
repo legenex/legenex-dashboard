@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: fa83fa0965b1db1f7a70933a842674cf715dfcd0208f42f73e70dfaeff89df65
+// canonical-engine-sha256: 2c07eb03f2754233d5a083e039aeca10b85c677db79de1794d69c0c9c8b89aa0
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -1570,10 +1570,65 @@ function rankBids(bids, opts = {}) {
     excluded: evaluated.filter((b) => b.reason !== BID_REASON.ELIGIBLE).map((b) => ({ id: b.id, reason: b.reason }))
   };
 }
+
+// src/lib/distribution/shadowCompare.js
+var COMPARE = {
+  EXACT_MATCH: "exact_match",
+  // both routed identically, or both declined
+  BUYER_MISMATCH: "buyer_mismatch",
+  DESTINATION_MISMATCH: "destination_mismatch",
+  PRICE_MISMATCH: "price_mismatch",
+  STATUS_MISMATCH: "status_mismatch",
+  LEGACY_ONLY: "legacy_only",
+  // legacy routed, native did not
+  NATIVE_ONLY: "native_only",
+  // native routed, legacy did not
+  QUALIFICATION_MISMATCH: "qualification_mismatch",
+  CONFIGURATION_ERROR: "configuration_error",
+  EVALUATION_ERROR: "evaluation_error"
+};
+var AGREE = /* @__PURE__ */ new Set([COMPARE.EXACT_MATCH]);
+function eqNum(a, b) {
+  return Math.abs(Number(a || 0) - Number(b || 0)) < 5e-3;
+}
+function compareDecision(legacy = {}, native = {}) {
+  if (native.evalError) return cat(COMPARE.EVALUATION_ERROR);
+  if (native.configError) return cat(COMPARE.CONFIGURATION_ERROR);
+  const lr = !!legacy.routed;
+  const nr = !!native.routed;
+  if (!lr && !nr) return cat(COMPARE.EXACT_MATCH);
+  if (lr && !nr) {
+    if (String(native.legacyBuyerExcludedReason || "").toUpperCase().includes("QUALIFICATION")) {
+      return cat(COMPARE.QUALIFICATION_MISMATCH);
+    }
+    return cat(COMPARE.LEGACY_ONLY);
+  }
+  if (!lr && nr) return cat(COMPARE.NATIVE_ONLY);
+  if (String(legacy.buyerId) !== String(native.buyerId)) return cat(COMPARE.BUYER_MISMATCH);
+  if (String(legacy.destinationId) !== String(native.destinationId)) return cat(COMPARE.DESTINATION_MISMATCH);
+  if (!eqNum(legacy.price, native.price)) return cat(COMPARE.PRICE_MISMATCH);
+  if (String(legacy.status || "").toLowerCase() !== String(native.status || "").toLowerCase()) return cat(COMPARE.STATUS_MISMATCH);
+  return cat(COMPARE.EXACT_MATCH);
+}
+function cat(category) {
+  return { category, agree: AGREE.has(category) };
+}
+function summarizeComparisons(pairs) {
+  const counts = Object.fromEntries(Object.values(COMPARE).map((c) => [c, 0]));
+  for (const p of pairs || []) counts[compareDecision(p.legacy, p.native).category] += 1;
+  const total = (pairs || []).length;
+  const agreements = counts[COMPARE.EXACT_MATCH];
+  const discrepancies = total - agreements;
+  return { total, counts, agreements, discrepancies, discrepancyRate: total ? round4(discrepancies / total) : 0 };
+}
+function round4(n) {
+  return Math.round(n * 1e4) / 1e4;
+}
 export {
   ATTEMPT_STATUS,
   BID_REASON,
   CIRCUIT,
+  COMPARE,
   OPERATORS,
   PING_ALLOWLIST,
   REASON,
@@ -1588,6 +1643,7 @@ export {
   buildRoutingSnapshot,
   capWindowStart,
   classifyResponse,
+  compareDecision,
   computeBackoffMs,
   computeBillingLines,
   deliverDirectPost,
@@ -1627,6 +1683,7 @@ export {
   selectRoundRobin,
   selectWeighted,
   shouldRetry,
+  summarizeComparisons,
   wallClock,
   walletCredit,
   walletCreditReturn,

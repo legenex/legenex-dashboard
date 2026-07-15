@@ -30,6 +30,7 @@ export {
 } from './destinationHealth.js';
 export { wallClock, isWithinSchedule } from './schedule.js';
 export { rankBids, BID_REASON } from './pingpost.js';
+export { compareDecision, summarizeComparisons, COMPARE } from './shadowCompare.js';
 export {
   ATTEMPT_STATUS, computeBackoffMs, nextRetryAtIso, shouldRetry, classifyResponse,
   buildAttemptRecord,
