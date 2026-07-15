@@ -178,6 +178,12 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
           <TabsContent value="leadbyte" className="mt-4 space-y-4">
             <JsonViewer data={lead.leadbyte_request} title="LeadByte Request" />
             <JsonViewer data={lead.leadbyte_response} title="LeadByte Response" />
+            {lead.leadbyte_outcome_payload && (
+              <div className="space-y-1.5">
+                <JsonViewer data={lead.leadbyte_outcome_payload} title="Inbound Outcome Payload" />
+                <div className="text-[12px] text-muted-foreground">Received from LeadByte via the inbound outcome webhook.</div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="capi" className="mt-4">
