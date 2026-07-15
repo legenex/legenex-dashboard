@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 322ca9f44f9eb8036336af136817f2e034de15f1e95b84d3e7cd62bd5a7a7ec7
+// canonical-engine-sha256: 7e8e4e2d36159ce974e98895a141dd0780e961b3439966be6821ea5d28586474
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -1099,9 +1099,10 @@ async function failClosed(ctx, cfg, nowMs, errorClass, code) {
 }
 
 // src/lib/distribution/deliveryStore.js
-function makeInMemoryAttemptStore() {
+function makeInMemoryAttemptStore({ yieldFn } = {}) {
   const attempts = [];
   let seq = 0;
+  const microYield = yieldFn || (() => new Promise((r) => setTimeout(r, 0)));
   return {
     async createAttempt(rec) {
       const row = { ...rec, id: "a" + ++seq };
@@ -1118,6 +1119,22 @@ function makeInMemoryAttemptStore() {
     },
     async listDue(nowMs) {
       return attempts.filter((a) => a.status === "error" && a.next_retry_at != null && Date.parse(a.next_retry_at) <= nowMs && (a.lease_until == null || Date.parse(a.lease_until) <= nowMs));
+    },
+    // Atomic lease claim (honest CAS on lease_version). Exactly one concurrent
+    // worker wins an unleased (or expired-lease) attempt.
+    async claimLease(id, workerId, nowMs, leaseMs) {
+      const a = attempts.find((x) => x.id === id);
+      if (!a) return false;
+      const version = a.lease_version || 0;
+      await microYield();
+      const latest = attempts.find((x) => x.id === id);
+      const activeLease = latest.lease_until ? Date.parse(latest.lease_until) : 0;
+      if (activeLease > nowMs) return false;
+      if ((latest.lease_version || 0) !== version) return false;
+      latest.lease_until = new Date(nowMs + leaseMs).toISOString();
+      latest.leased_by = workerId;
+      latest.lease_version = version + 1;
+      return true;
     },
     _debug: { attempts }
   };
@@ -1138,6 +1155,141 @@ function makeBase44AttemptStore(db) {
       const iso = new Date(nowMs).toISOString();
       const rows = await db.entities.DeliveryAttempt.filter({ status: "error" }, "next_retry_at", limit);
       return rows.filter((a) => a.next_retry_at && a.next_retry_at <= iso && (!a.lease_until || a.lease_until <= iso));
+    },
+    async claimLease(id, workerId, nowMs, leaseMs) {
+      const rows = await db.entities.DeliveryAttempt.filter({ id });
+      const a = rows[0];
+      if (!a) return false;
+      const activeLease = a.lease_until ? Date.parse(a.lease_until) : 0;
+      if (activeLease > nowMs) return false;
+      const version = a.lease_version || 0;
+      const res = await db.entities.DeliveryAttempt.updateMany(
+        { id, lease_version: version },
+        { $set: { lease_until: new Date(nowMs + leaseMs).toISOString(), leased_by: workerId, lease_version: version + 1 } }
+      );
+      return !!(res && res.updated > 0);
+    }
+  };
+}
+
+// src/lib/distribution/retryWorker.js
+function seededUnit(str) {
+  let h = 2166136261;
+  for (let i = 0; i < String(str).length; i++) {
+    h ^= String(str).charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) % 1e3 / 1e3;
+}
+function backoffWithJitter(attemptNumber, seed, opts = {}) {
+  const base = computeBackoffMs(attemptNumber, opts);
+  const u = opts.rng ? opts.rng() : seededUnit(`${seed}:${attemptNumber}`);
+  return Math.min(opts.maxMs ?? 36e5, Math.round(base * (0.5 + 0.5 * u)));
+}
+async function runRetryWorker(store, deliverFn, ctx) {
+  const { nowMs, workerId, leaseMs = 3e4, healthStore, maxAttempts = 5, retryOpts = {} } = ctx;
+  const due = await store.listDue(nowMs);
+  const processed = [];
+  for (const a of due) {
+    const won = await store.claimLease(a.id, workerId, nowMs, leaseMs);
+    if (!won) continue;
+    const nextAttemptNum = (a.attempt_number || 1) + 1;
+    const res = await deliverFn({ ...a, attempt_number: nextAttemptNum });
+    const success = res.status === ATTEMPT_STATUS.ACCEPTED;
+    if (healthStore) await healthStore.recordResult(a.destination_id, success, nowMs, ctx.healthOpts);
+    if (success || res.status === ATTEMPT_STATUS.REJECTED || res.status === ATTEMPT_STATUS.DUPLICATE) {
+      await store.updateAttempt(a.id, { status: res.status, next_retry_at: null, lease_until: null });
+    } else if (nextAttemptNum >= maxAttempts) {
+      await store.updateAttempt(a.id, { status: ATTEMPT_STATUS.DEAD_LETTER, next_retry_at: null, lease_until: null, attempt_number: nextAttemptNum });
+    } else {
+      const delay = backoffWithJitter(nextAttemptNum, a.id, retryOpts);
+      await store.updateAttempt(a.id, {
+        status: ATTEMPT_STATUS.ERROR,
+        attempt_number: nextAttemptNum,
+        next_retry_at: new Date(nowMs + delay).toISOString(),
+        lease_until: null
+      });
+    }
+    processed.push({ id: a.id, worker: workerId, status: res.status });
+  }
+  return processed;
+}
+async function manualRetry(store, attemptId, deliverFn, ctx) {
+  const a = await store.getAttempt(attemptId);
+  if (!a) return { ok: false, reason: "not_found" };
+  const won = await store.claimLease(attemptId, ctx.workerId || "manual", ctx.nowMs, ctx.leaseMs || 3e4);
+  if (!won) return { ok: false, reason: "leased" };
+  const res = await deliverFn({ ...a, attempt_number: (a.attempt_number || 1) + 1 });
+  await store.updateAttempt(attemptId, {
+    status: res.status,
+    lease_until: null,
+    next_retry_at: res.status === ATTEMPT_STATUS.ERROR ? new Date(ctx.nowMs).toISOString() : null
+  });
+  if (ctx.healthStore) await ctx.healthStore.recordResult(a.destination_id, res.status === ATTEMPT_STATUS.ACCEPTED, ctx.nowMs, ctx.healthOpts);
+  return { ok: true, status: res.status };
+}
+
+// src/lib/distribution/destinationHealth.js
+var CIRCUIT = { CLOSED: "closed", OPEN: "open", HALF_OPEN: "half_open" };
+function nextHealth(cur, success, nowMs, opts = {}) {
+  const threshold = opts.failureThreshold ?? 5;
+  const cooldownMs = opts.cooldownMs ?? 6e4;
+  const h = cur || { state: CIRCUIT.CLOSED, consecutive_failures: 0 };
+  if (success) {
+    return { state: CIRCUIT.CLOSED, consecutive_failures: 0, last_success_at: new Date(nowMs).toISOString(), disabled_until: null };
+  }
+  const failures = (h.consecutive_failures || 0) + 1;
+  const open = failures >= threshold;
+  return {
+    state: open ? CIRCUIT.OPEN : h.state === CIRCUIT.HALF_OPEN ? CIRCUIT.OPEN : CIRCUIT.CLOSED,
+    consecutive_failures: failures,
+    last_failure_at: new Date(nowMs).toISOString(),
+    disabled_until: open ? new Date(nowMs + cooldownMs).toISOString() : h.disabled_until || null
+  };
+}
+function isBlocked(h, nowMs) {
+  if (!h || h.state === CIRCUIT.CLOSED) return false;
+  if (h.state === CIRCUIT.OPEN) {
+    if (h.disabled_until && Date.parse(h.disabled_until) > nowMs) return true;
+    return false;
+  }
+  return false;
+}
+function makeInMemoryHealthStore() {
+  const map = /* @__PURE__ */ new Map();
+  return {
+    async get(destId) {
+      return map.get(destId) || null;
+    },
+    async set(destId, h) {
+      map.set(destId, h);
+      return h;
+    },
+    async recordResult(destId, success, nowMs, opts) {
+      const next = nextHealth(map.get(destId), success, nowMs, opts);
+      map.set(destId, next);
+      return next;
+    },
+    _debug: { map }
+  };
+}
+function makeBase44HealthStore(db) {
+  async function get(destId) {
+    const rows = await db.entities.DestinationHealth.filter({ destination_id: destId });
+    return rows[0] || null;
+  }
+  return {
+    get,
+    async set(destId, h) {
+      const rows = await db.entities.DestinationHealth.filter({ destination_id: destId });
+      if (rows[0]) return db.entities.DestinationHealth.update(rows[0].id, h);
+      return db.entities.DestinationHealth.create({ destination_id: destId, ...h });
+    },
+    async recordResult(destId, success, nowMs, opts) {
+      const cur = await get(destId);
+      const next = nextHealth(cur, success, nowMs, opts);
+      await this.set(destId, next);
+      return next;
     }
   };
 }
@@ -1173,12 +1325,14 @@ function rankBids(bids, opts = {}) {
 export {
   ATTEMPT_STATUS,
   BID_REASON,
+  CIRCUIT,
   OPERATORS,
   REASON,
   RESERVE,
   WALLET,
   applyReturnAdjustment,
   applyTransform,
+  backoffWithJitter,
   buildAttemptRecord,
   buildRoutingSnapshot,
   capWindowStart,
@@ -1192,13 +1346,18 @@ export {
   exhaustedCap,
   finalize,
   idempotencyKey,
+  isBlocked,
   isValidTrustedForm,
   isWithinSchedule,
   makeBase44AttemptStore,
   makeBase44CapStore,
+  makeBase44HealthStore,
   makeBase44WalletStore,
   makeInMemoryAttemptStore,
+  makeInMemoryHealthStore,
+  manualRetry,
   missingRequiredFields,
+  nextHealth,
   nextRetryAtIso,
   rankBids,
   redact,
@@ -1206,6 +1365,7 @@ export {
   reserve,
   resolvePrice,
   routeWaterfall,
+  runRetryWorker,
   selectAuction,
   selectHybrid,
   selectPriority,

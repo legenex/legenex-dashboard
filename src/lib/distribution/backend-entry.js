@@ -21,6 +21,10 @@ export { computeBillingLines, applyReturnAdjustment } from './billing.js';
 export { deliverDirectPost } from './directPost.js';
 export { makeBase44AttemptStore, makeInMemoryAttemptStore } from './deliveryStore.js';
 export { applyTransform } from './transforms.js';
+export { runRetryWorker, manualRetry, backoffWithJitter } from './retryWorker.js';
+export {
+  makeBase44HealthStore, makeInMemoryHealthStore, nextHealth, isBlocked, CIRCUIT,
+} from './destinationHealth.js';
 export { wallClock, isWithinSchedule } from './schedule.js';
 export { rankBids, BID_REASON } from './pingpost.js';
 export {
