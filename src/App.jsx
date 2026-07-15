@@ -37,6 +37,7 @@ import Finances from '@/pages/Finances';
 
 import Deliveries from '@/pages/Deliveries';
 import ConversionEvents from '@/pages/ConversionEvents';
+import RouteSimulator from '@/pages/RouteSimulator';
 import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
@@ -188,6 +189,7 @@ const AuthenticatedApp = () => {
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/deliveries" element={<Deliveries />} />
             <Route path="/conversion-events" element={<ConversionEvents />} />
+            <Route path="/distribution/simulator" element={<RouteSimulator />} />
           </Route>
           <Route path="/suppliers/:id" element={<SupplierDetail />} />
           <Route path="/buyers/:id" element={<BuyerDetail />} />

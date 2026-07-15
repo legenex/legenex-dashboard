@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, Webhook, Zap, ChevronRight, Layers, Users, Truck, Tag } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Send, Zap, Route as RouteIcon, ChevronRight, Webhook, Layers, Users, Truck, Tag } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
@@ -13,6 +13,7 @@ const ITEMS = [
   ] },
   { label: 'Webhooks', path: '/deliveries', icon: Webhook },
   { label: 'Conversion Events', path: '/conversion-events', icon: Zap },
+  { label: 'Simulator', path: '/distribution/simulator', icon: RouteIcon },
 ];
 
 const linkClass = (active) =>

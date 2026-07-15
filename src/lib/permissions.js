@@ -30,6 +30,7 @@ export const PERMISSION_GROUPS = [
       { key: 'dist_brands', label: 'Brands' },
       { key: 'dist_deliveries', label: 'Deliveries' },
       { key: 'dist_conversion_events', label: 'Conversion Events' },
+      { key: 'dist_simulator', label: 'Simulator' },
     ],
   },
   {
@@ -100,6 +101,7 @@ export const PATH_KEYS = {
   '/campaigns': 'dist_campaigns',
   '/deliveries': 'dist_deliveries',
   '/conversion-events': 'dist_conversion_events',
+  '/distribution/simulator': 'dist_simulator',
   '/reports': 'reports',
   '/finances': 'finances',
   '/operations/buyers': 'operations',
