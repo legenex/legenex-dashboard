@@ -81,6 +81,7 @@ export function buildRoutingSnapshot(records, ctx = {}) {
       id: g.id,
       orderIndex: g.order_index || 0,
       method: g.method || 'priority',
+      configHash: g.config_hash || null,
       weights: { price: num(g.price_weight) ?? 0.5, priority: num(g.priority_weight) ?? 0.5 },
       members: (records.members || [])
         .filter((m) => String(m.route_group_id) === String(g.id))

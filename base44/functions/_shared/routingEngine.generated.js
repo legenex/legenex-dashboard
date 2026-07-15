@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: b632d38ace1f289b557ad7a1339c54f0e2e7ada73dc78ef5714e3b0e95d8e07d
+// canonical-engine-sha256: e3cc9a70cce101f748cdfefce3c56de5ab84b23f3754bd52bea498724e475552
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -216,6 +216,7 @@ function routeWaterfall(groups, lead, ctx = {}) {
         winner,
         groupId: group.id,
         method: group.method,
+        configHash: group.configHash || null,
         price: resolvePrice(winner),
         fallthroughPath: orderedGroups.slice(0, orderedGroups.indexOf(group)).map((g) => g.id),
         rrCursors: rrOut,
@@ -486,6 +487,7 @@ function buildRoutingSnapshot(records, ctx = {}) {
     id: g.id,
     orderIndex: g.order_index || 0,
     method: g.method || "priority",
+    configHash: g.config_hash || null,
     weights: { price: num(g.price_weight) ?? 0.5, priority: num(g.priority_weight) ?? 0.5 },
     members: (records.members || []).filter((m) => String(m.route_group_id) === String(g.id)).sort((a, b) => (a.priority || 0) - (b.priority || 0)).map((m) => buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs: ctx.nowMs }))
   }));
@@ -658,7 +660,7 @@ async function runShadow(db, ctx) {
       price: decision.winner ? decision.price : 0,
       fallthrough_path: JSON.stringify(decision.fallthroughPath || []),
       result: decision.winner ? "shadow_selected" : decision.reason || "no_eligible_member",
-      config_version: snap.configHash || null,
+      config_version: decision.winner && decision.configHash || snap.configHash || null,
       eval_latency_ms: latency,
       created_at: new Date(nowMs).toISOString()
     });
@@ -1695,12 +1697,179 @@ function summarizeComparisons(pairs) {
 function round4(n) {
   return Math.round(n * 1e4) / 1e4;
 }
+
+// src/lib/distribution/operatorAuth.js
+var OPERATOR_PERMISSION_KEYS = ["leads", "reports", "overview", "finances", "distribution", "operations"];
+function isOperator(caller) {
+  if (!caller) return false;
+  if (caller.base_role === "supplier" || caller.base_role === "buyer") return false;
+  if (caller.linked_buyer_id || caller.linked_supplier_id) return false;
+  let permissions = {};
+  try {
+    permissions = typeof caller.permissions === "string" ? JSON.parse(caller.permissions || "{}") : caller.permissions || {};
+  } catch {
+    permissions = {};
+  }
+  return caller.role === "admin" || OPERATOR_PERMISSION_KEYS.some((k) => permissions[k] === true);
+}
+
+// src/lib/distribution/configPublish.js
+function computeConfigHash(group, members) {
+  const material = JSON.stringify({
+    g: [group.id, group.method, group.order_index, group.price_weight, group.priority_weight],
+    m: (members || []).map((m) => [
+      m.id,
+      m.buyer_id,
+      m.destination_id,
+      m.active,
+      m.priority,
+      m.weight,
+      m.reserve_price,
+      m.price_mode,
+      m.fixed_price,
+      m.filters,
+      m.conditions,
+      m.caps,
+      m.schedule
+    ])
+  });
+  let h = 2166136261;
+  for (let i = 0; i < material.length; i++) {
+    h ^= material.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+function validateConfigForPublish({ group, members, buyers, destinations }, nowMs) {
+  const errors = [];
+  if (!group || !group.campaign_id) errors.push({ code: "CONFIG_INVALID", detail: "group missing campaign" });
+  if (!members || members.length === 0) errors.push({ code: "CONFIG_INVALID", detail: "group has no members" });
+  const snap = buildRoutingSnapshot(
+    { groups: [{ ...group, active: true, lifecycle: "active" }], members, buyers, destinations, health: [] },
+    { campaignId: group && group.campaign_id, nowMs: nowMs ?? 0 }
+  );
+  for (const e of snap.configErrors) errors.push(e);
+  const buyerById = index(buyers, "id");
+  const destById = index(destinations, "id");
+  for (const m of members || []) {
+    const b = buyerById[m.buyer_id];
+    if (!b) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "buyer not found" });
+    else if (!(String(b.status).toLowerCase() === "active" && b.active === true)) {
+      errors.push({ member_id: m.id, code: "BUYER_INELIGIBLE", detail: "buyer not active" });
+    }
+    if (!destById[m.destination_id]) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "destination not found" });
+    if (m.price_mode === "fixed" && !(Number(m.fixed_price) >= 0)) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "invalid price" });
+  }
+  return { valid: errors.length === 0, errors, configHash: group ? computeConfigHash(group, members) : null };
+}
+function buildVersionSnapshot(group, members) {
+  return JSON.stringify({ group: sanitizeGroup(group), members: (members || []).map(sanitizeMember) });
+}
+function diffConfig(oldCfg, newCfg) {
+  const changes = [];
+  const g0 = oldCfg && oldCfg.group || {};
+  const g1 = newCfg && newCfg.group || {};
+  for (const k of ["method", "order_index", "price_weight", "priority_weight"]) {
+    if (String(g0[k]) !== String(g1[k])) changes.push({ scope: "group", field: k, from: g0[k] ?? null, to: g1[k] ?? null });
+  }
+  const m0 = index(oldCfg && oldCfg.members, "id");
+  const m1 = index(newCfg && newCfg.members, "id");
+  for (const id of /* @__PURE__ */ new Set([...Object.keys(m0), ...Object.keys(m1)])) {
+    if (!m0[id]) changes.push({ scope: "member", id, change: "added" });
+    else if (!m1[id]) changes.push({ scope: "member", id, change: "removed" });
+    else for (const k of ["buyer_id", "destination_id", "active", "priority", "weight", "fixed_price", "reserve_price", "filters", "caps", "schedule"]) {
+      if (JSON.stringify(m0[id][k]) !== JSON.stringify(m1[id][k])) changes.push({ scope: "member", id, field: k, from: m0[id][k] ?? null, to: m1[id][k] ?? null });
+    }
+  }
+  return changes;
+}
+function resolveTraceVersion(configHash, versions) {
+  return (versions || []).find((v) => String(v.config_hash) === String(configHash)) || null;
+}
+function index(arr, key) {
+  const o = {};
+  for (const r of arr || []) o[String(r[key])] = r;
+  return o;
+}
+function sanitizeGroup(g) {
+  const { published_by, ...rest } = g || {};
+  void published_by;
+  return rest;
+}
+function sanitizeMember(m) {
+  return m;
+}
+
+// src/lib/distribution/modeControl.js
+var MODES = ["legacy_only", "shadow", "canary", "new_primary_with_legacy_fallback", "new_only"];
+function isCanaryLead(lead, allowlist = {}) {
+  const l = lead || {};
+  if (allowlist.supplierKeys && allowlist.supplierKeys.includes(l._supplier_key)) return true;
+  if (allowlist.campaignIds && allowlist.campaignIds.includes(l.campaign_id)) return true;
+  if (allowlist.sourceMarker && String(l.source || "") === allowlist.sourceMarker) return true;
+  return false;
+}
+function planExecution(mode, lead, opts = {}) {
+  switch (mode) {
+    case "shadow":
+      return { native: "shadow", legacy: "authoritative" };
+    case "canary":
+      return isCanaryLead(lead, opts.canaryAllowlist) ? { native: "deliver", legacy: "off", canary: true, destinationAllowlist: opts.canaryAllowlist?.destinations } : { native: "none", legacy: "authoritative" };
+    case "new_primary_with_legacy_fallback":
+      return { native: "deliver", legacy: "fallback" };
+    case "new_only":
+      return { native: "deliver", legacy: "off" };
+    case "legacy_only":
+    default:
+      return { native: "none", legacy: "authoritative" };
+  }
+}
+function shouldFallback(nativeStatus, approvedFailureCategories = ["no_eligible_member", "rejected", "error_clean"]) {
+  const s = String(nativeStatus || "");
+  if (s === "accepted" || s === "ambiguous" || s === "duplicate") return false;
+  return approvedFailureCategories.includes(s);
+}
+async function executeMode(mode, lead, ctx) {
+  const plan = planExecution(mode, lead, { canaryAllowlist: ctx.canaryAllowlist });
+  const out = { mode, plan, native: null, legacy: null };
+  if (plan.native === "shadow") {
+    out.native = ctx.nativeShadow ? await ctx.nativeShadow(lead) : { status: "traced" };
+  } else if (plan.native === "deliver") {
+    out.native = await ctx.nativeDeliver(lead);
+    if (plan.legacy === "fallback" && shouldFallback(out.native.status, ctx.approvedFailureCategories)) {
+      out.legacy = await ctx.legacyDeliver(lead);
+    }
+  }
+  if (plan.legacy === "authoritative") {
+    out.legacy = await ctx.legacyDeliver(lead);
+  }
+  return out;
+}
+function validateModeTransition(from, to) {
+  if (!MODES.includes(to)) return { valid: false, error: "unknown_mode" };
+  if (from === to) return { valid: false, error: "no_change" };
+  return { valid: true };
+}
+function buildModeAudit({ from, to, actorId, reason, nowMs }) {
+  return {
+    action: "mode_change",
+    entity_type: "AppSettings",
+    entity_id: "distribution_mode",
+    from_value: from || "legacy_only",
+    to_value: to,
+    reason: reason || "",
+    actor_id: actorId,
+    created_at: new Date(nowMs || 0).toISOString()
+  };
+}
 export {
   ATTEMPT_STATUS,
   BID_REASON,
   CIRCUIT,
   COMPARE,
+  MODES,
   OPERATORS,
+  OPERATOR_PERMISSION_KEYS,
   PING_ALLOWLIST,
   REASON,
   RESERVE,
@@ -1710,22 +1879,29 @@ export {
   applyTransform,
   backoffWithJitter,
   buildAttemptRecord,
+  buildModeAudit,
   buildPingPayload,
   buildRoutingSnapshot,
+  buildVersionSnapshot,
   capWindowStart,
   classifyResponse,
   compareDecision,
   computeBackoffMs,
   computeBillingLines,
+  computeConfigHash,
   deliverDirectPost,
+  diffConfig,
   evalConditionTree,
   evalLeaf,
   evaluateMember,
+  executeMode,
   exhaustedCap,
   finalize,
   hasActiveRouteGroup,
   idempotencyKey,
   isBlocked,
+  isCanaryLead,
+  isOperator,
   isValidTrustedForm,
   isWithinSchedule,
   loadRoutingSnapshot,
@@ -1739,11 +1915,13 @@ export {
   missingRequiredFields,
   nextHealth,
   nextRetryAtIso,
+  planExecution,
   rankBids,
   redact,
   release,
   reserve,
   resolvePrice,
+  resolveTraceVersion,
   routeWaterfall,
   runPingPost,
   runRetryWorker,
@@ -1754,8 +1932,11 @@ export {
   selectPriority,
   selectRoundRobin,
   selectWeighted,
+  shouldFallback,
   shouldRetry,
   summarizeComparisons,
+  validateConfigForPublish,
+  validateModeTransition,
   wallClock,
   walletCredit,
   walletCreditReturn,

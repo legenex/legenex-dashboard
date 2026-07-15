@@ -48,7 +48,7 @@ export async function runShadow(db, ctx) {
       price: decision.winner ? decision.price : 0,
       fallthrough_path: JSON.stringify(decision.fallthroughPath || []),
       result: decision.winner ? 'shadow_selected' : (decision.reason || 'no_eligible_member'),
-      config_version: snap.configHash || null,
+      config_version: (decision.winner && decision.configHash) || snap.configHash || null,
       eval_latency_ms: latency,
       created_at: new Date(nowMs).toISOString(),
     });

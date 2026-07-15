@@ -32,6 +32,13 @@ export {
 export { wallClock, isWithinSchedule } from './schedule.js';
 export { rankBids, BID_REASON } from './pingpost.js';
 export { compareDecision, summarizeComparisons, COMPARE } from './shadowCompare.js';
+export { isOperator, OPERATOR_PERMISSION_KEYS } from './operatorAuth.js';
+export {
+  validateConfigForPublish, computeConfigHash, buildVersionSnapshot, diffConfig, resolveTraceVersion,
+} from './configPublish.js';
+export {
+  MODES, isCanaryLead, planExecution, shouldFallback, executeMode, validateModeTransition, buildModeAudit,
+} from './modeControl.js';
 export {
   ATTEMPT_STATUS, computeBackoffMs, nextRetryAtIso, shouldRetry, classifyResponse,
   buildAttemptRecord,

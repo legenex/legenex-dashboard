@@ -282,6 +282,7 @@ export function routeWaterfall(groups, lead, ctx = {}) {
         winner,
         groupId: group.id,
         method: group.method,
+        configHash: group.configHash || null,
         price: resolvePrice(winner),
         fallthroughPath: orderedGroups.slice(0, orderedGroups.indexOf(group)).map((g) => g.id),
         rrCursors: rrOut,
