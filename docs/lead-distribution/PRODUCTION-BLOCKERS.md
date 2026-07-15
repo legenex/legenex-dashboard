@@ -89,6 +89,28 @@ criteria are proven with evidence, never because code was written.
   (projections enforced server-side inside the actual functions). PB-021 redaction covered for
   delivery attempts (Phase 6) and portal projections.
 
+- Phase 12 (PB-016/018/019): operator-only config lifecycle + immutable versions.
+  * PB-016 config authorization server-side: distributionConfig + distributionSetMode gate every
+    action with operatorAuth.isOperator BEFORE any service-role access; operatorAuth.test.js proves
+    buyer/supplier/linked/unauthenticated/no-permission callers fail closed and admin/permitted
+    managers pass. Route Group CRUD is no longer raw browser entity writes.
+  * PB-018 no orphan/hard-delete: distributionConfig has no delete; archive only (lifecycle=archived),
+    with published history preserved in RouteConfigVersion.
+  * PB-019 immutable versions: publish creates a RouteConfigVersion (config hash, snapshot,
+    published_by/at, change reason) and stamps the group; the config hash flows snapshot -> engine
+    winner -> RouteDecisionTrace.config_version, and resolveTraceVersion resolves a historical trace
+    to its exact version (configPublish.test.js). Publish is fail-closed (validateConfigForPublish:
+    buyer exists+eligible, destination exists, config parses, caps/pricing/schedule valid).
+    UI: typed editors primary + JSON advanced; publish requires a diff confirmation and at least one
+    successful simulation (Route Groups UI).
+- Phase 16 (PB-022): modeControl.js gives each mode real, tested behavior in the bundled
+  orchestration (modeControl.test.js, executeMode vs the local mock destination): legacy_only runs
+  nothing native; shadow traces only; canary routes ONLY explicit-allowlist leads and leaves
+  non-canary traffic on legacy (proven untouched) and cannot double-send; new_primary_with_legacy_
+  fallback falls back only on an approved clean-failure category, never on accepted or ambiguous
+  (no double-send proven); new_only never runs legacy. Mode changes go through the audited
+  operator-only distributionSetMode (DistributionAudit who/when/from/to/reason), not a raw edit.
+
 ## Portal compatibility notes (user-visible field changes)
 - supplierPortalData no longer returns: raw ApiKey.key (now prefix + metadata), lead revenue, or
   lead cost. Supplier portal API page must show the prefix and obtain the full key only at issuance/

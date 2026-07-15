@@ -161,17 +161,25 @@ wiring), NEEDS-ENV (needs a linked/staging Base44 app or sandbox creds).
 20 Portal projections enforced server-side - PROVEN (portalProjection.test.js
    matrix; applied inside supplierPortalData + portalData).
 21 Supplier portal hides full key / revenue / cost - PROVEN (Phase 13; PB-015 closed).
-22 Config CRUD authorized server-side - NOT YET. Operator-only report/simulate
-   functions are server-authorized, but Route Group/Member publish/validate/pause/
-   archive/rollback functions (PB-016) are Phase 12, which is GATED on Checkpoint B.
-23 Published configs immutable/versioned - PARTIAL. Config hash exists and the
-   RouteDecisionTrace references it; full draft/publish/version/rollback (PB-019)
-   is Phase 12 (gated).
+22 Config CRUD authorized server-side - PROVEN. distributionConfig and
+   distributionSetMode gate every action with operatorAuth.isOperator before any
+   service-role access (operatorAuth.test.js: portal/unauthenticated/no-permission
+   fail closed). Route Group/Member create/update/validate/publish/pause/archive/
+   rollback are operator-only backend functions, not raw browser writes.
+23 Published configs immutable/versioned - PROVEN. Publish creates an immutable
+   RouteConfigVersion (config hash + snapshot + published_by/at + reason); archive
+   only, no hard delete; a historical RouteDecisionTrace.config_version resolves to
+   its exact version via resolveTraceVersion (configPublish.test.js).
 24 Reporting server-side not client-capped - PARTIAL. distributionShadowReport is
    server-side; general operator reporting (PB-024) is Phase 15 (gated).
-25 All operating modes tested - PARTIAL. legacy_only (inert) and shadow are
-   implemented and tested; canary / new_primary_with_legacy_fallback / new_only
-   (PB-022) are Phase 16, not yet built.
+25 All operating modes tested - PROVEN. modeControl.js gives every mode real,
+   tested behavior against the local mock destination (modeControl.test.js):
+   legacy_only runs nothing native; shadow traces only; canary routes only
+   explicit-allowlist leads and leaves the rest on legacy, no double-send;
+   new_primary_with_legacy_fallback falls back only on an approved clean failure,
+   never on accepted/ambiguous (no double-send); new_only never runs legacy. Mode
+   changes are audited via distributionSetMode. Live activation of any non-legacy
+   mode remains an approval gate (Phase 19).
 
 ## Measured results
 - 181 tests / 22 files pass. Concurrency and PII assertions are exact (25->5,
