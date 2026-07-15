@@ -61,13 +61,18 @@ const dispoToStatus = (v) => {
   return null;
 };
 
-// First non-empty buyer disposition in source column order, else 'Unsold'.
+// Resolve a row's status by precedence across every buyer column, not by
+// column order: Sold outranks Returned, which outranks Unsold. A row can hold
+// both a Sold and a Returned (ping tree), and must resolve to Sold since the
+// lead was ultimately bought. No buyer disposition at all resolves to Unsold.
 const deriveFinalStatus = (row, buyerCols) => {
+  let sawReturned = false;
   for (const col of buyerCols) {
     const status = dispoToStatus(row?.[col]);
-    if (status) return status;
+    if (status === 'Sold') return 'Sold';
+    if (status === 'Returned') sawReturned = true;
   }
-  return 'Unsold';
+  return sawReturned ? 'Returned' : 'Unsold';
 };
 
 // ---- Timestamp normalization ------------------------------------------------
