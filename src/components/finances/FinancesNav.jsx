@@ -8,12 +8,12 @@ import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
   { label: 'Overview', tab: 'overview', icon: LayoutDashboard },
+  { label: 'Profitability', tab: 'profit', icon: TrendingUp, perm: 'bank_feed' },
   { label: 'Bank Feed', tab: 'bank', icon: Landmark, perm: 'bank_feed' },
   { label: 'Invoices', tab: 'invoices', icon: FileText },
   { label: 'Buyer Payments', tab: 'payments', icon: CreditCard },
   { label: 'Supplier Payouts', tab: 'payouts', icon: Wallet },
   { label: 'Ad Spend', tab: 'adspend', icon: Megaphone },
-  { label: 'Profitability', tab: 'profit', icon: TrendingUp, perm: 'bank_feed' },
   { label: 'Settings', tab: 'settings', icon: Settings2 },
 ];
 
