@@ -1,0 +1,72 @@
+name: CI
+
+# Quality gate for the native lead distribution platform (v2).
+# BLOCKING gates fail the build. INFORMATIONAL gates run for visibility with a
+# documented reason and a promotion path (see comments), per the program spec.
+
+on:
+  push:
+    branches: ['integration/**', 'fix/**']
+  pull_request:
+    branches: ['main', 'integration/**']
+
+jobs:
+  blocking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install from lockfile
+        run: npm ci
+
+      - name: Unit + integration tests
+        run: npm test
+
+      - name: Canonical engine parity + anti-mirror
+        run: npm run engine:check
+
+      - name: Prohibited em-dash check (code, docs, workflows we own)
+        run: |
+          if grep -RnP "\x{2014}|\x{2013}" \
+              src/lib/distribution scripts base44/entities base44/functions/_shared \
+              docs/lead-distribution .github/workflows 2>/dev/null; then
+            echo "Em dash or en dash found (prohibited)."; exit 1
+          fi
+          echo "no em/en dashes"
+
+      - name: Secret scan (new engine + scripts)
+        run: |
+          if grep -RnE "(sk_live|pk_live|AKIA|-----BEGIN|xoxb-|ghp_[A-Za-z0-9]{20})" \
+              src/lib/distribution scripts base44 2>/dev/null; then
+            echo "Potential secret found."; exit 1
+          fi
+          echo "no live secrets"
+
+  informational:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      # Lint is RED at baseline (53 pre-existing unused-import errors on main).
+      # Promotion path: a baseline-diff check that fails only on NEW errors.
+      - name: Lint (informational - 53 pre-existing errors on main)
+        run: npm run lint
+        continue-on-error: true
+      # Typecheck is RED at baseline (~2355 errors from loose tsc over jsx).
+      # Promotion path: a dedicated tsconfig scoped to this program's files,
+      # promoted to blocking once it is clean (tracked in PRODUCTION-BLOCKERS).
+      - name: Typecheck (informational - loose baseline config)
+        run: npm run typecheck
+        continue-on-error: true
+      # Build fails without a Base44 app link (@/functions/* bindings).
+      # Promotion path: stub/link the bindings in CI, then make blocking.
+      - name: Build (informational - needs Base44 app link)
+        run: npm run build
+        continue-on-error: true

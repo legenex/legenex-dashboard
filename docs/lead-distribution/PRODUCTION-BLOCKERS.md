@@ -40,14 +40,21 @@ criteria are proven with evidence, never because code was written.
 
 ## Blockers
 
-### PB-001 Two routing engines - OPEN (VALID, verified)
-Current: v1 has the tested engine in src/lib/distribution/ AND a hand-written mirror
-`shadowEvaluateRouting` in processLead. Confirmed both exist and can diverge.
-Required: exactly one canonical engine consumed by simulator, shadow, canary, native, retry,
-replay, recovery, manual sim, and all tests. Delete the mirror; add a blocking anti-mirror CI check.
-Affected: base44/functions/processLead/entry.ts, src/lib/distribution/*. Risk: divergent decisions.
-Acceptance: one implementation; CI parity check; all tests execute it. Verify: parity check + tests.
-Residual: Deno import mechanism (CAP-2).
+### PB-001 Two routing engines - IN-PROGRESS (mechanism CLOSED; consumption wiring pending)
+Current: v2 starts from main, which has NO mirror (the v1 shadowEvaluateRouting never reached main),
+so there is nothing to delete. The single-canonical-engine mechanism is now built and proven:
+- Canonical engine: src/lib/distribution/ (backend surface: backend-entry.js).
+- Generated backend copy: base44/functions/_shared/routingEngine.generated.js via
+  scripts/generate-backend-engine.mjs (esbuild bundle, no imports, hash header).
+- Blocking parity + anti-mirror check: scripts/check-engine-parity.mjs (npm run engine:check), wired
+  BLOCKING in .github/workflows/ci.yml. Proven to FAIL on a tampered bundle and on any reintroduced
+  hand-written routing function, and PASS when clean.
+- Behavioral-equivalence test (parity.test.js) proves generated == canonical decisions.
+Evidence: 103 tests pass incl. parity; negative tests exit 1 as required.
+Remaining: consumption by shadow/native/retry/simulator functions lands in Phases 6/7/9/11 (each will
+import the generated bundle). Runtime import from a Base44 Deno function is NEEDS-ENV (CAP-2); the
+generated file is self-contained so inlining is the fallback if relative import is unsupported.
+Residual: CAP-2 deployment verification.
 
 ### PB-002 Backend buyer lifecycle incorrect - OPEN (VALID, verified)
 Current: shadow reads RouteMember.buyer_status which does not exist on RouteMember; real Buyer not
