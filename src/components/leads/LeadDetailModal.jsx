@@ -40,6 +40,28 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
   const toTitleCase = (k) => String(k).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const mappedEntries = Object.entries(mappedFields).filter(([, v]) => v != null && String(v).trim() !== '');
 
+  // LeadByte outcome fields. Built in display order, then filtered so only
+  // populated values render. Currency and date values are pre-formatted here.
+  const fmtCurrency = (v) => (typeof v === 'number' ? `$${v.toFixed(2)}` : v);
+  let outcomeReceived = null;
+  if (lead.leadbyte_outcome_at) {
+    const d = new Date(lead.leadbyte_outcome_at);
+    if (!Number.isNaN(d.getTime())) outcomeReceived = format(d, 'PPpp');
+  }
+  const outcomeEntries = [
+    ['Buyer', lead.buyer_name],
+    ['Buyer ID', lead.buyer_id],
+    ['Revenue', fmtCurrency(lead.revenue)],
+    ['Supplier Payout', fmtCurrency(lead.supplier_payout)],
+    ['Tier', lead.lead_tier],
+    ['Lead Score', lead.lead_score],
+    ['Vertical', lead.lead_vertical],
+    ['Conversion', lead.buyer_conversion],
+    ['Returned', lead.buyer_returned === true ? 'Yes' : null],
+    ['Return Reason', lead.buyer_return_reason],
+    ['Outcome Received', outcomeReceived],
+  ].filter(([, v]) => v != null && String(v).trim() !== '');
+
   const handleCopyPayload = () => {
     navigator.clipboard.writeText(lead.raw_payload || '{}');
     toast.success('Payload copied');
@@ -143,6 +165,19 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
                     <div className="text-[13px] text-foreground font-medium mt-0.5 font-mono">{val || '-'}</div>
                   </div>
                 ))}
+              </div>
+            )}
+            {!editing && outcomeEntries.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="text-[11px] text-muted-foreground uppercase tracking-wider mb-3">Outcome</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {outcomeEntries.map(([label, val]) => (
+                    <div key={label}>
+                      <div className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</div>
+                      <div className="text-[13px] text-foreground font-medium mt-0.5 font-mono">{String(val)}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {!editing && mappedEntries.length > 0 && (
