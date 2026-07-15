@@ -63,6 +63,27 @@ describe('evaluateMember eligibility (fixed order + reason codes)', () => {
     const m = { ...base, buyer: { active: false, status: 'terminated' } };
     expect(evaluateMember(m, lead).reason).toBe(REASON.BUYER_LIFECYCLE_INELIGIBLE);
   });
+  // Pinned allowlist fixtures: eligible ONLY when status==='active' AND active===true.
+  it('allowlist: paused + active=true is ineligible', () => {
+    expect(evaluateMember({ ...base, buyer: { active: true, status: 'paused' } }, lead).reason)
+      .toBe(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  });
+  it('allowlist: active + active=false is ineligible', () => {
+    expect(evaluateMember({ ...base, buyer: { active: false, status: 'active' } }, lead).reason)
+      .toBe(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  });
+  it('allowlist: draft + active=true is ineligible', () => {
+    expect(evaluateMember({ ...base, buyer: { active: true, status: 'draft' } }, lead).reason)
+      .toBe(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  });
+  it('allowlist: missing buyer is ineligible', () => {
+    expect(evaluateMember({ ...base, buyer: undefined }, lead).reason)
+      .toBe(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  });
+  it('allowlist: unknown status is ineligible', () => {
+    expect(evaluateMember({ ...base, buyer: { active: true, status: 'suspended' } }, lead).reason)
+      .toBe(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  });
   it('enforces state filter', () => {
     expect(evaluateMember(base, { ...lead, state: 'NY' }).reason).toBe(REASON.FILTER_STATE);
   });
@@ -137,16 +158,17 @@ describe('selection methods (deterministic)', () => {
 });
 
 describe('routeWaterfall fall-through + trace', () => {
+  const B = { active: true, status: 'active' };
   const groups = [
     {
       id: 'g1', orderIndex: 0, method: 'priority',
-      members: [{ id: 'g1m1', active: true, priority: 1, price: 10, filters: { states: ['NY'] } }],
+      members: [{ id: 'g1m1', active: true, priority: 1, price: 10, buyer: B, filters: { states: ['NY'] } }],
     },
     {
       id: 'g2', orderIndex: 1, method: 'auction',
       members: [
-        { id: 'g2m1', active: true, priority: 1, priceMode: 'auction', bid: 8, price: 8 },
-        { id: 'g2m2', active: true, priority: 2, priceMode: 'auction', bid: 15, price: 15 },
+        { id: 'g2m1', active: true, priority: 1, priceMode: 'auction', bid: 8, price: 8, buyer: B },
+        { id: 'g2m2', active: true, priority: 2, priceMode: 'auction', bid: 15, price: 15, buyer: B },
       ],
     },
   ];

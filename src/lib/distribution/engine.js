@@ -85,16 +85,15 @@ export function evaluateMember(member, lead, opts = {}) {
   const l = lead || {};
   const buyer = m.buyer || {};
 
-  // 1. active + buyer lifecycle (fail-closed on contradictory fields).
+  // 1. member active, then buyer lifecycle by ALLOWLIST (fail closed).
   if (m.active === false) return fail(REASON.MEMBER_INACTIVE);
+  // Eligible ONLY when the buyer is explicitly active on BOTH fields. Everything
+  // else - paused, terminated, draft, suspended, unknown status, contradictory
+  // fields, or a missing buyer - is ineligible. Never trust a single field and
+  // never default-allow an unrecognized state.
   const status = String(buyer.status || '').toLowerCase();
-  const lifecycleBad =
-    buyer.active === false ||
-    status === 'paused' ||
-    status === 'terminated' ||
-    // contradictory: status says paused/terminated but active flag says true
-    ((status === 'paused' || status === 'terminated') && buyer.active === true);
-  if (lifecycleBad) return fail(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  const lifecycleOk = status === 'active' && buyer.active === true;
+  if (!lifecycleOk) return fail(REASON.BUYER_LIFECYCLE_INELIGIBLE);
 
   // 2. schedule (caller passes a resolved boolean for the member's tz window).
   if (m.withinSchedule === false) return fail(REASON.OUTSIDE_SCHEDULE);

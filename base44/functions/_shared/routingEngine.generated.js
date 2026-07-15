@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: b78573dedf5ff603e0b7032ae58436fab9b135f329ed3f98a003cc5ac9f8e169
+// canonical-engine-sha256: de251facd931486d4befcb9643df408be2a1a41b54acaf921b02446b19cdb52b
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -67,9 +67,8 @@ function evaluateMember(member, lead, opts = {}) {
   const buyer = m.buyer || {};
   if (m.active === false) return fail(REASON.MEMBER_INACTIVE);
   const status = String(buyer.status || "").toLowerCase();
-  const lifecycleBad = buyer.active === false || status === "paused" || status === "terminated" || // contradictory: status says paused/terminated but active flag says true
-  (status === "paused" || status === "terminated") && buyer.active === true;
-  if (lifecycleBad) return fail(REASON.BUYER_LIFECYCLE_INELIGIBLE);
+  const lifecycleOk = status === "active" && buyer.active === true;
+  if (!lifecycleOk) return fail(REASON.BUYER_LIFECYCLE_INELIGIBLE);
   if (m.withinSchedule === false) return fail(REASON.OUTSIDE_SCHEDULE);
   const f = m.filters || {};
   if (!passesListFilter(f.states, l.state)) return fail(REASON.FILTER_STATE);
