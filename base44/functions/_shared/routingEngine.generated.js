@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: f87e0bf091ebc98874d501be39733b943e0e705327f4f70592588e98f3399a26
+// canonical-engine-sha256: b78573dedf5ff603e0b7032ae58436fab9b135f329ed3f98a003cc5ac9f8e169
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -428,6 +428,133 @@ function isWithinSchedule(nowMs, schedule, fallbackTz) {
   });
 }
 
+// src/lib/distribution/snapshot.js
+var KNOWN_OPS = new Set(OPERATORS);
+function strictJson(raw, onError) {
+  if (raw == null || raw === "") return {};
+  if (typeof raw === "object") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    onError();
+    return null;
+  }
+}
+function validConditionTree(node) {
+  if (!node) return true;
+  if (Array.isArray(node)) return node.every(validConditionTree);
+  if (node.op === "and" || node.op === "or") return (node.children || []).every(validConditionTree);
+  if (node.field && node.operator) return KNOWN_OPS.has(node.operator);
+  return false;
+}
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function buildCaps(capsCfg, memberId, capCountsFor, onError) {
+  if (capsCfg == null || capsCfg === "") return {};
+  const parsed = strictJson(capsCfg, onError);
+  if (parsed === null) return null;
+  const out = {};
+  for (const w of ["total", "hourly", "daily", "weekly", "monthly"]) {
+    if (parsed[w] == null) continue;
+    const limit = num(typeof parsed[w] === "object" ? parsed[w].limit : parsed[w]);
+    if (limit == null || limit < 0) {
+      onError();
+      return null;
+    }
+    out[w] = { limit, count: Number(capCountsFor(memberId, w) || 0) };
+  }
+  return out;
+}
+function buildWallet(buyer) {
+  if (!buyer) return null;
+  const mode = String(buyer.billing_type || buyer.billing_mode || "").toLowerCase().startsWith("prepay") ? "prepaid" : String(buyer.billing_type || "").toLowerCase().startsWith("invoice") ? "postpaid" : null;
+  if (!mode) return null;
+  if (mode === "prepaid") {
+    return { mode, balance: num(buyer.prepay_balance ?? buyer.balance) ?? 0, minBalance: num(buyer.min_balance) ?? 0 };
+  }
+  return { mode, outstanding: num(buyer.outstanding) ?? 0, creditLimit: num(buyer.credit_limit) };
+}
+function buildRoutingSnapshot(records, ctx = {}) {
+  const { campaignId, configVersionId } = ctx;
+  const capCountsFor = ctx.capCountsFor || (() => 0);
+  const buyersById = indexBy(records.buyers, "id");
+  const destById = indexBy(records.destinations, "id");
+  const healthByDest = indexBy(records.health, "destination_id");
+  const configErrors = [];
+  const groups = (records.groups || []).filter((g) => g.active === true && String(g.lifecycle || "").toLowerCase() === "active" && String(g.campaign_id) === String(campaignId) && (!configVersionId || String(g.config_version_id || "") === String(configVersionId))).sort((a, b) => (a.order_index || 0) - (b.order_index || 0)).map((g) => ({
+    id: g.id,
+    orderIndex: g.order_index || 0,
+    method: g.method || "priority",
+    weights: { price: num(g.price_weight) ?? 0.5, priority: num(g.priority_weight) ?? 0.5 },
+    members: (records.members || []).filter((m) => String(m.route_group_id) === String(g.id)).sort((a, b) => (a.priority || 0) - (b.priority || 0)).map((m) => buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs: ctx.nowMs }))
+  }));
+  return { groups, configVersionId: configVersionId || null, configErrors, configHash: hashConfig(records) };
+}
+function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs }) {
+  let invalid = false;
+  const err = (code, detail) => {
+    invalid = true;
+    configErrors.push({ member_id: m.id, code: code || "CONFIG_INVALID", detail });
+  };
+  const buyer = buyersById[m.buyer_id];
+  if (!buyer) err("CONFIG_INVALID", "missing buyer");
+  if (!destById[m.destination_id]) err("CONFIG_INVALID", "missing destination");
+  const filters = strictJson(m.filters, () => err("CONFIG_INVALID", "bad filters json"));
+  const conditions = strictJson(m.conditions, () => err("CONFIG_INVALID", "bad conditions json"));
+  const hasConditions = conditions && typeof conditions === "object" && Object.keys(conditions).length > 0;
+  if (hasConditions && !validConditionTree(conditions)) err("CONFIG_INVALID", "unknown condition operator");
+  const schedule = strictJson(m.schedule, () => err("CONFIG_INVALID", "bad schedule json"));
+  const caps = buildCaps(m.caps, m.id, capCountsFor, () => err("CONFIG_INVALID", "bad caps"));
+  const priceMode = ["fixed", "rule", "auction"].includes(m.price_mode) ? m.price_mode : "fixed";
+  const fixedPrice = num(m.fixed_price);
+  const reservePrice = num(m.reserve_price);
+  if (priceMode === "fixed" && (fixedPrice == null || fixedPrice < 0)) err("CONFIG_INVALID", "invalid price");
+  const buyerSnap = buyer ? { active: buyer.active, status: buyer.status } : { active: false, status: "missing" };
+  return {
+    id: m.id,
+    buyerId: m.buyer_id,
+    destinationId: m.destination_id,
+    // PB-017: invalid config makes the member ineligible, never unrestricted.
+    active: m.active !== false && !invalid,
+    _configInvalid: invalid,
+    priority: num(m.priority) ?? 1,
+    weight: num(m.weight) ?? 1,
+    reservePrice,
+    priceMode,
+    fixedPrice: fixedPrice ?? 0,
+    price: fixedPrice ?? 0,
+    filters: invalid ? {} : filters || {},
+    conditions: invalid ? null : hasConditions ? conditions : null,
+    schedule: schedule || null,
+    // Pre-resolve the schedule to the boolean the engine reads. Absent schedule
+    // means always-on. nowMs must be supplied for correct dayparting.
+    withinSchedule: schedule && Object.keys(schedule).length ? isWithinSchedule(nowMs ?? 0, schedule) : void 0,
+    caps: caps || {},
+    buyer: buyerSnap,
+    wallet: buildWallet(buyer),
+    health: { state: healthByDest[m.destination_id]?.state || "closed" }
+  };
+}
+function indexBy(arr, key) {
+  const out = {};
+  for (const r of arr || []) out[String(r[key])] = r;
+  return out;
+}
+function hashConfig(records) {
+  const material = JSON.stringify({
+    g: (records.groups || []).map((g) => [g.id, g.method, g.order_index, g.lifecycle, g.active]),
+    m: (records.members || []).map((m) => [m.id, m.route_group_id, m.buyer_id, m.destination_id, m.priority, m.filters, m.caps])
+  });
+  let h = 2166136261;
+  for (let i = 0; i < material.length; i++) {
+    h ^= material.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
 // src/lib/distribution/pingpost.js
 var BID_REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -559,6 +686,7 @@ export {
   OPERATORS,
   REASON,
   buildAttemptRecord,
+  buildRoutingSnapshot,
   capWindowStart,
   classifyResponse,
   computeBackoffMs,

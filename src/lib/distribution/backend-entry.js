@@ -12,6 +12,7 @@ export {
 } from './engine.js';
 
 export { evalLeaf, evalConditionTree, OPERATORS } from './conditions.js';
+export { buildRoutingSnapshot } from './snapshot.js';
 export { wallClock, isWithinSchedule } from './schedule.js';
 export { rankBids, BID_REASON } from './pingpost.js';
 export {

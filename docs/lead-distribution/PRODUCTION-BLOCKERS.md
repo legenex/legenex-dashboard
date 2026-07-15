@@ -38,6 +38,17 @@ criteria are proven with evidence, never because code was written.
   confirmed. Reservation/wallet safety must therefore rest on CAP-1 (CAS), not on assumed unique
   indexes (see PB-009). Scheduling mechanism for the retry worker (PB-011) is NEEDS-ENV.
 
+## Phase progress log
+- Phase 2 (PB-001): canonical engine + generated backend bundle + blocking parity/anti-mirror gate.
+  Proven (tamper/mirror -> exit 1). CLOSED at mechanism level; consumption wiring later.
+- Phase 3 (PB-002/003/005/017): `src/lib/distribution/snapshot.js` `buildRoutingSnapshot` is the ONE
+  snake_case -> engine-input mapper. Joins real Buyer (PB-002 fail-closed), gates draft/wrong-campaign
+  groups (PB-003), is the sole snapshot builder (PB-005), and fails config closed with CONFIG_INVALID
+  (PB-017, invalid never broadens). 15 fixture tests incl. paused+active, missing buyer/dest, draft,
+  invalid filters/conditions, expired schedule, cap rollover, low balance, credit limit, circuit open,
+  100-member scale, zero-campaign. All pure/unit CLOSED; the backend Deno loader that fetches records
+  and calls this mapper is NEEDS-ENV (batched reads, pagination) to run live. 118 tests pass.
+
 ## Blockers
 
 ### PB-001 Two routing engines - IN-PROGRESS (mechanism CLOSED; consumption wiring pending)
