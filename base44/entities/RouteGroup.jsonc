@@ -1,0 +1,22 @@
+{
+  // Additive (lead distribution platform). Ordered routing group under a Campaign.
+  // Caller model: operator-only writes; read by processLead (service role) + simulator.
+  "name": "RouteGroup",
+  "type": "object",
+  "properties": {
+    "campaign_id": { "type": "string", "description": "Campaign this group belongs to" },
+    "name": { "type": "string" },
+    "method": {
+      "type": "string",
+      "enum": ["priority", "weighted", "round_robin", "auction", "hybrid"],
+      "default": "priority"
+    },
+    "order_index": { "type": "number", "default": 0, "description": "Waterfall evaluation order (ascending)" },
+    "price_weight": { "type": "number", "default": 0.5, "description": "Hybrid: weight on normalized price" },
+    "priority_weight": { "type": "number", "default": 0.5, "description": "Hybrid: weight on normalized priority" },
+    "rr_cursor_name": { "type": "string", "description": "Counter name backing round_robin rotation" },
+    "active": { "type": "boolean", "default": true },
+    "lifecycle": { "type": "string", "enum": ["draft", "active", "paused", "archived"], "default": "draft" }
+  },
+  "required": ["campaign_id", "name", "method"]
+}

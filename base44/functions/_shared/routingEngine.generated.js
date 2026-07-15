@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: de251facd931486d4befcb9643df408be2a1a41b54acaf921b02446b19cdb52b
+// canonical-engine-sha256: 8fadddbb0bf035469d326b46bb8935a42b7740fc7d1aea8139eb313de5ed3c7c
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -554,6 +554,130 @@ function hashConfig(records) {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
+// src/lib/distribution/capStore.js
+function makeBase44CapStore(db) {
+  async function ensureCounter(key) {
+    let rows = await db.entities.CapCounter.filter({ scope_key: key });
+    if (!rows.length) {
+      await db.entities.CapCounter.create({ scope_key: key, count: 0 });
+      rows = await db.entities.CapCounter.filter({ scope_key: key });
+    }
+    rows.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    return rows[0];
+  }
+  async function incrementIfBelow(key, limit, maxRetry = 25) {
+    for (let i = 0; i < maxRetry; i++) {
+      const row = await ensureCounter(key);
+      const value = Number(row.count || 0);
+      if (value >= limit) return false;
+      const res = await db.entities.CapCounter.updateMany(
+        { id: row.id, count: value },
+        { $set: { count: value + 1 } }
+      );
+      if (res && res.updated > 0) return true;
+    }
+    return false;
+  }
+  async function decrement(key) {
+    for (let i = 0; i < 25; i++) {
+      const row = await ensureCounter(key);
+      const value = Number(row.count || 0);
+      const next = Math.max(0, value - 1);
+      const res = await db.entities.CapCounter.updateMany(
+        { id: row.id, count: value },
+        { $set: { count: next } }
+      );
+      if (res && res.updated > 0) return;
+    }
+  }
+  async function getCount(key) {
+    const row = await ensureCounter(key);
+    return Number(row.count || 0);
+  }
+  async function claim(key) {
+    return incrementIfBelow(`claim:${key}`, 1);
+  }
+  async function getReservation(idempotencyKey2, memberId) {
+    const rows = await db.entities.CapReservation.filter({ idempotency_key: idempotencyKey2, route_member_id: memberId });
+    return rows[0] || null;
+  }
+  async function awaitReservation(idempotencyKey2, memberId, tries = 20) {
+    for (let i = 0; i < tries; i++) {
+      const r = await getReservation(idempotencyKey2, memberId);
+      if (r) return r;
+      await new Promise((res) => setTimeout(res, 50));
+    }
+    return null;
+  }
+  async function putReservation(rec) {
+    return db.entities.CapReservation.create(rec);
+  }
+  async function updateReservation(id, patch) {
+    return db.entities.CapReservation.update(id, patch);
+  }
+  return { incrementIfBelow, decrement, getCount, claim, getReservation, awaitReservation, putReservation, updateReservation };
+}
+
+// src/lib/distribution/reservation.js
+var RESERVE = {
+  OK: "OK",
+  ALREADY_RESERVED: "ALREADY_RESERVED",
+  // idempotent replay / concurrent duplicate
+  CAP_EXCEEDED: "CAP_EXCEEDED"
+};
+function claimKeyFor(idempotencyKey2, memberId) {
+  return `resv:${idempotencyKey2}:${memberId}`;
+}
+async function reserve(store, { idempotencyKey: idempotencyKey2, leadId, memberId, price = 0, scopes = [] }) {
+  const won = await store.claim(claimKeyFor(idempotencyKey2, memberId));
+  if (!won) {
+    const existing = await store.awaitReservation(idempotencyKey2, memberId);
+    if (existing && existing.state === "failed") {
+      return { ok: false, code: RESERVE.CAP_EXCEEDED, reservation: existing };
+    }
+    return { ok: true, code: RESERVE.ALREADY_RESERVED, reservation: existing };
+  }
+  const incremented = [];
+  for (const scope of scopes) {
+    if (scope.limit == null) continue;
+    const ok = await store.incrementIfBelow(scope.key, Number(scope.limit));
+    if (!ok) {
+      for (const s of incremented) await store.decrement(s.key);
+      const failed = await store.putReservation({
+        idempotency_key: idempotencyKey2,
+        lead_id: leadId,
+        route_member_id: memberId,
+        price: Number(price),
+        scopes: [],
+        state: "failed"
+      });
+      return { ok: false, code: RESERVE.CAP_EXCEEDED, scope: scope.key, reservation: failed };
+    }
+    incremented.push(scope);
+  }
+  const rec = await store.putReservation({
+    idempotency_key: idempotencyKey2,
+    lead_id: leadId,
+    route_member_id: memberId,
+    price: Number(price),
+    scopes: incremented.map((s) => s.key),
+    state: "reserved"
+  });
+  return { ok: true, code: RESERVE.OK, reservation: rec };
+}
+async function finalize(store, reservation) {
+  if (!reservation || reservation.state === "finalized") return reservation;
+  if (reservation.state !== "reserved") return reservation;
+  await store.updateReservation(reservation.id, { state: "finalized" });
+  return { ...reservation, state: "finalized" };
+}
+async function release(store, reservation) {
+  if (!reservation || reservation.state !== "reserved") return reservation;
+  for (const key of reservation.scopes || []) await store.decrement(key);
+  await store.updateReservation(reservation.id, { state: "released" });
+  return { ...reservation, state: "released" };
+}
+
 // src/lib/distribution/pingpost.js
 var BID_REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -564,13 +688,13 @@ var BID_REASON = {
 };
 function rankBids(bids, opts = {}) {
   const nowMs = opts.nowMs;
-  const reserve = opts.reservePrice != null ? Number(opts.reservePrice) : null;
+  const reserve2 = opts.reservePrice != null ? Number(opts.reservePrice) : null;
   const evaluated = (bids || []).map((b) => {
     const amount = Number(b.amount);
     let reason = BID_REASON.ELIGIBLE;
     if (!(amount > 0)) reason = BID_REASON.NO_BID;
     else if (b.expiresAtMs != null && nowMs != null && b.expiresAtMs < nowMs) reason = BID_REASON.BID_EXPIRED;
-    else if (reserve != null && amount < reserve) reason = BID_REASON.BELOW_RESERVE;
+    else if (reserve2 != null && amount < reserve2) reason = BID_REASON.BELOW_RESERVE;
     return { ...b, amount, reason };
   });
   const eligible = evaluated.filter((b) => b.reason === BID_REASON.ELIGIBLE);
@@ -684,6 +808,7 @@ export {
   BID_REASON,
   OPERATORS,
   REASON,
+  RESERVE,
   buildAttemptRecord,
   buildRoutingSnapshot,
   capWindowStart,
@@ -693,13 +818,17 @@ export {
   evalLeaf,
   evaluateMember,
   exhaustedCap,
+  finalize,
   idempotencyKey,
   isValidTrustedForm,
   isWithinSchedule,
+  makeBase44CapStore,
   missingRequiredFields,
   nextRetryAtIso,
   rankBids,
   redact,
+  release,
+  reserve,
   resolvePrice,
   routeWaterfall,
   selectAuction,
