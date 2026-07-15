@@ -52,3 +52,34 @@ export function resolveScope({ user, linkField, overrideId }) {
 export function ownsLead(lead, scopeField, scopeId) {
   return !!lead && !!scopeId && String(lead[scopeField]) === String(scopeId);
 }
+
+// Single portal authorization decision. Returns { allowed, scopeId, status, reason }.
+// Fail-closed: unauthenticated, unlinked non-admin, portal-disabled, or cross-scope
+// attempts all deny. kind is 'buyer' or 'supplier'.
+export function authorizePortal({ user, kind, requestedId, portalEnabled }) {
+  if (!user) return { allowed: false, status: 401, reason: 'unauthenticated' };
+  // portal accounts of the OTHER kind are never allowed
+  const linkField = kind === 'buyer' ? 'linked_buyer_id' : 'linked_supplier_id';
+  const otherField = kind === 'buyer' ? 'linked_supplier_id' : 'linked_buyer_id';
+  if (user[otherField]) return { allowed: false, status: 403, reason: 'wrong_portal' };
+  const scopeId = resolveScope({ user, linkField, overrideId: requestedId });
+  if (!scopeId) return { allowed: false, status: 403, reason: 'no_scope' };
+  // Non-admin cannot override to a different scope than their own link.
+  if (user.role !== 'admin' && requestedId && String(requestedId) !== String(user[linkField])) {
+    return { allowed: false, status: 403, reason: 'cross_scope' };
+  }
+  if (portalEnabled === false && user.role !== 'admin') {
+    return { allowed: false, status: 403, reason: 'portal_disabled' };
+  }
+  return { allowed: true, status: 200, scopeId };
+}
+
+// Supplier-safe API key view: prefix + metadata only, never the raw secret.
+export function sanitizeApiKey(key) {
+  if (!key) return null;
+  return {
+    key_prefix: key.key_prefix || (key.key ? String(key.key).slice(0, 6) : null),
+    name: key.name, active: key.active !== false,
+    last_used_at: key.last_used_at || null, request_count: key.request_count || 0,
+  };
+}

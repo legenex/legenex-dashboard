@@ -1,9 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// Authenticated supplier-portal data endpoint. Returns everything the supplier
-// portal needs, strictly scoped to a single Supplier record. Uses the service
-// role to read Lead (admin-RLS) but never returns another supplier's data,
-// another supplier's leads, buyer identities, or operator-only sections.
+// Caller model: SUPPLIER-SCOPED. Authenticated supplier-portal data endpoint.
+// Returns everything the supplier portal needs, strictly scoped to a single
+// Supplier record. Uses the service role to read Lead (admin-RLS) but never
+// returns another supplier's data, another supplier's leads, buyer identities,
+// buyer revenue or internal cost, raw payloads, routing traces, or the raw API
+// key (prefix + metadata only). Deny-by-default field allowlist.
 //
 // Scoping rules:
 // - A supplier-role user is scoped to their own user.linked_supplier_id.
@@ -61,8 +63,7 @@ Deno.serve(async (req) => {
       mobile: l.mobile,
       email: l.email,
       final_status: l.final_status,
-      revenue: l.revenue,
-      cost: l.cost,
+      response_reason: l.response_reason,
       created_date: l.created_date,
     }));
 
@@ -72,7 +73,12 @@ Deno.serve(async (req) => {
       const keys = await base44.asServiceRole.entities.ApiKey.filter({ supplier_id: supplier.id });
       const byName = keys.length ? keys : await base44.asServiceRole.entities.ApiKey.filter({ supplier_name: supplier.name });
       const active = byName.find((k: any) => k.active) || byName[0];
-      if (active) apiKey = { key: active.key, key_prefix: active.key_prefix, name: active.name };
+      // Deny-by-default: never return the raw secret. Prefix + metadata only.
+      if (active) apiKey = {
+        key_prefix: active.key_prefix || (active.key ? String(active.key).slice(0, 6) : null),
+        name: active.name, active: active.active !== false,
+        last_used_at: active.last_used_at || null, request_count: active.request_count || 0,
+      };
     } catch { apiKey = null; }
 
     // Ad reporting — ONLY for internal sources connected through Facebook.
