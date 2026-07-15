@@ -49,6 +49,34 @@ criteria are proven with evidence, never because code was written.
   100-member scale, zero-campaign. All pure/unit CLOSED; the backend Deno loader that fetches records
   and calls this mapper is NEEDS-ENV (batched reads, pagination) to run live. 118 tests pass.
 
+- Phase 4 (PB-008/009): capStore.js CAS adapter + honest async mock. Adversarial tests: 25 concurrent
+  vs cap 5 => exactly 5; 10 same idempotency key => exactly one reservation; rollback consumes
+  nothing; release/finalize once; guarded transitions; counters never negative. reserve() uses an
+  atomic claim (fixes PB-009 get-then-put). Command: npm test. Live CAS vs Base44 = NEEDS-ENV.
+- Phase 5 (PB-010): walletStore.js versioned-CAS balance + walletLedger.js idempotent debit/credit.
+  8 adversarial tests: parallel distinct-key debits lose nothing; duplicate key debits once; not-
+  issued changes nothing; ambiguous retry no double-debit; repeated return credits once; never
+  negative without credit limit (5/25); credit limit holds (10/25). Command: npm test. Live = NEEDS-ENV.
+- Phase 6 (PB-007 delivery + PB-021 redaction): directPost.js adapter (method, json/form, headers,
+  field mapping+transforms, timeout, redirect manual, response classification, revenue + buyer-lead-id
+  extraction, idempotency key, DeliveryAttempt persisted BEFORE send, redacted request meta). 11
+  integration tests vs a real local mock server: accepted/rejected/duplicate/invalid/form/timeout-then-
+  accept/429-then-accept/500-until-deadletter/connection-failure/ambiguous-reset/host-not-allowed.
+  Command: npm test. Live outbound to a Base44-hosted destination = NEEDS-ENV.
+- Phase 7 (PB-011): retryWorker.js atomic CAS lease (two workers never double-send, proven),
+  backoff+jitter, dead-letter at cap, lease-expiry recovery, manual retry; destinationHealth.js
+  circuit breaker. Command: npm test. Live scheduling mechanism (cron/queue) on Base44 = NEEDS-ENV.
+
+## NEEDS-ENV summary (what cannot be verified in this environment)
+- PB-007 (delivery): logic + local-server integration PROVEN; outbound from a deployed Base44 Deno
+  function to a real/controlled destination needs a linked Base44 app.
+- PB-010 (wallet CAS): concurrency logic PROVEN vs honest CAS mock; live updateMany CAS on Base44
+  BuyerWallet/WalletTransaction under real parallelism needs a linked app.
+- PB-011 (retry worker): lease/backoff/dead-letter/circuit-breaker logic PROVEN; a live scheduling
+  mechanism (Base44 cron/queue/post-response worker) needs a linked app to run and be verified.
+- Escape hatch (PB-008/010): if live CAS proves insufficient, that is the stop-and-present point;
+  any external datastore needs Nick approval + Morne infra sign-off. Not taken.
+
 ## Blockers
 
 ### PB-001 Two routing engines - IN-PROGRESS (mechanism CLOSED; consumption wiring pending)

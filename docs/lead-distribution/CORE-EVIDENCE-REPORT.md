@@ -1,0 +1,121 @@
+# Core Evidence Report - Checkpoint A
+
+Verification date: 2026-07-15. Branch: integration/native-lead-distribution-v2 (rebased on main
+717d7bd). Prepared for Nick. This report covers Definition-of-Done Tier 1 items 1 through 16 with an
+honest per-item status. PROVEN means a command in this repo demonstrates it now. NEEDS-ENV names the
+exact missing environment. PARTIAL means the core logic is proven but a later (ungated or gated)
+phase completes the wiring. Nothing is claimed that a command does not show.
+
+## How to reproduce every claim
+- `npm test` -> 150 tests pass across 18 files (unit + integration incl. a real local HTTP server).
+- `npm run engine:check` -> canonical engine parity + anti-mirror gate passes.
+- `npm run lint` -> 53 pre-existing errors, zero new (engine code lives under src/lib, plus no new
+  errors in linted paths).
+
+## Tier 1 items
+
+1. One canonical engine implementation exists - PROVEN.
+   src/lib/distribution canonical engine; backend consumes a generated, import-free bundle
+   (base44/functions/_shared/routingEngine.generated.js). `npm run engine:check` fails on a tampered
+   bundle or any reintroduced hand-written routing function (both demonstrated exit 1 in Phase 2).
+
+2. Production, shadow and simulator execute the same engine - PARTIAL.
+   PROVEN: the generated backend bundle produces identical decisions to the canonical engine
+   (parity.test.js), and the anti-mirror gate forbids a second engine. NEEDS-ENV / later phases:
+   the shadow hook inside processLead (Phase 9) and the operator simulator backend function
+   (Phase 11) are not wired yet; both will import the same generated bundle. No divergent engine can
+   exist because engine:check is blocking.
+
+3. Campaign attribution is deterministic, incl. zero-campaign bootstrap - PARTIAL.
+   PROVEN: the zero-campaign / no-matching-config path yields empty groups and a deterministic
+   NO_ELIGIBLE_MEMBER rather than evaluating all campaigns (snapshot.test.js). NOT YET BUILT: the
+   full attribution hierarchy (key/source -> inbound ref -> source map -> brand+vertical -> default)
+   and the documented per-brand/vertical bootstrap campaigns are Phase 3/9 follow-up; the bootstrap
+   requires Nick sign-off before any live campaign is created (PB-004).
+
+4. Draft and inactive configurations cannot route - PROVEN.
+   snapshot.test.js: a group routes only when active===true AND lifecycle==='active' AND it matches
+   the resolved campaign; draft and wrong-campaign groups are excluded (winner null).
+
+5. Buyer lifecycle uses actual Buyer records - PROVEN.
+   buildRoutingSnapshot joins the real Buyer; eligibility is ALLOWLIST (status==='active' AND
+   active===true). Pinned fixtures: paused+active=true, active+active=false, draft+active=true,
+   missing buyer, unknown status all BUYER_LIFECYCLE_INELIGIBLE (engine.test.js, snapshot.test.js).
+
+6. Invalid configuration fails closed - PROVEN.
+   snapshot.test.js: invalid filters JSON, unknown condition operator, missing buyer/destination all
+   produce CONFIG_INVALID and make the member ineligible; invalid config never broadens routing.
+
+7. Real-schema records map correctly into engine inputs - PROVEN.
+   snapshot.test.js uses actual snake_case Base44 field names and asserts correct engine inputs,
+   including a 100-member (pagination-scale) mapping.
+
+8. Caps safe under real concurrency (adversarial async, honest CAS) - PROVEN (mock); live NEEDS-ENV.
+   capStore.test.js / reservation.test.js: 25 concurrent vs cap 5 => exactly 5; 100 vs 10 => 10;
+   windows isolated; counter never negative. The mock models real CAS (read/yield/commit-if-unchanged
+   /retry). Live: updateMany CAS on Base44 CapCounter under real parallelism needs a linked Base44 app.
+
+9. Reservations idempotent under concurrency - PROVEN (mock); live NEEDS-ENV.
+   reservation.test.js: 10 concurrent calls with one idempotency key => exactly one reservation and
+   one cap consumption (atomic claim, not get-then-put). Live claim behavior needs a linked app.
+
+10. Wallet and ledger operations safe under concurrency - PROVEN (mock); live NEEDS-ENV.
+    walletLedger.test.js: parallel distinct-key debits lose no updates; duplicate key debits once;
+    never negative without a credit limit (5/25 succeed); credit limit holds (10/25, never past
+    -limit); repeated return webhook credits once. Live BuyerWallet CAS needs a linked app.
+
+11. Native direct-post works against controlled destinations - PROVEN.
+    directPost.test.js runs a real local mock HTTP server inside npm test: accepted (revenue +
+    buyer-lead-id extracted), rejected, duplicate, invalid body, form encoding + field mapping,
+    timeout-then-accept, 429-then-accept, 500-until-dead-letter, connection failure, ambiguous reset,
+    and refusal of a non-localhost host in test mode. Outbound from a deployed Base44 function =
+    NEEDS-ENV.
+
+12. Ping-post works against controlled bidders - PARTIAL.
+    PROVEN: bid ranking, reserve price, expiry, and tie-break (pingpost.test.js). NOT YET BUILT: the
+    full ping-post sequence (concurrent pings, minimal-PII allowlist, winner post, fall-through,
+    ambiguous winner) is Phase 8, which is after this checkpoint.
+
+13. Every attempt is persisted - PROVEN.
+    directPost.js creates a DeliveryAttempt with status pending BEFORE sending, then completes it with
+    a redacted record; directPost.test.js asserts the attempt exists and that request secrets are
+    redacted in the stored meta.
+
+14. Retry, lease recovery and dead-letter work - PROVEN.
+    retryWorker.test.js: two concurrent workers over an 8-item due queue send each attempt exactly
+    once (atomic CAS lease); an expired lease is recovered; dead-letter at the attempt cap; transient
+    error reschedules with backoff+jitter; circuit breaker opens after threshold. Live scheduling
+    (cron/queue) = NEEDS-ENV (PB-011).
+
+15. Internal financial effects occur exactly once - PROVEN (logic); end-to-end wiring NEEDS-ENV.
+    Reservation finalize consumes capacity once; wallet debit is idempotent and applies exactly once
+    per idempotency key (reservation.test.js, walletLedger.test.js). The processLead wiring that
+    triggers debit only on an accepted primary delivery is Phase 9 (NEEDS-ENV).
+
+16. External delivery uses stable idempotency semantics - PROVEN.
+    directPost.js sends a stable Idempotency-Key header (derived from lead + destination) on every
+    outbound request; retries reuse the same key (retryWorker reuses the attempt). Effectively-once at
+    the buyer depends on the buyer honoring idempotency/dedup; where they do not, detection is via the
+    duplicate classification (409 / duplicate mapping) and reconciliation.
+
+## Measured results
+- Test suite: 150 passing / 18 files. Concurrency assertions are exact counts (25->5, 100->10,
+  10->1, 5/25, 10/25, 8->8 single-send), not sampled.
+- No live outbound, no real buyer, no payment, no enabled-state change, no merge to main. Production
+  remains legacy_only (the flag field is additive and unused here).
+
+## Residual risks
+- CAP-2: whether a Base44 Deno function can relative-import the generated bundle is unverified; the
+  bundle is self-contained so inlining is the fallback. Resolved when a staging app exists.
+- CAP-3 / PB-008/010: live updateMany CAS semantics under real Base44 parallelism are unverified. The
+  honest mock models correct CAS; if live behavior differs, that is the stop-and-present point. No
+  external datastore was introduced (would need Nick + Morne approval).
+- Items 2, 3, 12, 15 have PARTIAL wiring completed in Phases 8-11 (some gated); the engine, snapshot,
+  caps, wallet, delivery, and retry cores are proven now.
+
+## Recommendation
+Tier 1 core mechanisms are PROVEN locally; production wiring and live concurrency are NEEDS-ENV.
+Status: Tier 1 substantially complete at the logic level, ready for staging verification pending Nick
+providing a linked/staging Base44 app. Not ready for production shadow until the processLead wiring
+(Phase 9) and staging verification (Phase 18) are done. This is Checkpoint A; the gated phases (8,
+12, 14, 15) and any live activation await your review and approval.
