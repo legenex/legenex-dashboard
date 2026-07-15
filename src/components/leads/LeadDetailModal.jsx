@@ -37,6 +37,13 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
   // Imported custom fields live in mapped_fields as a JSON string.
   let mappedFields = {};
   try { mappedFields = JSON.parse(lead.mapped_fields || '{}') || {}; } catch {}
+
+  // The reported TrustedForm cert URL is stored only inside the outcome
+  // payload, never in mapped_fields / trustedform_valid / cert_source. Parse
+  // it defensively for read-only display.
+  let outcomePayload = {};
+  try { outcomePayload = JSON.parse(lead.leadbyte_outcome_payload || '{}') || {}; } catch {}
+  const reportedTrustedFormUrl = outcomePayload.contact_trustedform_url;
   const toTitleCase = (k) => String(k).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const mappedEntries = Object.entries(mappedFields).filter(([, v]) => v != null && String(v).trim() !== '');
 
@@ -60,6 +67,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
     ['Returned', lead.buyer_returned === true ? 'Yes' : null],
     ['Return Reason', lead.buyer_return_reason],
     ['Outcome Received', outcomeReceived],
+    ['TrustedForm URL (reported)', reportedTrustedFormUrl],
   ].filter(([, v]) => v != null && String(v).trim() !== '');
 
   const handleCopyPayload = () => {
@@ -178,6 +186,9 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
                     </div>
                   ))}
                 </div>
+                {reportedTrustedFormUrl != null && String(reportedTrustedFormUrl).trim() !== '' && (
+                  <div className="text-[12px] text-muted-foreground mt-2">Reported by LeadByte. Not a captured certificate.</div>
+                )}
               </div>
             )}
             {!editing && mappedEntries.length > 0 && (
@@ -211,14 +222,31 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
           </TabsContent>
 
           <TabsContent value="leadbyte" className="mt-4 space-y-4">
-            <JsonViewer data={lead.leadbyte_request} title="LeadByte Request" />
-            <JsonViewer data={lead.leadbyte_response} title="LeadByte Response" />
-            {lead.leadbyte_outcome_payload && (
-              <div className="space-y-1.5">
-                <JsonViewer data={lead.leadbyte_outcome_payload} title="Inbound Outcome Payload" />
-                <div className="text-[12px] text-muted-foreground">Received from LeadByte via the inbound outcome webhook.</div>
-              </div>
-            )}
+            {(() => {
+              const isEmpty = (v) => {
+                if (v == null) return true;
+                const s = String(v).trim();
+                return s === '' || s.toLowerCase() === 'null';
+              };
+              const hasRequest = !isEmpty(lead.leadbyte_request);
+              const hasResponse = !isEmpty(lead.leadbyte_response);
+              const hasOutcome = !!lead.leadbyte_outcome_payload;
+              if (!hasRequest && !hasResponse && !hasOutcome) {
+                return <div className="text-[12px] text-muted-foreground">No LeadByte trace recorded for this lead.</div>;
+              }
+              return (
+                <>
+                  {hasRequest && <JsonViewer data={lead.leadbyte_request} title="LeadByte Request" />}
+                  {hasResponse && <JsonViewer data={lead.leadbyte_response} title="LeadByte Response" />}
+                  {hasOutcome && (
+                    <div className="space-y-1.5">
+                      <JsonViewer data={lead.leadbyte_outcome_payload} title="Inbound Outcome Payload" />
+                      <div className="text-[12px] text-muted-foreground">Received from LeadByte via the inbound outcome webhook.</div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="capi" className="mt-4">
