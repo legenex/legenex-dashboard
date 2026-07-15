@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 7e8e4e2d36159ce974e98895a141dd0780e961b3439966be6821ea5d28586474
+// canonical-engine-sha256: 3e6bb2b1f2d7d8672e350aff0e611ef1b23a705a52bb3c15d75f95def3cd616a
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -1098,9 +1098,117 @@ async function failClosed(ctx, cfg, nowMs, errorClass, code) {
   return { attemptId: rec.id, status: ATTEMPT_STATUS.ERROR, code, errorClass, retryable: false, revenue: 0, buyerLeadId: null };
 }
 
+// src/lib/distribution/pingpostFlow.js
+var PING_ALLOWLIST = ["state", "zip", "county", "vertical", "brand", "supplier", "source", "lead_event"];
+function buildPingPayload(leadData, allowlist = PING_ALLOWLIST) {
+  const out = {};
+  for (const f of allowlist) if (leadData[f] !== void 0 && leadData[f] !== null) out[f] = leadData[f];
+  return out;
+}
+function getPath2(obj, path) {
+  if (!path) return void 0;
+  return String(path).split(".").reduce((o, k) => o == null ? void 0 : o[k], obj);
+}
+function isAmbiguous(errorClass) {
+  if (!errorClass) return false;
+  const e = String(errorClass).toLowerCase();
+  if (e.includes("refused") || e.includes("econnrefused") || e === "host_not_allowed" || e === "invalid_url") return false;
+  return true;
+}
+async function sendPing({ url, payload, headers, timeoutMs }, ctx) {
+  const fetchImpl = ctx.fetchImpl || globalThis.fetch;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || 5e3);
+  try {
+    const resp = await fetchImpl(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers || {} },
+      body: JSON.stringify(payload),
+      redirect: "manual",
+      signal: controller.signal
+    });
+    const text = await resp.text();
+    let json = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+    return { ok: true, status: resp.status, json };
+  } catch (e) {
+    return { ok: false, errorClass: e && e.name === "AbortError" ? "timeout" : e && e.message ? e.message.slice(0, 60) : "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function runPingPost(cfg, ctx) {
+  const nowMs = ctx.nowMs ?? 0;
+  const pingPayload = buildPingPayload(cfg.leadData || {}, cfg.pingAllowlist || PING_ALLOWLIST);
+  const trace = { ping_payload_fields: Object.keys(pingPayload), bids: [], excluded: [], fallthrough: [] };
+  const pinged = await Promise.all((cfg.bidders || []).map(async (b) => {
+    const res = await sendPing({ url: b.pingUrl, payload: pingPayload, headers: b.headers, timeoutMs: b.timeoutMs }, ctx);
+    const bm = b.bidMapping || { amountPath: "bid", idPath: "bid_id", expiresAtPath: "expires_at_ms" };
+    const amount = res.ok ? Number(getPath2(res.json, bm.amountPath)) || 0 : 0;
+    const bidId = res.ok ? getPath2(res.json, bm.idPath) ?? null : null;
+    const expiresAtMs = res.ok ? Number(getPath2(res.json, bm.expiresAtPath)) || null : null;
+    await ctx.store.createBid({
+      lead_id: cfg.leadId,
+      route_member_id: b.memberId,
+      destination_id: b.destinationId,
+      ping_sent_at: new Date(nowMs).toISOString(),
+      bid_amount: amount,
+      bid_id: bidId,
+      bid_expires_at: expiresAtMs ? new Date(expiresAtMs).toISOString() : null,
+      status: res.ok ? "bid" : "error"
+    });
+    return { bidder: b, amount, bidId, expiresAtMs, ok: res.ok };
+  }));
+  const eligible = [];
+  for (const p of pinged) {
+    let reason = null;
+    if (!p.ok || !(p.amount > 0)) reason = "NO_BID";
+    else if (p.expiresAtMs != null && p.expiresAtMs < nowMs) reason = "BID_EXPIRED";
+    else if (p.bidder.reservePrice != null && p.amount < Number(p.bidder.reservePrice)) reason = "BELOW_RESERVE";
+    trace.bids.push({ member_id: p.bidder.memberId, amount: p.amount, bid_id: p.bidId, eligible: !reason, reason });
+    if (reason) trace.excluded.push({ member_id: p.bidder.memberId, reason });
+    else eligible.push(p);
+  }
+  eligible.sort((a, b) => b.amount - a.amount || String(a.bidder.memberId).localeCompare(String(b.bidder.memberId)));
+  if (!eligible.length) return { won: false, reason: "NO_ELIGIBLE_BID", winner: null, postResult: null, trace };
+  for (let i = 0; i < eligible.length; i++) {
+    const cand = eligible[i];
+    const postRes = await deliverDirectPost({
+      destinationId: cand.bidder.destinationId,
+      targetUrl: cand.bidder.postUrl,
+      method: "POST",
+      encoding: cand.bidder.encoding || "json",
+      headers: cand.bidder.headers,
+      fieldMap: cand.bidder.fieldMap,
+      timeoutMs: cand.bidder.timeoutMs,
+      responseMapping: cand.bidder.responseMapping,
+      idempotencyKey: `${cfg.idempotencyKey}:${cand.bidder.memberId}`,
+      leadData: cfg.leadData,
+      leadId: cfg.leadId,
+      attemptNumber: 1,
+      isPrimary: true,
+      trigger: "pingpost_win"
+    }, ctx);
+    if (postRes.status === ATTEMPT_STATUS.ACCEPTED) {
+      return { won: true, winner: cand.bidder.memberId, price: cand.amount, postResult: postRes, trace };
+    }
+    if (postRes.status === ATTEMPT_STATUS.ERROR && isAmbiguous(postRes.errorClass)) {
+      trace.ambiguous = { member_id: cand.bidder.memberId, error_class: postRes.errorClass };
+      return { won: false, reason: "AMBIGUOUS_WINNER", winner: cand.bidder.memberId, postResult: postRes, needsReconciliation: true, trace };
+    }
+    trace.fallthrough.push({ member_id: cand.bidder.memberId, status: postRes.status });
+  }
+  return { won: false, reason: "ALL_WINNERS_FAILED", winner: null, postResult: null, trace };
+}
+
 // src/lib/distribution/deliveryStore.js
 function makeInMemoryAttemptStore({ yieldFn } = {}) {
   const attempts = [];
+  const bids = [];
   let seq = 0;
   const microYield = yieldFn || (() => new Promise((r) => setTimeout(r, 0)));
   return {
@@ -1136,7 +1244,18 @@ function makeInMemoryAttemptStore({ yieldFn } = {}) {
       latest.lease_version = version + 1;
       return true;
     },
-    _debug: { attempts }
+    // BidAttempt persistence (ping-post).
+    async createBid(rec) {
+      const row = { ...rec, id: "b" + ++seq };
+      bids.push(row);
+      return row;
+    },
+    async updateBid(id, patch) {
+      const b = bids.find((x) => x.id === id);
+      if (b) Object.assign(b, patch);
+      return b;
+    },
+    _debug: { attempts, bids }
   };
 }
 function makeBase44AttemptStore(db) {
@@ -1168,6 +1287,12 @@ function makeBase44AttemptStore(db) {
         { $set: { lease_until: new Date(nowMs + leaseMs).toISOString(), leased_by: workerId, lease_version: version + 1 } }
       );
       return !!(res && res.updated > 0);
+    },
+    async createBid(rec) {
+      return db.entities.BidAttempt.create(rec);
+    },
+    async updateBid(id, patch) {
+      return db.entities.BidAttempt.update(id, patch);
     }
   };
 }
@@ -1327,6 +1452,7 @@ export {
   BID_REASON,
   CIRCUIT,
   OPERATORS,
+  PING_ALLOWLIST,
   REASON,
   RESERVE,
   WALLET,
@@ -1334,6 +1460,7 @@ export {
   applyTransform,
   backoffWithJitter,
   buildAttemptRecord,
+  buildPingPayload,
   buildRoutingSnapshot,
   capWindowStart,
   classifyResponse,
@@ -1365,6 +1492,7 @@ export {
   reserve,
   resolvePrice,
   routeWaterfall,
+  runPingPost,
   runRetryWorker,
   selectAuction,
   selectHybrid,

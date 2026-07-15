@@ -4,6 +4,7 @@
 
 export function makeInMemoryAttemptStore({ yieldFn } = {}) {
   const attempts = [];
+  const bids = [];
   let seq = 0;
   const microYield = yieldFn || (() => new Promise((r) => setTimeout(r, 0)));
   return {
@@ -30,7 +31,10 @@ export function makeInMemoryAttemptStore({ yieldFn } = {}) {
       latest.lease_version = version + 1;
       return true;
     },
-    _debug: { attempts },
+    // BidAttempt persistence (ping-post).
+    async createBid(rec) { const row = { ...rec, id: 'b' + (++seq) }; bids.push(row); return row; },
+    async updateBid(id, patch) { const b = bids.find((x) => x.id === id); if (b) Object.assign(b, patch); return b; },
+    _debug: { attempts, bids },
   };
 }
 
@@ -59,5 +63,7 @@ export function makeBase44AttemptStore(db) {
       );
       return !!(res && res.updated > 0);
     },
+    async createBid(rec) { return db.entities.BidAttempt.create(rec); },
+    async updateBid(id, patch) { return db.entities.BidAttempt.update(id, patch); },
   };
 }

@@ -19,6 +19,7 @@ export { makeBase44WalletStore } from './walletStore.js';
 export { walletDebit, walletCredit, walletCreditReturn, WALLET } from './walletLedger.js';
 export { computeBillingLines, applyReturnAdjustment } from './billing.js';
 export { deliverDirectPost } from './directPost.js';
+export { runPingPost, buildPingPayload, PING_ALLOWLIST } from './pingpostFlow.js';
 export { makeBase44AttemptStore, makeInMemoryAttemptStore } from './deliveryStore.js';
 export { applyTransform } from './transforms.js';
 export { runRetryWorker, manualRetry, backoffWithJitter } from './retryWorker.js';
