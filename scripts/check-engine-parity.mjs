@@ -23,9 +23,17 @@ if (committed !== content) {
   fail(`${OUT_PATH} is stale. Run: node scripts/generate-backend-engine.mjs and commit the result.`);
 }
 
-// 2. Anti-mirror: no hand-written routing engine may exist in base44/functions.
-// The one allowed engine is the generated bundle under _shared.
-const FORBIDDEN = [/function\s+shadowEvaluateRouting/, /routeWaterfall\s*\(/, /function\s+evaluateMember/];
+// 2. Anti-mirror: no hand-written routing engine DEFINITION may exist in
+// base44/functions. Calling the bundled engine (engine.routeWaterfall(...)) is
+// allowed; DEFINING routing functions by hand is not. The one allowed definition
+// is the generated bundle under _shared (excluded below).
+const FORBIDDEN = [
+  /function\s+shadowEvaluateRouting/,
+  /function\s+routeWaterfall\b/,
+  /\brouteWaterfall\s*=\s*(async\s*)?\(/,
+  /function\s+evaluateMember\b/,
+  /\bevaluateMember\s*=\s*(async\s*)?\(/,
+];
 function scan(dir) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);

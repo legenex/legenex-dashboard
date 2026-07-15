@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 3e6bb2b1f2d7d8672e350aff0e611ef1b23a705a52bb3c15d75f95def3cd616a
+// canonical-engine-sha256: fa83fa0965b1db1f7a70933a842674cf715dfcd0208f42f73e70dfaeff89df65
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -552,6 +552,129 @@ function hashConfig(records) {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+// src/lib/distribution/snapshotLoader.js
+var PAGE = 200;
+var activeGroupCache = /* @__PURE__ */ new Map();
+async function loadAllFiltered(entity, query, { sort = "created_date", maxPages = 25 } = {}) {
+  const out = [];
+  for (let page = 0; page < maxPages; page++) {
+    const rows = await entity.filter(query, sort, PAGE, page * PAGE);
+    if (!rows || !rows.length) break;
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+  return out;
+}
+async function hasActiveRouteGroup(db, campaignId, nowMs, ttlMs = 5e3) {
+  const cached = activeGroupCache.get(campaignId);
+  if (cached && cached.expires > nowMs) return cached.has;
+  const rows = await db.entities.RouteGroup.filter({ campaign_id: campaignId, active: true, lifecycle: "active" }, "order_index", 1, 0);
+  const has = !!(rows && rows.length);
+  activeGroupCache.set(campaignId, { has, expires: nowMs + ttlMs });
+  return has;
+}
+function _clearActiveGroupCache() {
+  activeGroupCache.clear();
+}
+async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId, capCountsFor }) {
+  const groups = await loadAllFiltered(db.entities.RouteGroup, { campaign_id: campaignId, active: true, lifecycle: "active" }, { sort: "order_index" });
+  const groupIds = groups.map((g) => g.id);
+  let members = [];
+  for (const gid of groupIds) {
+    members = members.concat(await loadAllFiltered(db.entities.RouteMember, { route_group_id: gid }, { sort: "priority" }));
+  }
+  const buyerIds = [...new Set(members.map((m) => m.buyer_id).filter(Boolean))];
+  const destIds = [...new Set(members.map((m) => m.destination_id).filter(Boolean))];
+  const buyers = [];
+  for (const id of buyerIds) {
+    const r = await db.entities.Buyer.filter({ id });
+    if (r && r[0]) buyers.push(r[0]);
+  }
+  const destinations = [];
+  for (const id of destIds) {
+    const r = await db.entities.LeadByteConnector.filter({ id });
+    if (r && r[0]) destinations.push(r[0]);
+  }
+  const health = [];
+  for (const id of destIds) {
+    const r = await db.entities.DestinationHealth.filter({ destination_id: id });
+    if (r && r[0]) health.push(r[0]);
+  }
+  return buildRoutingSnapshot(
+    { groups, members, buyers, destinations, health },
+    { campaignId, nowMs, configVersionId, capCountsFor: capCountsFor || (() => 0) }
+  );
+}
+
+// src/lib/distribution/shadowHook.js
+async function runShadow(db, ctx) {
+  const { distributionMode, leadData, campaignId, idempotencyKey: idempotencyKey2 } = ctx;
+  const clock = ctx.clock || (() => Date.now());
+  const nowMs = ctx.nowMs ?? clock();
+  if (distributionMode === "legacy_only" || !distributionMode) return { ran: false, reason: "legacy_only" };
+  try {
+    const hasGroups = await hasActiveRouteGroup(db, campaignId, nowMs);
+    if (!hasGroups) {
+      await db.entities.RouteDecisionTrace.create({
+        lead_id: ctx.leadId,
+        distribution_mode: distributionMode,
+        result: "no_route_config",
+        winner_member_id: "",
+        evaluated_candidates: "[]",
+        fallthrough_path: "[]",
+        config_version: null,
+        eval_latency_ms: 0,
+        created_at: new Date(nowMs).toISOString()
+      });
+      return { ran: false, reason: "no_route_config" };
+    }
+    const t0 = clock();
+    const snap = await loadRoutingSnapshot(db, { campaignId, nowMs, capCountsFor: ctx.capCountsFor });
+    const decision = routeWaterfall(snap.groups, leadData || {}, {
+      idempotencyKey: idempotencyKey2,
+      evalConditions: (t, d) => evalConditionTree(t, d, { nowMs })
+    });
+    const latency = clock() - t0;
+    await db.entities.RouteDecisionTrace.create({
+      lead_id: ctx.leadId,
+      idempotency_key: idempotencyKey2 || null,
+      distribution_mode: distributionMode,
+      evaluated_candidates: JSON.stringify(flattenTrace(decision.trace)),
+      winner_member_id: decision.winner ? decision.winner.id : "",
+      winning_group_id: decision.groupId || "",
+      price: decision.winner ? decision.price : 0,
+      fallthrough_path: JSON.stringify(decision.fallthroughPath || []),
+      result: decision.winner ? "shadow_selected" : decision.reason || "no_eligible_member",
+      config_version: snap.configHash || null,
+      eval_latency_ms: latency,
+      created_at: new Date(nowMs).toISOString()
+    });
+    return { ran: true, latencyMs: latency, winner: decision.winner ? decision.winner.id : null };
+  } catch (err) {
+    try {
+      await db.entities.RouteDecisionTrace.create({
+        lead_id: ctx.leadId,
+        distribution_mode: distributionMode,
+        result: "evaluation_error",
+        winner_member_id: "",
+        evaluated_candidates: "[]",
+        fallthrough_path: "[]",
+        error_message: String(err && err.message ? err.message : err).slice(0, 300),
+        created_at: new Date(nowMs).toISOString()
+      });
+    } catch {
+    }
+    return { ran: false, reason: "evaluation_error", error: String(err && err.message ? err.message : err) };
+  }
+}
+function flattenTrace(trace) {
+  const out = [];
+  for (const g of trace || []) for (const c of g.candidates || []) {
+    out.push({ group_id: g.groupId, member_id: c.memberId, eligible: c.eligible, reason_code: c.reason, price: c.price });
+  }
+  return out;
 }
 
 // src/lib/distribution/capStore.js
@@ -1456,6 +1579,7 @@ export {
   REASON,
   RESERVE,
   WALLET,
+  _clearActiveGroupCache,
   applyReturnAdjustment,
   applyTransform,
   backoffWithJitter,
@@ -1472,10 +1596,12 @@ export {
   evaluateMember,
   exhaustedCap,
   finalize,
+  hasActiveRouteGroup,
   idempotencyKey,
   isBlocked,
   isValidTrustedForm,
   isWithinSchedule,
+  loadRoutingSnapshot,
   makeBase44AttemptStore,
   makeBase44CapStore,
   makeBase44HealthStore,
@@ -1494,6 +1620,7 @@ export {
   routeWaterfall,
   runPingPost,
   runRetryWorker,
+  runShadow,
   selectAuction,
   selectHybrid,
   selectPriority,

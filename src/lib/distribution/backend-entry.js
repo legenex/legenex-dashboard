@@ -13,6 +13,8 @@ export {
 
 export { evalLeaf, evalConditionTree, OPERATORS } from './conditions.js';
 export { buildRoutingSnapshot } from './snapshot.js';
+export { runShadow } from './shadowHook.js';
+export { loadRoutingSnapshot, hasActiveRouteGroup, _clearActiveGroupCache } from './snapshotLoader.js';
 export { makeBase44CapStore } from './capStore.js';
 export { reserve, finalize, release, RESERVE } from './reservation.js';
 export { makeBase44WalletStore } from './walletStore.js';
