@@ -247,9 +247,30 @@ export default function CsvImporter() {
     });
     return m;
   }, [suppliers]);
-  const resolveSupplierName = (sidRaw) => {
-    const key = String(sidRaw ?? '').trim().toLowerCase();
-    return (key && sidToName.get(key)) || 'CSV Import';
+  // Lookup from normalized Supplier.name -> canonical Supplier.name, so a value
+  // that is already a supplier name (not a sid) still resolves to the canonical
+  // casing that billing and the supplier portal match on.
+  const nameToName = React.useMemo(() => {
+    const m = new Map();
+    suppliers.forEach((s) => {
+      const name = String(s?.name ?? '').trim().toLowerCase();
+      if (name) m.set(name, s.name);
+    });
+    return m;
+  }, [suppliers]);
+  // Try each candidate in order (sid first). A candidate resolves when it
+  // matches a Supplier.sid or a Supplier.name; always returns the canonical
+  // Supplier.name, never a raw sid. Falls back to 'CSV Import' when none match.
+  const resolveSupplierName = (...candidates) => {
+    for (const raw of candidates) {
+      const key = String(raw ?? '').trim().toLowerCase();
+      if (!key) continue;
+      const bySid = sidToName.get(key);
+      if (bySid) return bySid;
+      const byName = nameToName.get(key);
+      if (byName) return byName;
+    }
+    return 'CSV Import';
   };
 
   const targetFields = target === 'lead'
@@ -296,6 +317,7 @@ export default function CsvImporter() {
   // columns by looking up which column maps onto them.
   const columnFor = (field) => Object.entries(mapping).find(([, f]) => f === field)?.[0] || null;
   const sidColumn = columnFor('sid');
+  const supplierNameColumn = columnFor('supplier_name');
   const timestampColumn = columnFor('timestamp');
 
   // Buyer disposition columns detected by value across all source columns.
@@ -324,12 +346,13 @@ export default function CsvImporter() {
     const tsSamples = [];
     const statusCounts = {};
     rows.forEach((r) => {
-      // Supplier resolution
+      // Supplier resolution: try the sid column then a directly-mapped
+      // supplier_name column, matching the commit-time multi-candidate logic.
       const sidRaw = sidColumn ? r?.[sidColumn] : null;
-      const key = String(sidRaw ?? '').trim().toLowerCase();
-      if (!key || !sidToName.get(key)) {
+      const nameRaw = supplierNameColumn ? r?.[supplierNameColumn] : null;
+      if (resolveSupplierName(sidRaw, nameRaw) === 'CSV Import') {
         unresolvedSid += 1;
-        const s = String(sidRaw ?? '').trim();
+        const s = String(sidRaw ?? '').trim() || String(nameRaw ?? '').trim();
         if (s && unresolvedSidSamples.length < 3 && !unresolvedSidSamples.includes(s)) unresolvedSidSamples.push(s);
       }
       // Timestamp parsing
@@ -351,7 +374,7 @@ export default function CsvImporter() {
       statusCounts[st] = (statusCounts[st] || 0) + 1;
     });
     return { unresolvedSid, unresolvedSidSamples, unparsedTs, unparsedTsSamples, tsSamples, statusCounts };
-  }, [target, rows, sidColumn, sidToName, timestampColumn, dateOrder, buyerColumns]);
+  }, [target, rows, sidColumn, supplierNameColumn, sidToName, nameToName, timestampColumn, dateOrder, buyerColumns]);
 
   const checkDuplicates = async () => {
     setDupChecking(true);
@@ -491,9 +514,10 @@ export default function CsvImporter() {
           }
         });
         if (target === 'lead') {
-          // Resolve supplier_name from the row's sid (which lives in mapped),
-          // never the raw sid. Falls back to 'CSV Import' when unresolved.
-          out.supplier_name = resolveSupplierName(mapped.sid);
+          // Resolve supplier_name from the row's sid (which lives in mapped) or
+          // from a directly-mapped supplier_name, sid first. Always the
+          // canonical Supplier.name, never a raw sid. Falls back to 'CSV Import'.
+          out.supplier_name = resolveSupplierName(mapped.sid, out.supplier_name);
           // Derive final_status from the detected buyer disposition columns.
           // When buyer columns are present they are the source of truth and win
           // over any column mapped onto final_status. With no buyer columns,
