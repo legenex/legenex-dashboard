@@ -44,6 +44,7 @@ export const navGroups = [
       { label: 'Buyer Payments', path: '/finances', tab: 'payments', permKey: 'finances' },
       { label: 'Supplier Payouts', path: '/finances', tab: 'payouts', permKey: 'finances' },
       { label: 'Ad Spend', path: '/finances', tab: 'adspend', permKey: 'finances' },
+      { label: 'Profitability', path: '/finances', tab: 'profit', permKey: 'bank_feed' },
       { label: 'Settings', path: '/finances', tab: 'settings', permKey: 'finances' },
     ],
   },

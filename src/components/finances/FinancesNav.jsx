@@ -2,7 +2,7 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { LayoutDashboard, Landmark, FileText, CreditCard, Wallet, Megaphone, Settings2 } from 'lucide-react';
+import { LayoutDashboard, Landmark, FileText, CreditCard, Wallet, Megaphone, TrendingUp, Settings2 } from 'lucide-react';
 import { usePermissions } from '@/lib/AuthContext';
 import SubNavShell from '@/components/layout/SubNavShell';
 
@@ -13,6 +13,7 @@ const ITEMS = [
   { label: 'Buyer Payments', tab: 'payments', icon: CreditCard },
   { label: 'Supplier Payouts', tab: 'payouts', icon: Wallet },
   { label: 'Ad Spend', tab: 'adspend', icon: Megaphone },
+  { label: 'Profitability', tab: 'profit', icon: TrendingUp, perm: 'bank_feed' },
   { label: 'Settings', tab: 'settings', icon: Settings2 },
 ];
 
