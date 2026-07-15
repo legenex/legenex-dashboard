@@ -67,6 +67,35 @@ criteria are proven with evidence, never because code was written.
   backoff+jitter, dead-letter at cap, lease-expiry recovery, manual retry; destinationHealth.js
   circuit breaker. Command: npm test. Live scheduling mechanism (cron/queue) on Base44 = NEEDS-ENV.
 
+- Phase 8 (PB-012): pingpostFlow.js full sequence. 10 tests vs 3 local mock bidders: PII allowlist
+  at ping (bodies verified free of email/phone/address), concurrent pings, BidAttempt persistence,
+  reserve/expiry exclusion, deterministic ranking, full PII only to winner, clean fall-through,
+  ambiguous-winner reconciliation with no double-send. Command: npm test.
+- Phase 9 (PB-006): shadowHook.js runs the full canonical engine (all gates + 5 selection methods)
+  through the snapshot loader; wired into processLead as a flag-gated, lazily-imported, guarded hook
+  that writes only RouteDecisionTrace, records latency + config identity, skips load when no active
+  group (cached), uses bounded paginated reads, and is inert on legacy_only. shadowHook.test.js +
+  shadowInert.test.js (static regression: single guard, only RouteDecisionTrace write, no envelope
+  mutation). entry.ts parses (esbuild). Live bundle deployment = NEEDS-ENV (CAP-2).
+- Phase 10 (PB-020): shadowCompare.js full taxonomy (exact/buyer/destination/price/status mismatch,
+  legacy-only, native-only, qualification, configuration-error, evaluation-error), one test per
+  category. distributionShadowReport backend fn (operator-only). Command: npm test.
+- Phase 11 (PB-013): simulateReport.js runSimulation loads the REAL snapshot via the same loader,
+  runs the canonical engine, returns a redacted trace + config identity, ZERO writes/sends (proven).
+  distributionSimulate backend fn (operator-only). UI defaults to real-config mode.
+- Phase 13 (PB-014/015/021): portalProjection.js authorizePortal + deny-by-default projections +
+  sanitizeApiKey, applied inside supplierPortalData and portalData. 12-case authorization matrix.
+  PB-015 CLOSED (raw key removed from supplier portal; revenue/cost removed). PB-014 addressed
+  (projections enforced server-side inside the actual functions). PB-021 redaction covered for
+  delivery attempts (Phase 6) and portal projections.
+
+## Portal compatibility notes (user-visible field changes)
+- supplierPortalData no longer returns: raw ApiKey.key (now prefix + metadata), lead revenue, or
+  lead cost. Supplier portal API page must show the prefix and obtain the full key only at issuance/
+  rotation (rotation flow is follow-up). Reporting that relied on supplier-visible revenue/cost must
+  use operator surfaces instead.
+- portalData no longer returns lead cost (internal margin) to buyers; revenue (buyer CPL) is retained.
+
 ## NEEDS-ENV summary (what cannot be verified in this environment)
 - PB-007 (delivery): logic + local-server integration PROVEN; outbound from a deployed Base44 Deno
   function to a real/controlled destination needs a linked Base44 app.

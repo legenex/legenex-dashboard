@@ -119,3 +119,71 @@ Status: Tier 1 substantially complete at the logic level, ready for staging veri
 providing a linked/staging Base44 app. Not ready for production shadow until the processLead wiring
 (Phase 9) and staging verification (Phase 18) are done. This is Checkpoint A; the gated phases (8,
 12, 14, 15) and any live activation await your review and approval.
+
+---
+
+# Checkpoint B Readiness (Tier 1 items 1-25)
+
+Verification date: 2026-07-15. After Phases 8, 9, 10, 11, 13. Branch
+integration/native-lead-distribution-v2. Reproduce: npm test (181 pass / 22 files),
+npm run engine:check (green), npm run lint (53 baseline, zero new). Status keys:
+PROVEN (command shows it now), PARTIAL (core proven, later/gated phase completes
+wiring), NEEDS-ENV (needs a linked/staging Base44 app or sandbox creds).
+
+1  One canonical engine - PROVEN (engine:check + parity.test.js).
+2  Production/shadow/simulator run the same engine - PROVEN wiring: shadow
+   (shadowHook via processLead) and simulator (simulateReport) both call the
+   generated bundle; anti-mirror gate forbids a second engine. Live bundle deploy
+   to the function runtime = NEEDS-ENV (CAP-2).
+3  Campaign attribution deterministic incl. zero-campaign - PARTIAL. Zero-campaign
+   fail-closed PROVEN; the full attribution hierarchy + bootstrap (PB-004) is not
+   built and needs Nick sign-off before any live campaign.
+4  Draft/inactive cannot route - PROVEN (snapshot.test.js).
+5  Buyer lifecycle from actual records (allowlist) - PROVEN (engine/snapshot tests).
+6  Invalid config fails closed - PROVEN (snapshot.test.js).
+7  Real-schema mapping - PROVEN (snapshot.test.js, incl. 100-member scale).
+8  Caps safe under concurrency - PROVEN vs honest CAS mock; live = NEEDS-ENV.
+9  Reservations idempotent under concurrency - PROVEN vs mock; live = NEEDS-ENV.
+10 Wallet safe under concurrency - PROVEN vs mock; live = NEEDS-ENV.
+11 Native direct-post works - PROVEN (directPost.test.js, local server).
+12 Ping-post works - PROVEN (pingpostFlow.test.js, 3 local bidders, PII allowlist).
+13 Every attempt persisted - PROVEN (directPost persists before send).
+14 Retry, lease recovery, dead-letter - PROVEN (retryWorker.test.js).
+15 Internal financial effects exactly once - PROVEN (logic: reservation + wallet
+   idempotent). The processLead wiring that debits only on accepted primary
+   delivery is Phase 15 (gated) = NEEDS-ENV/gated.
+16 External delivery stable idempotency - PROVEN (Idempotency-Key on every send).
+17 Shadow traces contain complete candidate decisions - PROVEN (shadowHook.test.js).
+18 Shadow comparison detects buyer/price mismatch - PROVEN (shadowCompare.test.js,
+   full taxonomy).
+19 Simulator loads actual published config - PROVEN (simulateReport.test.js; zero
+   writes); UI defaults to real-config mode.
+20 Portal projections enforced server-side - PROVEN (portalProjection.test.js
+   matrix; applied inside supplierPortalData + portalData).
+21 Supplier portal hides full key / revenue / cost - PROVEN (Phase 13; PB-015 closed).
+22 Config CRUD authorized server-side - NOT YET. Operator-only report/simulate
+   functions are server-authorized, but Route Group/Member publish/validate/pause/
+   archive/rollback functions (PB-016) are Phase 12, which is GATED on Checkpoint B.
+23 Published configs immutable/versioned - PARTIAL. Config hash exists and the
+   RouteDecisionTrace references it; full draft/publish/version/rollback (PB-019)
+   is Phase 12 (gated).
+24 Reporting server-side not client-capped - PARTIAL. distributionShadowReport is
+   server-side; general operator reporting (PB-024) is Phase 15 (gated).
+25 All operating modes tested - PARTIAL. legacy_only (inert) and shadow are
+   implemented and tested; canary / new_primary_with_legacy_fallback / new_only
+   (PB-022) are Phase 16, not yet built.
+
+## Measured results
+- 181 tests / 22 files pass. Concurrency and PII assertions are exact (25->5,
+  10->1, 8->8 single-send, 3 bidders winner-only PII, no double-send).
+- No live outbound, no real buyer, no payment, no enabled-state change, no merge
+  to main. Production remains legacy_only; the shadow hook is inert there.
+
+## Recommendation
+Tier 1 items 1, 2, 4-14, 16-21 are PROVEN locally. Items 3, 23, 24, 25 are PARTIAL
+and item 22 is NOT YET, all completed by the gated phases (12, 15, 16) or PB-004,
+which require Checkpoint B approval. Live concurrency, bundle deployment, and
+outbound delivery are NEEDS-ENV pending a staging Base44 app. Status: ready for
+Checkpoint B review. Not ready for production shadow until the shadow hook is
+verified on staging (Phase 18) and Nick approves. Phases 12, 14, 15 and any live
+activation await explicit Checkpoint B approval.
