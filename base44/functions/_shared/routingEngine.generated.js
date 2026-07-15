@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 8fadddbb0bf035469d326b46bb8935a42b7740fc7d1aea8139eb313de5ed3c7c
+// canonical-engine-sha256: 89e35b01d6352b75e596ef16c5dddb393a01cd63511c56cd652c15170ae9cd29
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -678,6 +678,170 @@ async function release(store, reservation) {
   return { ...reservation, state: "released" };
 }
 
+// src/lib/distribution/walletStore.js
+function makeBase44WalletStore(db) {
+  async function ensureWallet(buyerId) {
+    let rows = await db.entities.BuyerWallet.filter({ buyer_id: buyerId });
+    if (!rows.length) {
+      await db.entities.BuyerWallet.create({ buyer_id: buyerId, balance: 0, version: 0 });
+      rows = await db.entities.BuyerWallet.filter({ buyer_id: buyerId });
+    }
+    rows.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    return rows[0];
+  }
+  async function claimTxn(key) {
+    for (let i = 0; i < 25; i++) {
+      let rows = await db.entities.CapCounter.filter({ scope_key: `walletclaim:${key}` });
+      if (!rows.length) {
+        await db.entities.CapCounter.create({ scope_key: `walletclaim:${key}`, count: 0 });
+        rows = await db.entities.CapCounter.filter({ scope_key: `walletclaim:${key}` });
+      }
+      rows.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      const row = rows[0];
+      if (Number(row.count || 0) >= 1) return false;
+      const res = await db.entities.CapCounter.updateMany({ id: row.id, count: 0 }, { $set: { count: 1 } });
+      if (res && res.updated > 0) return true;
+    }
+    return false;
+  }
+  async function getBalance(buyerId) {
+    const w = await ensureWallet(buyerId);
+    return { balance: Number(w.balance || 0), version: Number(w.version || 0), _id: w.id };
+  }
+  async function casAdjustBalance(buyerId, expectedVersion, newBalance) {
+    const w = await ensureWallet(buyerId);
+    if (Number(w.version || 0) !== expectedVersion) return false;
+    const res = await db.entities.BuyerWallet.updateMany(
+      { id: w.id, version: expectedVersion },
+      { $set: { balance: newBalance, version: expectedVersion + 1 } }
+    );
+    return !!(res && res.updated > 0);
+  }
+  async function appendTxn(txn) {
+    return db.entities.WalletTransaction.create(txn);
+  }
+  async function getTxnByKey(key) {
+    const rows = await db.entities.WalletTransaction.filter({ idempotency_key: key });
+    return rows[0] || null;
+  }
+  async function awaitTxnByKey(key, tries = 20) {
+    for (let i = 0; i < tries; i++) {
+      const t = await getTxnByKey(key);
+      if (t) return t;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return null;
+  }
+  return { claimTxn, getBalance, casAdjustBalance, appendTxn, getTxnByKey, awaitTxnByKey };
+}
+
+// src/lib/distribution/walletLedger.js
+var WALLET = { LOW_BALANCE: "LOW_BALANCE", OVER_CREDIT_LIMIT: "OVER_CREDIT_LIMIT" };
+function round2(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+async function walletDebit(store, { buyerId, amount, idempotencyKey: idempotencyKey2, creditLimit = null, type = "debit", description = "" }) {
+  const amt = Number(amount);
+  const won = await store.claimTxn(idempotencyKey2);
+  if (!won) {
+    const existing = await store.awaitTxnByKey(idempotencyKey2);
+    return { applied: false, duplicate: true, txn: existing, balanceAfter: existing?.balance_after };
+  }
+  const floor = creditLimit == null ? 0 : -Math.abs(Number(creditLimit));
+  for (let i = 0; i < 200; i++) {
+    const { balance, version } = await store.getBalance(buyerId);
+    const after = round2(balance - amt);
+    if (after < floor) {
+      const rej = await store.appendTxn({
+        buyer_id: buyerId,
+        type,
+        amount: amt,
+        balance_after: balance,
+        idempotency_key: idempotencyKey2,
+        status: "rejected",
+        description
+      });
+      return { applied: false, insufficient: true, code: creditLimit == null ? WALLET.LOW_BALANCE : WALLET.OVER_CREDIT_LIMIT, balanceAfter: balance, txn: rej };
+    }
+    const ok = await store.casAdjustBalance(buyerId, version, after);
+    if (!ok) continue;
+    const txn = await store.appendTxn({
+      buyer_id: buyerId,
+      type,
+      amount: amt,
+      balance_after: after,
+      idempotency_key: idempotencyKey2,
+      status: "applied",
+      description
+    });
+    return { applied: true, txn, balanceAfter: after };
+  }
+  return { applied: false, error: "cas_exhausted" };
+}
+async function walletCredit(store, { buyerId, amount, idempotencyKey: idempotencyKey2, type = "credit", description = "" }) {
+  const amt = Number(amount);
+  const won = await store.claimTxn(idempotencyKey2);
+  if (!won) {
+    const existing = await store.awaitTxnByKey(idempotencyKey2);
+    return { applied: false, duplicate: true, txn: existing, balanceAfter: existing?.balance_after };
+  }
+  for (let i = 0; i < 200; i++) {
+    const { balance, version } = await store.getBalance(buyerId);
+    const after = round2(balance + amt);
+    const ok = await store.casAdjustBalance(buyerId, version, after);
+    if (!ok) continue;
+    const txn = await store.appendTxn({
+      buyer_id: buyerId,
+      type,
+      amount: amt,
+      balance_after: after,
+      idempotency_key: idempotencyKey2,
+      status: "applied",
+      description
+    });
+    return { applied: true, txn, balanceAfter: after };
+  }
+  return { applied: false, error: "cas_exhausted" };
+}
+async function walletCreditReturn(store, { buyerId, amount, returnId }) {
+  return walletCredit(store, { buyerId, amount, idempotencyKey: `return:${returnId}`, type: "adjustment", description: `return ${returnId}` });
+}
+
+// src/lib/distribution/billing.js
+function computeBillingLines(leads, approvedReturns = [], dims = ["vertical", "state"]) {
+  const returned = new Set((approvedReturns || []).map((r) => r.lead_id));
+  const groups = /* @__PURE__ */ new Map();
+  for (const lead of leads || []) {
+    const key = dims.map((d) => String(lead[d] ?? "")).join("|");
+    if (!groups.has(key)) {
+      const dimVals = {};
+      dims.forEach((d) => {
+        dimVals[d] = lead[d] ?? null;
+      });
+      groups.set(key, { ...dimVals, lead_count: 0, returns: 0, gross: 0, unit_prices: [] });
+    }
+    const g = groups.get(key);
+    g.lead_count += 1;
+    g.unit_prices.push(Number(lead.price) || 0);
+    if (returned.has(lead.id)) g.returns += 1;
+    else g.gross = round22(g.gross + (Number(lead.price) || 0));
+  }
+  return [...groups.values()].map((g) => ({
+    ...g,
+    billable_leads: g.lead_count - g.returns,
+    unit_price: g.unit_prices.length ? round22(g.unit_prices.reduce((a, b) => a + b, 0) / g.unit_prices.length) : 0,
+    amount: g.gross
+  })).map(({ unit_prices, ...rest }) => rest);
+}
+function applyReturnAdjustment(processedReturnIds, returnId) {
+  if (processedReturnIds.has(returnId)) return { applied: false, duplicate: true };
+  processedReturnIds.add(returnId);
+  return { applied: true };
+}
+function round22(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
 // src/lib/distribution/pingpost.js
 var BID_REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -809,11 +973,14 @@ export {
   OPERATORS,
   REASON,
   RESERVE,
+  WALLET,
+  applyReturnAdjustment,
   buildAttemptRecord,
   buildRoutingSnapshot,
   capWindowStart,
   classifyResponse,
   computeBackoffMs,
+  computeBillingLines,
   evalConditionTree,
   evalLeaf,
   evaluateMember,
@@ -823,6 +990,7 @@ export {
   isValidTrustedForm,
   isWithinSchedule,
   makeBase44CapStore,
+  makeBase44WalletStore,
   missingRequiredFields,
   nextRetryAtIso,
   rankBids,
@@ -837,5 +1005,8 @@ export {
   selectRoundRobin,
   selectWeighted,
   shouldRetry,
-  wallClock
+  wallClock,
+  walletCredit,
+  walletCreditReturn,
+  walletDebit
 };

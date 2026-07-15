@@ -1,46 +1,6 @@
-// Pure billing primitives: idempotent wallet ledger, billing-line calculation,
-// and return adjustment. All state is an injected store or plain data, so these
-// are unit-testable and reused by the Base44 backend (which supplies the real
-// WalletTransaction / BillingRun / BillingLineItem entities). Sandbox only in dev;
-// no live charge, invoice, or webhook is performed here.
-
-// Wallet ledger store interface (async):
-//   getTxnByKey(idempotencyKey) -> txn | null   // immutable-ledger dedupe
-//   getBalance(buyerId) -> number
-//   append(txn) -> txn                          // appends; returns stored row
-
-// Idempotent debit. A repeated idempotencyKey never double-debits. No negative
-// balance unless an approved credit arrangement (creditLimit) permits it.
-export async function walletDebit(store, { buyerId, amount, idempotencyKey, description = '', creditLimit = null }) {
-  const amt = Number(amount);
-  const dup = await store.getTxnByKey(idempotencyKey);
-  if (dup) return { applied: false, duplicate: true, txn: dup, balanceAfter: dup.balance_after };
-
-  const balance = await store.getBalance(buyerId);
-  const after = round2(balance - amt);
-  const floor = creditLimit == null ? 0 : -Math.abs(Number(creditLimit));
-  if (after < floor) {
-    return { applied: false, insufficient: true, balanceAfter: balance, code: creditLimit == null ? 'LOW_BALANCE' : 'OVER_CREDIT_LIMIT' };
-  }
-  const txn = await store.append({
-    buyer_id: buyerId, type: 'debit', amount: amt, balance_after: after,
-    description, idempotency_key: idempotencyKey,
-  });
-  return { applied: true, txn, balanceAfter: after };
-}
-
-// Idempotent credit / recharge / adjustment.
-export async function walletCredit(store, { buyerId, amount, idempotencyKey, type = 'credit', description = '' }) {
-  const dup = await store.getTxnByKey(idempotencyKey);
-  if (dup) return { applied: false, duplicate: true, txn: dup, balanceAfter: dup.balance_after };
-  const balance = await store.getBalance(buyerId);
-  const after = round2(balance + Number(amount));
-  const txn = await store.append({
-    buyer_id: buyerId, type, amount: Number(amount), balance_after: after,
-    description, idempotency_key: idempotencyKey,
-  });
-  return { applied: true, txn, balanceAfter: after };
-}
+// Pure billing-line calculation and return adjustment. Wallet debit/credit moved
+// to walletLedger.js (versioned CAS ledger) so there is ONE wallet implementation.
+// Sandbox only in dev; no live charge, invoice, or webhook is performed here.
 
 // Compute reconciled billing line items. Groups accepted leads by dimension and
 // subtracts approved returns EXACTLY ONCE (returns are matched by lead id).

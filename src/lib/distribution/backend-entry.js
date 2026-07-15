@@ -15,6 +15,9 @@ export { evalLeaf, evalConditionTree, OPERATORS } from './conditions.js';
 export { buildRoutingSnapshot } from './snapshot.js';
 export { makeBase44CapStore } from './capStore.js';
 export { reserve, finalize, release, RESERVE } from './reservation.js';
+export { makeBase44WalletStore } from './walletStore.js';
+export { walletDebit, walletCredit, walletCreditReturn, WALLET } from './walletLedger.js';
+export { computeBillingLines, applyReturnAdjustment } from './billing.js';
 export { wallClock, isWithinSchedule } from './schedule.js';
 export { rankBids, BID_REASON } from './pingpost.js';
 export {
