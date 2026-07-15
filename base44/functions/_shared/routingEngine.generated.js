@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 89e35b01d6352b75e596ef16c5dddb393a01cd63511c56cd652c15170ae9cd29
+// canonical-engine-sha256: 322ca9f44f9eb8036336af136817f2e034de15f1e95b84d3e7cd62bd5a7a7ec7
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -842,35 +842,6 @@ function round22(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
-// src/lib/distribution/pingpost.js
-var BID_REASON = {
-  ELIGIBLE: "ELIGIBLE",
-  BID_EXPIRED: "BID_EXPIRED",
-  BELOW_RESERVE: "BELOW_RESERVE",
-  NO_BID: "NO_BID",
-  NO_ELIGIBLE_BID: "NO_ELIGIBLE_BID"
-};
-function rankBids(bids, opts = {}) {
-  const nowMs = opts.nowMs;
-  const reserve2 = opts.reservePrice != null ? Number(opts.reservePrice) : null;
-  const evaluated = (bids || []).map((b) => {
-    const amount = Number(b.amount);
-    let reason = BID_REASON.ELIGIBLE;
-    if (!(amount > 0)) reason = BID_REASON.NO_BID;
-    else if (b.expiresAtMs != null && nowMs != null && b.expiresAtMs < nowMs) reason = BID_REASON.BID_EXPIRED;
-    else if (reserve2 != null && amount < reserve2) reason = BID_REASON.BELOW_RESERVE;
-    return { ...b, amount, reason };
-  });
-  const eligible = evaluated.filter((b) => b.reason === BID_REASON.ELIGIBLE);
-  eligible.sort((a, b) => b.amount - a.amount || String(a.id).localeCompare(String(b.id)));
-  return {
-    winner: eligible[0] || null,
-    winnerReason: eligible.length ? BID_REASON.ELIGIBLE : BID_REASON.NO_ELIGIBLE_BID,
-    ranked: eligible,
-    excluded: evaluated.filter((b) => b.reason !== BID_REASON.ELIGIBLE).map((b) => ({ id: b.id, reason: b.reason }))
-  };
-}
-
 // src/lib/distribution/deliveryAttempt.js
 var ATTEMPT_STATUS = {
   PENDING: "pending",
@@ -967,6 +938,238 @@ function minimizeResponse(res) {
   const text = typeof res.body === "string" ? res.body : JSON.stringify(res.body ?? {});
   return { status: res.status ?? null, body_excerpt: text.slice(0, 500) };
 }
+
+// src/lib/distribution/transforms.js
+function applyTransform(value, transform) {
+  const s = value == null ? "" : String(value);
+  switch (transform) {
+    case "lowercase":
+      return s.toLowerCase();
+    case "uppercase":
+      return s.toUpperCase();
+    case "trim":
+      return s.trim();
+    case "digits":
+      return s.replace(/\D/g, "");
+    case "phone_us": {
+      let d = s.replace(/\D/g, "");
+      if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+      return d.length === 10 ? "1" + d : d;
+    }
+    default:
+      return value;
+  }
+}
+
+// src/lib/distribution/directPost.js
+function getPath(obj, path) {
+  if (!path) return void 0;
+  return String(path).split(".").reduce((o, k) => o == null ? void 0 : o[k], obj);
+}
+function isLocalhost(host) {
+  const h = String(host || "").toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "127.0.0.1" || h === "::1";
+}
+function buildPayload(leadData, fieldMap) {
+  const out = {};
+  for (const f of fieldMap || []) {
+    let v = leadData[f.src];
+    if (f.transform) v = applyTransform(v, f.transform);
+    if (f.required && (v == null || v === "")) continue;
+    if (v !== void 0) out[f.dest || f.src] = v;
+  }
+  return out;
+}
+async function deliverDirectPost(cfg, ctx) {
+  const nowMs = ctx.nowMs ?? 0;
+  const fetchImpl = ctx.fetchImpl || globalThis.fetch;
+  const attemptNumber = cfg.attemptNumber || 1;
+  let url;
+  try {
+    url = new URL(cfg.targetUrl);
+  } catch {
+    return failClosed(ctx, cfg, nowMs, "invalid_url", "INVALID_URL");
+  }
+  if (ctx.testMode) {
+    const allowed = ctx.allowlistHosts || [];
+    if (!isLocalhost(url.hostname) && !allowed.includes(url.hostname)) {
+      return failClosed(ctx, cfg, nowMs, "host_not_allowed", "HOST_NOT_ALLOWED");
+    }
+  }
+  const payload = buildPayload(cfg.leadData || {}, cfg.fieldMap);
+  const encoding = cfg.encoding === "form" ? "form" : "json";
+  const headers = { ...cfg.headers || {} };
+  headers["Idempotency-Key"] = cfg.idempotencyKey;
+  let body;
+  if (encoding === "form") {
+    headers["Content-Type"] = headers["Content-Type"] || "application/x-www-form-urlencoded";
+    body = new URLSearchParams(payload).toString();
+  } else {
+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
+    body = JSON.stringify(payload);
+  }
+  const pending = await ctx.store.createAttempt({
+    lead_id: cfg.leadId,
+    destination_id: cfg.destinationId,
+    trigger: cfg.trigger || "primary",
+    attempt_number: attemptNumber,
+    idempotency_key: cfg.idempotencyKey,
+    is_primary: !!cfg.isPrimary,
+    status: ATTEMPT_STATUS.PENDING,
+    started_at: new Date(nowMs).toISOString()
+  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), cfg.timeoutMs || 1e4);
+  let httpStatus = null;
+  let bodyText = "";
+  let errorClass = null;
+  const t0 = nowMs;
+  try {
+    const resp = await fetchImpl(cfg.targetUrl, {
+      method: cfg.method || "POST",
+      headers,
+      body,
+      redirect: "manual",
+      signal: controller.signal
+    });
+    httpStatus = resp.status;
+    bodyText = await resp.text();
+  } catch (e) {
+    errorClass = e && e.name === "AbortError" ? "timeout" : e && e.message ? e.message.slice(0, 60) : "network_error";
+  } finally {
+    clearTimeout(timer);
+  }
+  const mapping = cfg.responseMapping || {};
+  const status = errorClass ? ATTEMPT_STATUS.ERROR : classifyResponse({ httpStatus, body: bodyText, mapping: {
+    accept: mapping.acceptRe,
+    reject: mapping.rejectRe,
+    duplicate: mapping.duplicateRe,
+    queue: mapping.queueRe
+  } });
+  let parsed = null;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = null;
+  }
+  const revenue = status === ATTEMPT_STATUS.ACCEPTED && parsed ? Number(getPath(parsed, mapping.revenuePath)) || 0 : 0;
+  const buyerLeadId = parsed ? getPath(parsed, mapping.leadIdPath) ?? null : null;
+  const record = buildAttemptRecord({
+    leadId: cfg.leadId,
+    destinationId: cfg.destinationId,
+    trigger: cfg.trigger,
+    attemptNumber,
+    idempotencyKey: cfg.idempotencyKey,
+    isPrimary: cfg.isPrimary,
+    status,
+    request: { method: cfg.method || "POST", url: cfg.targetUrl, headers, body },
+    response: { status: httpStatus, body: bodyText },
+    httpStatus,
+    latencyMs: (ctx.nowMs ?? 0) - t0,
+    errorClass,
+    nowMs,
+    retryOpts: cfg.retryOpts
+  });
+  await ctx.store.updateAttempt(pending.id, record);
+  return {
+    attemptId: pending.id,
+    status: record.status,
+    httpStatus,
+    revenue,
+    buyerLeadId,
+    retryable: record.next_retry_at != null,
+    nextRetryAt: record.next_retry_at,
+    errorClass
+  };
+}
+async function failClosed(ctx, cfg, nowMs, errorClass, code) {
+  const rec = await ctx.store.createAttempt({
+    lead_id: cfg.leadId,
+    destination_id: cfg.destinationId,
+    attempt_number: cfg.attemptNumber || 1,
+    idempotency_key: cfg.idempotencyKey,
+    is_primary: !!cfg.isPrimary,
+    status: ATTEMPT_STATUS.ERROR,
+    error_class: errorClass,
+    code,
+    started_at: new Date(nowMs).toISOString(),
+    completed_at: new Date(nowMs).toISOString()
+  });
+  return { attemptId: rec.id, status: ATTEMPT_STATUS.ERROR, code, errorClass, retryable: false, revenue: 0, buyerLeadId: null };
+}
+
+// src/lib/distribution/deliveryStore.js
+function makeInMemoryAttemptStore() {
+  const attempts = [];
+  let seq = 0;
+  return {
+    async createAttempt(rec) {
+      const row = { ...rec, id: "a" + ++seq };
+      attempts.push(row);
+      return row;
+    },
+    async updateAttempt(id, patch) {
+      const a = attempts.find((x) => x.id === id);
+      if (a) Object.assign(a, patch);
+      return a;
+    },
+    async getAttempt(id) {
+      return attempts.find((x) => x.id === id) || null;
+    },
+    async listDue(nowMs) {
+      return attempts.filter((a) => a.status === "error" && a.next_retry_at != null && Date.parse(a.next_retry_at) <= nowMs && (a.lease_until == null || Date.parse(a.lease_until) <= nowMs));
+    },
+    _debug: { attempts }
+  };
+}
+function makeBase44AttemptStore(db) {
+  return {
+    async createAttempt(rec) {
+      return db.entities.DeliveryAttempt.create(rec);
+    },
+    async updateAttempt(id, patch) {
+      return db.entities.DeliveryAttempt.update(id, patch);
+    },
+    async getAttempt(id) {
+      const rows = await db.entities.DeliveryAttempt.filter({ id });
+      return rows[0] || null;
+    },
+    async listDue(nowMs, limit = 100) {
+      const iso = new Date(nowMs).toISOString();
+      const rows = await db.entities.DeliveryAttempt.filter({ status: "error" }, "next_retry_at", limit);
+      return rows.filter((a) => a.next_retry_at && a.next_retry_at <= iso && (!a.lease_until || a.lease_until <= iso));
+    }
+  };
+}
+
+// src/lib/distribution/pingpost.js
+var BID_REASON = {
+  ELIGIBLE: "ELIGIBLE",
+  BID_EXPIRED: "BID_EXPIRED",
+  BELOW_RESERVE: "BELOW_RESERVE",
+  NO_BID: "NO_BID",
+  NO_ELIGIBLE_BID: "NO_ELIGIBLE_BID"
+};
+function rankBids(bids, opts = {}) {
+  const nowMs = opts.nowMs;
+  const reserve2 = opts.reservePrice != null ? Number(opts.reservePrice) : null;
+  const evaluated = (bids || []).map((b) => {
+    const amount = Number(b.amount);
+    let reason = BID_REASON.ELIGIBLE;
+    if (!(amount > 0)) reason = BID_REASON.NO_BID;
+    else if (b.expiresAtMs != null && nowMs != null && b.expiresAtMs < nowMs) reason = BID_REASON.BID_EXPIRED;
+    else if (reserve2 != null && amount < reserve2) reason = BID_REASON.BELOW_RESERVE;
+    return { ...b, amount, reason };
+  });
+  const eligible = evaluated.filter((b) => b.reason === BID_REASON.ELIGIBLE);
+  eligible.sort((a, b) => b.amount - a.amount || String(a.id).localeCompare(String(b.id)));
+  return {
+    winner: eligible[0] || null,
+    winnerReason: eligible.length ? BID_REASON.ELIGIBLE : BID_REASON.NO_ELIGIBLE_BID,
+    ranked: eligible,
+    excluded: evaluated.filter((b) => b.reason !== BID_REASON.ELIGIBLE).map((b) => ({ id: b.id, reason: b.reason }))
+  };
+}
 export {
   ATTEMPT_STATUS,
   BID_REASON,
@@ -975,12 +1178,14 @@ export {
   RESERVE,
   WALLET,
   applyReturnAdjustment,
+  applyTransform,
   buildAttemptRecord,
   buildRoutingSnapshot,
   capWindowStart,
   classifyResponse,
   computeBackoffMs,
   computeBillingLines,
+  deliverDirectPost,
   evalConditionTree,
   evalLeaf,
   evaluateMember,
@@ -989,8 +1194,10 @@ export {
   idempotencyKey,
   isValidTrustedForm,
   isWithinSchedule,
+  makeBase44AttemptStore,
   makeBase44CapStore,
   makeBase44WalletStore,
+  makeInMemoryAttemptStore,
   missingRequiredFields,
   nextRetryAtIso,
   rankBids,
