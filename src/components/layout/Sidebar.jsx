@@ -24,20 +24,17 @@ function isChildActive(location, child) {
   return location.pathname === child.path;
 }
 
-function shouldExpand(group, location) {
-  if (group.type !== 'dropdown') return false;
-  return group.children.some(c => isChildActive(location, c));
-}
-
 const SIDEBAR_GROUPS_KEY = 'legenex_sidebar_open_groups';
 
-// Persisted open groups - survives navigation and page refresh.
-function loadOpenGroups(location) {
+// Persisted open groups - survives page refresh. Groups only ever open/close on
+// an explicit click, never automatically from navigation or route change, so
+// there is no route-derived expansion here.
+function loadOpenGroups() {
   try {
     const stored = JSON.parse(localStorage.getItem(SIDEBAR_GROUPS_KEY));
     if (Array.isArray(stored)) return stored;
   } catch {}
-  return navGroups.filter(g => shouldExpand(g, location)).map(g => g.label);
+  return [];
 }
 
 export default function Sidebar() {
@@ -52,7 +49,7 @@ export default function Sidebar() {
   const groups = filterNav(navGroups, can);
   const { width, startResize } = useSidebarWidth();
   const { collapsed, toggle } = useCollapsible({ storageKey: 'legenex_sidebar_collapsed' });
-  const [openGroups, setOpenGroups] = useState(() => loadOpenGroups(location));
+  const [openGroups, setOpenGroups] = useState(() => loadOpenGroups());
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(openGroups)); } catch {}
@@ -163,7 +160,7 @@ export default function Sidebar() {
             <div key={group.label}>
               <div className="flex items-center">
                 <button
-                  onClick={() => group.path ? navigate(group.path) : toggleGroup(group.label)}
+                  onClick={() => toggleGroup(group.label)}
                   className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
                     ${highlight ? 'text-foreground' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
                 >
