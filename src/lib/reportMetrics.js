@@ -120,14 +120,17 @@ export function computeMetrics(leads, adSpendRows = []) {
   for (const l of leads) {
     const s = S(l);
     revenue += num(l.revenue);
-    cost += num(l.cost);
+    cost += leadCost(l);
     if (s === 'Sold') { sold++; bookedRevenue += num(l.revenue); }
     else if (s === 'Unsold') unsold++;
     else if (s === 'Returned') returns++;
     else if (s === 'Duplicate') duplicates++;
     else if (s === 'Disqualified' || s === 'Rejected') dqs++;
     if (leadField(l, 'is_fake') === true || leadField(l, 'fake') === 'Yes') fakes++;
-    if (l.hlr_status || leadField(l, 'phone_verified') === 'Yes') phoneVerified++;
+    // Phone verification arrives as a match grade (Exact Match, Partial Match,
+    // No Match), not a Yes/No, so count anything that is not an explicit miss.
+    const pv = leadField(l, 'phone_verified');
+    if (pv != null && !/^(no|none|false|no match|not verified)$/i.test(String(pv).trim())) phoneVerified++;
   }
 
   const adSpend = adSpendRows.reduce((a, r) => a + num(r.spend), 0);
@@ -195,20 +198,56 @@ export function formatMetric(value, format) {
   }
 }
 
-// Build a daily time series of revenue/spend/profit for the sparkline + bar chart.
-export function dailySeries(leads, adSpendRows = [], days = 14) {
-  const map = {};
+// Turn the report date filter into a series window. Returns null when no
+// explicit range is applied, so callers fall back to their trailing default.
+export function seriesWindow(filters = {}) {
+  return filters?.date_from && filters?.date_to
+    ? { from: filters.date_from, to: filters.date_to }
+    : null;
+}
+
+const MAX_SERIES_DAYS = 366;
+
+// Trailing `days` calendar days in APP_TZ, ending today.
+function trailingDayKeys(days) {
+  const keys = [];
   const today = new Date();
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today); d.setDate(today.getDate() - i);
-    const key = formatInTimeZone(d, APP_TZ, 'yyyy-MM-dd');
+    keys.push(formatInTimeZone(d, APP_TZ, 'yyyy-MM-dd'));
+  }
+  return keys;
+}
+
+// Day keys for the series. An explicit window wins so the chart and the daily
+// table follow the selected date filter instead of always showing today back.
+// Anchored at midday so stepping a day at a time can never drift across a
+// boundary. Falls back to the trailing window if the range is unusable.
+function seriesDayKeys(days, window) {
+  if (!window?.from || !window?.to) return trailingDayKeys(days);
+  const start = fromZonedTime(`${window.from}T12:00:00`, APP_TZ);
+  const end = fromZonedTime(`${window.to}T12:00:00`, APP_TZ);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return trailingDayKeys(days);
+  const keys = [];
+  for (let d = start; d <= end && keys.length < MAX_SERIES_DAYS; d = new Date(d.getTime() + 86400000)) {
+    keys.push(formatInTimeZone(d, APP_TZ, 'yyyy-MM-dd'));
+  }
+  return keys;
+}
+
+// Build a daily time series of revenue/spend/profit for the sparkline + bar chart.
+// `window` is an optional { from, to } of yyyy-MM-dd APP_TZ day keys. When it is
+// supplied it defines the buckets and `days` is ignored.
+export function dailySeries(leads, adSpendRows = [], days = 14, window = null) {
+  const map = {};
+  for (const key of seriesDayKeys(days, window)) {
     map[key] = { date: key, revenue: 0, cost: 0, spend: 0, leads: 0, sold: 0 };
   }
   for (const l of leads) {
     const key = leadEventDayKey(l);
     if (!key || !map[key]) continue;
     map[key].revenue += num(l.revenue);
-    map[key].cost += num(l.cost);
+    map[key].cost += leadCost(l);
     map[key].leads += 1;
     if (S(l) === 'Sold') map[key].sold += 1;
   }
@@ -228,7 +267,7 @@ export function groupBy(leads, field, adSpendRows = []) {
     if (!map[key]) map[key] = { key, leads: 0, sold: 0, revenue: 0, cost: 0 };
     map[key].leads += 1;
     map[key].revenue += num(l.revenue);
-    map[key].cost += num(l.cost);
+    map[key].cost += leadCost(l);
     if (S(l) === 'Sold') map[key].sold += 1;
   }
   // fold matching ad spend into cost for supplier grouping (true CPL)
