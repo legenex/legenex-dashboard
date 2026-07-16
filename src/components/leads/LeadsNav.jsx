@@ -35,8 +35,20 @@ export default function LeadsNav() {
   const location = useLocation();
 
   const { data: leads = [] } = useQuery({
-    queryKey: ['leads-all-non-archived'],
-    queryFn: () => base44.entities.Lead.filter({ archived: false }, '-created_date', 500),
+    queryKey: ['leads-nav-counts'],
+    queryFn: async () => {
+      const all = [];
+      let p = 0;
+      const size = 500;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const batch = await base44.entities.Lead.filter({ archived: false }, '-created_date', size, p * size);
+        all.push(...batch);
+        if (batch.length < size) break;
+        p += 1;
+      }
+      return all;
+    },
   });
 
   const counts = useMemo(() => {

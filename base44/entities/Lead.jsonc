@@ -108,6 +108,7 @@
       "enum": [
         "Processing",
         "Sold",
+        "Qualified",
         "Unsold",
         "Queued",
         "Disqualified",

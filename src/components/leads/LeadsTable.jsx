@@ -482,7 +482,10 @@ export default function LeadsTable({ view }) {
       title={config.title}
       subtitle={config.subtitle}
       count={filtered.length}
-      onRefresh={() => qc.invalidateQueries()}
+      onRefresh={async () => {
+        invalidateLeadCaches(qc);
+        await qc.refetchQueries({ queryKey: ['leads-all-non-archived'] });
+      }}
       onExport={exportCSV}
       columnConfig={columnConfig}
       availableColumns={availableColumns}

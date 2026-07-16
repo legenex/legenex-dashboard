@@ -1710,26 +1710,28 @@ Deno.serve(async (req) => {
     }
 
     // ── e. ROUTE: direct / event bypass LeadByte ────────────────────────
+    // The lead is not forwarded to LeadByte, so no sale has occurred. It is
+    // reported as Qualified (not Sold) with no revenue. Connectors and
+    // Conversion Events still fire where their own filters/conditions match,
+    // but are passed the real lead payload, never a fabricated sold outcome.
     if (!routeIs.standard) {
-      // Inject revenue (0 for direct/event routes) so {{revenue}} resolves in CAPI custom_data.
-      const soldData = { ...leadPayload, revenue: 0 };
-      fireConnectors(db, apiConnectors, 'on_sold', soldData, leadId, supplierAttribution, supplierRecord);
+      fireConnectors(db, apiConnectors, 'on_sold', leadPayload, leadId, supplierAttribution, supplierRecord);
       if (!routeIs.event) {
-        fireDeliveries(db, allDestinations, 'on_sold', soldData, leadId, supplierAttribution, supplierRecord);
+        fireDeliveries(db, allDestinations, 'on_sold', leadPayload, leadId, supplierAttribution, supplierRecord);
       }
-      const soldResponse = buildEnvelope(traceId, {
-        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'sold',
-        sold: true, revenue: 0, code: 'SOLD', reason: null,
-        message: 'Lead sold', Response: 'Sold',
+      const qualifiedResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'qualified',
+        sold: false, code: 'QUALIFIED', reason: null,
+        message: 'Lead qualified', Response: 'Qualified',
       });
       await db.entities.Lead.update(leadId, {
-        final_status: 'Sold',
-        revenue: 0,
+        final_status: 'Qualified',
+        revenue_source: 'direct_route',
         processed_at: new Date().toISOString(),
         process_time_ms: Date.now() - startTime,
-        response_returned: JSON.stringify(soldResponse),
+        response_returned: JSON.stringify(qualifiedResponse),
       });
-      return Response.json(soldResponse, { status: 200 });
+      return Response.json(qualifiedResponse, { status: 200 });
     }
 
     // ── e. FORWARD TO LEADBYTE (standard route) ────────────────────────
