@@ -21,17 +21,59 @@ export function moneyShort(v) {
 export function pct(v) { return `${num(v).toFixed(1)}%`; }
 export function int(v) { return num(v).toLocaleString(); }
 
-// Extract a value from a lead including mapped_fields / raw_payload fallbacks.
-export function leadField(lead, field) {
-  if (lead[field] != null && lead[field] !== '') return lead[field];
+// Report field aliases.
+// Reports address leads by canonical report names, but live leads do not carry
+// those names. There is no `cost` column on the Lead entity at all, and
+// campaign / state / buyer / accident date only exist inside mapped_fields
+// under supplier-shaped names. Each canonical name resolves through its alias
+// list, first match wins, so cards, filters and group-by tables hit real data.
+// Add an alias here rather than renaming lead fields: mapped_fields is owned by
+// the inbound payload and processLead, not by reporting.
+const FIELD_ALIASES = {
+  cost: ['cost', 'cpl'],
+  campaign: ['campaign', 'utm_campaign'],
+  state: ['state', 'accident_state'],
+  buyer: ['buyer', 'buyer_name'],
+  accident_date: ['accident_date', 'incident_date'],
+  phone_verified: ['hlr_status', 'phone_verified'],
+};
+
+// Parsed mapped_fields / raw_payload bags per lead. leadField is called many
+// times per lead per render, so parsing the JSON strings every call is the
+// difference between a fast board and a locked tab at 1000+ leads.
+const bagCache = new WeakMap();
+function leadBags(lead) {
+  const cached = bagCache.get(lead);
+  if (cached) return cached;
+  const bags = [];
   for (const key of ['mapped_fields', 'raw_payload']) {
     try {
       const obj = JSON.parse(lead[key] || '{}');
-      if (obj && obj[field] != null && obj[field] !== '') return obj[field];
+      if (obj && typeof obj === 'object') bags.push(obj);
     } catch { /* ignore */ }
+  }
+  bagCache.set(lead, bags);
+  return bags;
+}
+
+// Extract a value from a lead including alias resolution and
+// mapped_fields / raw_payload fallbacks.
+export function leadField(lead, field) {
+  const names = FIELD_ALIASES[field] || [field];
+  for (const name of names) {
+    if (lead[name] != null && lead[name] !== '') return lead[name];
+  }
+  for (const bag of leadBags(lead)) {
+    for (const name of names) {
+      if (bag[name] != null && bag[name] !== '') return bag[name];
+    }
   }
   return undefined;
 }
+
+// The lead's cost. The Lead entity has no cost column, so this resolves through
+// the cost alias to mapped_fields.cpl, which arrives as a numeric string.
+export function leadCost(lead) { return num(leadField(lead, 'cost')); }
 
 const S = (l) => String(l.final_status || '');
 
