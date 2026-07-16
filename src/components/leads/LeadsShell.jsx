@@ -63,9 +63,9 @@ export default function LeadsShell({
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 h-8 text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60 disabled:pointer-events-none"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 h-8 text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Refreshing...' : 'Refresh'}
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
           </button>
           <div className="hidden lg:block">
             <ColumnManager config={columnConfig} availableColumns={availableColumns} onChange={onColumnChange} />
