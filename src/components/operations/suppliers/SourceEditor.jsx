@@ -14,6 +14,7 @@ import { parseRules } from './tierRules';
 import TieredPricingEditor from './TieredPricingEditor';
 
 const PRICING_MODELS = [
+  { value: 'none', label: 'none' },
   { value: 'rev_share', label: 'rev_share' },
   { value: 'flat_cpl', label: 'flat_cpl' },
   { value: 'tiered', label: 'tiered' },
@@ -52,8 +53,9 @@ export default function SourceEditor({ supplier, source, existingCodes, onBack, 
   })();
 
   const validate = () => {
-    if (!form.source_code.trim()) return 'Source code is required.';
-    if (codeClashes) return `Source code "${form.source_code.trim()}" is already used by this supplier.`;
+    // Source code (SSID) is optional. When blank, this source resolves by brand.
+    if (form.source_code.trim() && codeClashes) return `Source code "${form.source_code.trim()}" is already used by this supplier.`;
+    if (!form.source_code.trim() && !form.brand.trim()) return 'Set a source code (SSID) or a brand so leads can resolve this source.';
     if (!model) return 'Pricing model is required.';
     if (model === 'rev_share' && (form.rev_share_pct === '' || form.rev_share_pct == null)) return 'Revenue share requires a percentage.';
     if (model === 'flat_cpl' && (form.flat_cpl === '' || form.flat_cpl == null)) return 'Flat CPL requires a dollar amount.';
@@ -75,7 +77,8 @@ export default function SourceEditor({ supplier, source, existingCodes, onBack, 
     try {
       const payload = {
         supplier_id: supplier.id,
-        source_code: form.source_code.trim(),
+        source_code: form.source_code.trim() || null,
+        brand: form.brand.trim() || null,
         utm_source: form.utm_source.trim() || null,
         pricing_model: model,
         active: !!form.active,
@@ -114,7 +117,7 @@ export default function SourceEditor({ supplier, source, existingCodes, onBack, 
 
       <h3 className="text-[15px] font-semibold text-foreground">{isNew ? 'Add source' : 'Edit source'}</h3>
 
-      <Field label="Source code">
+      <Field label="Source code (SSID) — optional">
         <Input
           value={form.source_code}
           onChange={(e) => { set('source_code', e.target.value); setCodeError(''); }}
@@ -122,6 +125,17 @@ export default function SourceEditor({ supplier, source, existingCodes, onBack, 
           className={`bg-background font-mono text-[12px] ${codeError ? 'border-primary' : ''}`}
         />
         {codeError && <p className="text-[11px] text-primary mt-1">{codeError}</p>}
+        <p className="text-[11px] text-muted-foreground mt-1">When a lead carries an ssid it matches here first. A supplier with one source can leave this blank.</p>
+      </Field>
+
+      <Field label="Brand — fallback match">
+        <Input
+          value={form.brand}
+          onChange={(e) => set('brand', e.target.value)}
+          placeholder="e.g. CMC or Dont Settle"
+          className="bg-background text-[12px]"
+        />
+        <p className="text-[11px] text-muted-foreground mt-1">Used when the lead has no ssid: the source whose brand equals the lead supplier_brand is selected.</p>
       </Field>
 
       <Field label="UTM source">
@@ -218,6 +232,7 @@ function Field({ label, children }) {
 function initForm(source) {
   return {
     source_code: source?.source_code || '',
+    brand: source?.brand || '',
     utm_source: source?.utm_source || '',
     pricing_model: source?.pricing_model || '',
     active: source?.active !== false,

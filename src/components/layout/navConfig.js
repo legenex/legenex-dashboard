@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Share2, Wrench, Settings as SettingsIcon,
-  BarChart3, Wallet, SlidersHorizontal, Megaphone,
+  BarChart3, Wallet, SlidersHorizontal, Megaphone, Boxes,
 } from 'lucide-react';
 
 export const navGroups = [
@@ -16,9 +16,17 @@ export const navGroups = [
     ],
   },
   {
+    label: 'Campaigns', icon: Boxes, type: 'dropdown', path: '/campaigns', permKey: 'dist_campaigns',
+    children: [
+      { label: 'Verticals', path: '/campaigns', tab: 'verticals', permKey: 'dist_campaigns' },
+      { label: 'Buyers', path: '/campaigns', tab: 'buyers', permKey: 'dist_campaigns' },
+      { label: 'Suppliers', path: '/campaigns', tab: 'suppliers', permKey: 'dist_campaigns' },
+      { label: 'Brands', path: '/campaigns', tab: 'brands', permKey: 'dist_campaigns' },
+    ],
+  },
+  {
     label: 'Lead Distribution', icon: Share2, type: 'dropdown', path: '/distribution', permKey: 'dist_dashboard',
     children: [
-      { label: 'Campaigns', path: '/campaigns', permKey: 'dist_campaigns' },
       { label: 'Deliveries', path: '/deliveries', permKey: 'dist_deliveries' },
       { label: 'Conversion Events', path: '/conversion-events', permKey: 'dist_conversion_events' },
     ],
