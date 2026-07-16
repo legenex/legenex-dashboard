@@ -428,6 +428,10 @@ export default function LeadsTable({ view }) {
       toast.success(`${deleted} lead${deleted !== 1 ? 's' : ''} deleted`);
       clearSelection();
       invalidateLeadCaches(qc);
+      await Promise.all([
+        qc.refetchQueries({ queryKey: ['leads-all-non-archived'] }),
+        qc.refetchQueries({ queryKey: ['leads-nav-counts'] }),
+      ]);
     } catch (e) {
       toast.error(`Delete failed: ${e?.message || 'unknown error'}`);
     }
