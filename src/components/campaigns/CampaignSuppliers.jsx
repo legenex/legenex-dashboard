@@ -190,7 +190,7 @@ export default function CampaignSuppliers() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <LeadsPeriodFilter period={period} setPeriod={setPeriod} customPeriod={customPeriod} setCustomPeriod={setCustomPeriod} />
+        <LeadsPeriodFilter period={period} custom={customPeriod} onPeriodChange={setPeriod} onCustomChange={setCustomPeriod} />
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export Fields</Button>
           <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Create Supplier</Button>
