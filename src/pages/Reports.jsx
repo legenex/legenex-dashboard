@@ -22,6 +22,21 @@ function safeParse(raw, fallback) {
   try { const p = JSON.parse(raw); return p ?? fallback; } catch { return fallback; }
 }
 
+// A single Base44 page is capped at 500 rows regardless of the limit asked for,
+// so anything that requests more silently truncates. Reports used to ask for
+// 2000 leads and quietly analysed only the newest 500, which is why the numbers
+// here disagreed with the Leads tab. Page until a short page comes back.
+// list() also returns null rather than [] for an empty entity, so coalesce.
+const PAGE = 500;
+async function fetchAll(fn) {
+  const all = [];
+  for (let page = 0; ; page += 1) {
+    const batch = (await fn(PAGE, page * PAGE)) || [];
+    all.push(...batch);
+    if (batch.length < PAGE) return all;
+  }
+}
+
 export default function Reports() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,9 +65,13 @@ export default function Reports() {
   const [stdCards, setStdCards] = useState(makeDefaultCards());
   const [stdWidgets, setStdWidgets] = useState(makeDefaultWidgets());
 
-  const { data: leads = [] } = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 2000) });
-  const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 2000) });
-  const { data: bankTx = [] } = useQuery({ queryKey: ['report-banktx'], queryFn: () => base44.entities.BankTransaction.list('-date', 2000) });
+  // Mirrors the Leads tab query (archived excluded) so the two tabs agree.
+  const { data: leads = [] } = useQuery({
+    queryKey: ['report-leads'],
+    queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.filter({ archived: false }, '-created_date', limit, skip)),
+  });
+  const { data: adSpend = [] } = useQuery({ queryKey: ['adspend'], queryFn: () => fetchAll((limit, skip) => base44.entities.AdSpend.list('-date', limit, skip)) });
+  const { data: bankTx = [] } = useQuery({ queryKey: ['report-banktx'], queryFn: () => fetchAll((limit, skip) => base44.entities.BankTransaction.list('-date', limit, skip)) });
   const { data: adMappings = [] } = useQuery({ queryKey: ['report-admappings'], queryFn: () => base44.entities.AdSpendMapping.list() });
   const { data: integrations = [] } = useQuery({ queryKey: ['report-integrations'], queryFn: () => base44.entities.IntegrationConfig.list() });
   const { data: reports = [] } = useQuery({ queryKey: ['reports'], queryFn: () => base44.entities.Report.filter({ group: 'custom' }, 'sort_order') });
