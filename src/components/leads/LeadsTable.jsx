@@ -701,6 +701,15 @@ export default function LeadsTable({ view }) {
         </div>
       )}
 
+      {deleting && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-6 py-4 shadow-xl">
+            <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+            <span className="text-[13px] text-foreground">Deleting leads...</span>
+          </div>
+        </div>
+      )}
+
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent className="bg-popover border-border">
           <AlertDialogHeader>

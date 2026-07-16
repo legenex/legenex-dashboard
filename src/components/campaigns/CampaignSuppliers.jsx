@@ -10,13 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Copy, ArrowDownUp } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Plus, Copy, ArrowDownUp, Pencil, Files, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplierMetrics, money, pct } from '@/lib/partnerMetrics';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
 import { TableShell, Row, Tag, EmptyRow } from '@/components/campaigns/campaignTable';
 
-const SUP_TEMPLATE = '1.6fr 0.9fr 0.7fr 0.9fr 0.8fr 0.9fr 0.9fr 0.7fr 0.9fr 0.9fr 0.9fr 0.8fr 0.9fr';
+const SUP_TEMPLATE = '1.5fr 0.85fr 0.65fr 0.85fr 0.75fr 0.85fr 0.85fr 0.65fr 0.85fr 0.85fr 0.85fr 0.75fr 0.85fr 0.9fr';
 
 function generateKey(supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -44,8 +45,10 @@ export default function CampaignSuppliers() {
   const navigate = useNavigate();
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
+  const [editId, setEditId] = useState(null);
   const [newKey, setNewKey] = useState(null);
   const [ioOpen, setIoOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
@@ -65,7 +68,88 @@ export default function CampaignSuppliers() {
   });
   const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
 
-  const openCreate = () => { setForm(BLANK); setNewKey(null); setModal(true); };
+  const openCreate = () => { setForm(BLANK); setEditId(null); setNewKey(null); setModal(true); };
+
+  const openEdit = (s, e) => {
+    e.stopPropagation();
+    setForm({
+      name: s.name || '',
+      sid: s.sid || '',
+      supplier_type: s.supplier_type || '',
+      vertical: s.vertical || '',
+      payout_type: s.payout_type || '',
+      payout_value: s.payout_value ?? null,
+      email: s.email || '',
+      landing_page_url: s.landing_page_url || '',
+      brand: s.brand ? String(s.brand).split(',').map(b => b.trim()).filter(Boolean) : [],
+      active: !!s.active,
+    });
+    setEditId(s.id);
+    setNewKey(null);
+    setModal(true);
+  };
+
+  const cloneSupplier = async (s, e) => {
+    e.stopPropagation();
+    const supplier = await base44.entities.Supplier.create({
+      name: `${s.name} (Copy)`,
+      sid: s.sid,
+      supplier_type: s.supplier_type || 'External',
+      vertical: s.vertical,
+      payout_type: s.payout_type,
+      payout_value: s.payout_value,
+      email: s.email,
+      landing_page_url: s.landing_page_url,
+      brand: s.brand || '',
+      portal_enabled: false,
+      active: s.active,
+    });
+    const key = generateKey(s.supplier_type);
+    await base44.entities.ApiKey.create({
+      name: supplier.name,
+      type: 'supplier',
+      supplier_name: supplier.name,
+      supplier_id: supplier.id,
+      vertical: s.vertical,
+      key,
+      key_prefix: key.substring(0, 16),
+      active: s.active,
+      request_count: 0,
+    });
+    setNewKey(key);
+    setEditId(null);
+    setModal(true);
+    qc.invalidateQueries({ queryKey: ['suppliers'] });
+    qc.invalidateQueries({ queryKey: ['api-keys'] });
+    toast.success('Supplier cloned - copy the new API key now!');
+  };
+
+  const deleteSupplier = async () => {
+    if (!deleteTarget) return;
+    await base44.entities.Supplier.delete(deleteTarget.id);
+    setDeleteTarget(null);
+    qc.invalidateQueries({ queryKey: ['suppliers'] });
+    toast.success('Supplier deleted');
+  };
+
+  const saveEdit = async () => {
+    await base44.entities.Supplier.update(editId, {
+      name: form.name,
+      sid: form.sid,
+      supplier_type: form.supplier_type || 'External',
+      vertical: form.vertical,
+      payout_type: form.payout_type,
+      payout_value: form.payout_value,
+      email: form.email,
+      landing_page_url: form.landing_page_url,
+      brand: Array.isArray(form.brand) ? form.brand.join(', ') : (form.brand || ''),
+      active: form.active,
+    });
+    setModal(false);
+    setEditId(null);
+    qc.invalidateQueries({ queryKey: ['suppliers'] });
+    toast.success('Supplier updated');
+  };
 
   const createSupplier = async () => {
     const supplier = await base44.entities.Supplier.create({
@@ -105,7 +189,7 @@ export default function CampaignSuppliers() {
     qc.invalidateQueries({ queryKey: ['suppliers'] });
   };
 
-  const COLS = ['Name', 'Source Portal', 'Leads', 'Campaigns', 'Accepted', 'Accepted %', 'Duplicate', 'DQ', 'Cost', 'Revenue', 'Profit', 'CPL', 'Conv Rate'];
+  const COLS = ['Name', 'Source Portal', 'Leads', 'Campaigns', 'Accepted', 'Accepted %', 'Duplicate', 'DQ', 'Cost', 'Revenue', 'Profit', 'CPL', 'Conv Rate', 'Actions'];
 
   return (
     <div>
@@ -151,6 +235,17 @@ export default function CampaignSuppliers() {
               <span className="text-right font-mono text-[12px] text-foreground">{money(m.profit)}</span>
               <span className="text-right font-mono text-[12px] text-foreground">{money(m.cpl)}</span>
               <span className="text-right font-mono text-[12px] text-foreground">{pct(m.convRate)}</span>
+              <span className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit" onClick={(e) => openEdit(s, e)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" title="Clone" onClick={(e) => cloneSupplier(s, e)}>
+                  <Files className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Delete" onClick={(e) => { e.stopPropagation(); setDeleteTarget(s); }}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </span>
             </Row>
           );
         })}
@@ -158,7 +253,7 @@ export default function CampaignSuppliers() {
 
       <Dialog open={modal} onOpenChange={(v) => { if (!v && !newKey) setModal(false); }}>
         <DialogContent className="bg-popover border-border max-w-[500px]">
-          <DialogHeader><DialogTitle>{newKey ? 'Supplier Created' : 'New Supplier'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{newKey ? 'Supplier Created' : editId ? 'Edit Supplier' : 'New Supplier'}</DialogTitle></DialogHeader>
           {newKey ? (
             <div className="space-y-4">
               <div className="bg-background border border-primary/30 rounded-lg p-4">
@@ -246,16 +341,35 @@ export default function CampaignSuppliers() {
                 )}
                 <div><Label className="text-[12px]">Landing Page URL</Label><Input value={form.landing_page_url} onChange={e => setForm(p => ({ ...p, landing_page_url: e.target.value }))} className="mt-1 bg-background font-mono text-[12px]" /></div>
                 <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={v => setForm(p => ({ ...p, active: v }))} /><Label className="text-[12px]">Active</Label></div>
-                <p className="text-[11px] text-muted-foreground">An API key is auto-generated on create.</p>
+                {!editId && <p className="text-[11px] text-muted-foreground">An API key is auto-generated on create.</p>}
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setModal(false)}>Cancel</Button>
-                <Button onClick={createSupplier} disabled={!form.name || !form.supplier_type}>Create Supplier</Button>
+                <Button variant="ghost" onClick={() => { setModal(false); setEditId(null); }}>Cancel</Button>
+                {editId ? (
+                  <Button onClick={saveEdit} disabled={!form.name || !form.supplier_type}>Save Changes</Button>
+                ) : (
+                  <Button onClick={createSupplier} disabled={!form.name || !form.supplier_type}>Create Supplier</Button>
+                )}
               </DialogFooter>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent className="bg-popover border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete supplier?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSupplier} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

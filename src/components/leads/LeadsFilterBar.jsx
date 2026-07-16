@@ -6,18 +6,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Panel } from '@/components/settings/settingsUi';
 import MobileFilterSheet from '@/components/shared/MobileFilterSheet';
+import LeadsPeriodFilter from '@/components/shared/LeadsPeriodFilter';
 import { Search, Filter, Plus, X, Save, Trash2 } from 'lucide-react';
-
-const DATE_RANGES = [
-  { value: 'all', label: 'All Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'yesterday', label: 'Yesterday' },
-  { value: 'this_week', label: 'This Week' },
-  { value: 'this_month', label: 'This Month' },
-  { value: 'last_month', label: 'Last Month' },
-  { value: 'this_year', label: 'This Year' },
-  { value: 'custom', label: 'Custom' },
-];
 
 const OPERATORS = [
   { value: 'equals', label: 'Equals' },
@@ -36,8 +26,8 @@ const NO_VALUE_OPERATORS = ['is_empty', 'is_not_empty'];
 
 export default function LeadsFilterBar({
   search, setSearch,
-  dateRange, setDateRange,
-  customDate, setCustomDate,
+  period, setPeriod,
+  customPeriod, setCustomPeriod,
   customFilters, setCustomFilters,
   savedSets, onSaveSet, onDeleteSet, onApplySet,
   filterFields,
@@ -65,8 +55,8 @@ export default function LeadsFilterBar({
 
   const clearAll = () => {
     setSearch('');
-    setDateRange('all');
-    setCustomDate({ start: '', end: '' });
+    setPeriod('this_month');
+    setCustomPeriod({ from: '', to: '' });
     setCustomFilters([]);
     setActiveSetId('');
     if (setStatusFilter) setStatusFilter('');
@@ -97,10 +87,10 @@ export default function LeadsFilterBar({
     if (activeSetId === id) setActiveSetId('');
   };
 
-  const hasActiveFilters = search || dateRange !== 'all' || customFilters.length > 0 || statusFilter || supplierFilter || sourceFilter;
+  const hasActiveFilters = search || period !== 'this_month' || customFilters.length > 0 || statusFilter || supplierFilter || sourceFilter;
 
   // Count active filters for the mobile Filters badge (search is separate).
-  const activeCount = (dateRange !== 'all' ? 1 : 0) + customFilters.length +
+  const activeCount = (period !== 'this_month' ? 1 : 0) + customFilters.length +
     (statusFilter ? 1 : 0) + (supplierFilter ? 1 : 0) + (sourceFilter ? 1 : 0);
 
   // Status / Suppliers / Sources / Time / Filters / Save controls. Rendered
@@ -126,30 +116,12 @@ export default function LeadsFilterBar({
         options={sourceOptions}
       />
 
-      <SearchableSelect
-        value={dateRange}
-        onValueChange={setDateRange}
-        className="w-full lg:w-[140px] bg-card border-border"
-        options={DATE_RANGES}
+      <LeadsPeriodFilter
+        period={period}
+        custom={customPeriod}
+        onPeriodChange={setPeriod}
+        onCustomChange={setCustomPeriod}
       />
-
-      {dateRange === 'custom' && (
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            value={customDate.start}
-            onChange={e => setCustomDate(p => ({ ...p, start: e.target.value }))}
-            className="bg-card border-border w-full lg:w-[140px]"
-          />
-          <span className="text-muted-foreground text-xs">→</span>
-          <Input
-            type="date"
-            value={customDate.end}
-            onChange={e => setCustomDate(p => ({ ...p, end: e.target.value }))}
-            className="bg-card border-border w-full lg:w-[140px]"
-          />
-        </div>
-      )}
 
       {savedSets.length > 0 && (
         <div className="flex items-center gap-1">

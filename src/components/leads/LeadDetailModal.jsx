@@ -14,7 +14,7 @@ import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Copy, RotateCcw, Trash2, Archive, Pencil } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatLeadTime } from '@/lib/leadTime';
 import { processLead } from '@/functions/processLead';
 import { invalidateLeadCaches } from '@/lib/leadCaches';
 
@@ -51,11 +51,9 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
   // LeadByte outcome fields. Built in display order, then filtered so only
   // populated values render. Currency and date values are pre-formatted here.
   const fmtCurrency = (v) => (typeof v === 'number' ? `$${v.toFixed(2)}` : v);
-  let outcomeReceived = null;
-  if (lead.leadbyte_outcome_at) {
-    const d = new Date(lead.leadbyte_outcome_at);
-    if (!Number.isNaN(d.getTime())) outcomeReceived = format(d, 'PPpp');
-  }
+  const outcomeReceived = lead.leadbyte_outcome_at
+    ? formatLeadTime(lead.leadbyte_outcome_at, 'MMM d, yyyy HH:mm')
+    : null;
   const outcomeEntries = [
     ['Buyer', lead.buyer_name],
     ['Buyer ID', lead.buyer_id],
@@ -129,7 +127,7 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
             </span>
           </div>
           <div className="text-[12px] text-muted-foreground mt-1">
-            {lead.supplier_name} - {lead.created_date ? format(new Date(lead.created_date), 'PPpp') : ''}
+            {lead.supplier_name} - {lead.created_date ? formatLeadTime(lead.created_date, 'MMM d, yyyy HH:mm') : ''}
           </div>
         </DialogHeader>
 
