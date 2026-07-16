@@ -1887,15 +1887,21 @@ Deno.serve(async (req) => {
             revenueSum += Number(b.revenue) || 0;
           }
         }
+        let revenueSource = 'unknown';
         if (foundSoldBuyer) {
           capturedRevenue = revenueSum;
-        } else if (lbResult.revenue != null) {
+          revenueSource = 'leadbyte_buyers';
+        } else if (lbResult.revenue != null && !isNaN(Number(lbResult.revenue))) {
           capturedRevenue = Number(lbResult.revenue);
+          revenueSource = 'leadbyte_root';
         } else {
-          capturedRevenue = 0;
+          capturedRevenue = null;
+          revenueSource = 'unknown';
         }
         if (capturedRevenue != null && !isNaN(capturedRevenue)) {
-          await db.entities.Lead.update(leadId, { revenue: capturedRevenue });
+          await db.entities.Lead.update(leadId, { revenue: capturedRevenue, revenue_source: revenueSource });
+        } else {
+          await db.entities.Lead.update(leadId, { revenue_source: 'unknown' });
         }
 
         // Fire on_sold connectors (fire-and-forget). Inject captured revenue so
