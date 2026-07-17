@@ -31,7 +31,7 @@ export default function FinancesNav() {
 
   const railItems = ITEMS
     .filter(item => !item.perm || can(item.perm))
-    .map(item => ({ label: item.label, to: `/finances?tab=${item.tab}`, active: active === item.tab }));
+    .map(item => ({ label: item.label, icon: item.icon, to: `/finances?tab=${item.tab}`, active: active === item.tab }));
 
   return (
     <SubNavShell items={railItems}>

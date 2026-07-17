@@ -27,7 +27,7 @@ export default function AdManagerNav() {
   const platforms = platformsFrom(mappings, []);
   const connectedCount = platforms.filter((p) => p.connected).length;
 
-  const railItems = ITEMS.map(item => ({ label: item.label, to: item.path, active: location.pathname === item.path }));
+  const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
 
   return (
     <SubNavShell items={railItems}>

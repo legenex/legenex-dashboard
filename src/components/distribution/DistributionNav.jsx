@@ -31,7 +31,7 @@ export default function DistributionNav() {
   const [campaignsOpen, setCampaignsOpen] = useState(onCampaigns);
   useEffect(() => { if (onCampaigns) setCampaignsOpen(true); }, [onCampaigns]);
 
-  const railItems = ITEMS.map(item => ({ label: item.label, to: item.path, active: location.pathname === item.path }));
+  const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
 
   return (
     <SubNavShell items={railItems}>

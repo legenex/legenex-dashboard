@@ -16,7 +16,7 @@ const ITEMS = [
 export default function OperationsNav() {
   const location = useLocation();
 
-  const railItems = ITEMS.map(item => ({ label: item.label, to: item.path, active: location.pathname === item.path }));
+  const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
 
   return (
     <SubNavShell items={railItems}>

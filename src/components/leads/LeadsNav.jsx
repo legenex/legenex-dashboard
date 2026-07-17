@@ -62,7 +62,7 @@ export default function LeadsNav() {
     return leads.filter(l => l.final_status === 'Queued' && l.created_date && differenceInHours(now, new Date(l.created_date)) >= 5).length;
   }, [leads]);
 
-  const railItems = ITEMS.map(item => ({ label: item.label, to: item.path, active: location.pathname === item.path }));
+  const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
 
   return (
     <SubNavShell items={railItems}>
