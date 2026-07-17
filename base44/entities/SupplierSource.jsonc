@@ -8,29 +8,30 @@
     },
     "source_code": {
       "type": "string",
-      "description": "Optional distinct economic feed code (SSID) for this supplier, for example INBNDS-SURVEY or INBNDS-PVL. When present it is the primary match key for inbound leads: the payload ssid wins over any brand fallback. A supplier with a single source does not need one."
+      "description": "Optional supplier SubID (SSID) for this source, formed as sid-brand, for example LGNX-DS or LGNX-CMC. When present it is the primary match key for inbound leads: the payload ssid wins over any brand fallback. A supplier with a single source does not need one."
     },
     "brand": {
       "type": "string",
       "description": "Optional supplier_brand this source resolves for. Used as the fallback match when an inbound lead carries no ssid: the source whose brand equals the lead's supplier_brand is selected. Lets one supplier hold sources on different brands, for example LGNX holding CMC and Dont Settle."
     },
-    "utm_source": {
-      "type": "string",
-      "description": "How this source identifies itself on the inbound lead. Nullable."
-    },
     "pricing_model": {
       "type": "string",
       "enum": [
         "none",
-        "rev_share",
         "flat_cpl",
+        "profit_pct",
+        "revenue_pct",
         "tiered"
       ],
       "description": "Pricing model for this source. none means this source carries no CPL of its own (used by Internal supplier sources whose cost comes from mapped ad accounts, and by any source that should fall back to the lead's supplier_payout)."
     },
-    "rev_share_pct": {
+    "profit_pct": {
       "type": "number",
-      "description": "Revenue share percentage. Used when pricing_model is rev_share. Nullable."
+      "description": "Percentage of profit, where profit is revenue minus cost. Used when pricing_model is profit_pct. Nullable."
+    },
+    "revenue_pct": {
+      "type": "number",
+      "description": "Percentage of revenue. Used when pricing_model is revenue_pct. Nullable."
     },
     "flat_cpl": {
       "type": "number",
