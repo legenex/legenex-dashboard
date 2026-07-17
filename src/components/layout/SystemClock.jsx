@@ -19,10 +19,10 @@ export default function SystemClock() {
   const offset = formatInTimeZone(now, APP_TZ, 'xxx');
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-card/80 backdrop-blur px-3 py-1.5 shadow-sm">
-      <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-      <span className="font-mono text-sm font-medium text-foreground tabular-nums">{time}</span>
-      <span className="font-mono text-xs text-muted-foreground">{abbr} {offset}</span>
+    <div className="flex items-center gap-2 px-1 text-muted-foreground">
+      <Clock className="w-3 h-3 shrink-0" />
+      <span className="font-mono text-[11px] font-medium text-foreground tabular-nums">{time}</span>
+      <span className="font-mono text-[11px]">{abbr} {offset}</span>
     </div>
   );
 }

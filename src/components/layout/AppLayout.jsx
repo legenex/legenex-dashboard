@@ -7,7 +7,6 @@ import Sidebar from './Sidebar';
 import DrawerNav from './DrawerNav';
 import MobileBottomTabs from './MobileBottomTabs';
 import DataBotWidget from '@/components/databot/DataBotWidget';
-import SystemClock from './SystemClock';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { navGroups } from './navConfig';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -77,7 +76,6 @@ export default function AppLayout() {
         </button>
         <div className="text-[15px] font-semibold text-foreground truncate">{title}</div>
         <div className="flex-1" />
-        <SystemClock />
       </header>
 
       {/* Mobile drawer */}
@@ -100,9 +98,6 @@ export default function AppLayout() {
           ref={scrollRef}
           className="app-scroll h-[calc(100%-52px-env(safe-area-inset-top))] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8"
         >
-          <div className="hidden lg:flex justify-end mb-4">
-            <SystemClock />
-          </div>
           <Outlet />
         </div>
       </main>

@@ -11,6 +11,7 @@ import SidebarProfile from './SidebarProfile';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useCollapsible } from '@/hooks/useCollapsible';
 import ResizeHandle from './ResizeHandle';
+import SystemClock from './SystemClock';
 import { navGroups, filterNav } from './navConfig';
 
 const COLLAPSED_WIDTH = 68;
@@ -389,7 +390,7 @@ export default function Sidebar() {
         </button>
         <ViewAsSwitcher />
         <SidebarProfile />
-        <div className="text-[11px] text-muted-foreground text-center">v1.0.1</div>
+        <SystemClock />
       </div>
 
       {/* Resize handle — grip fixed at the bottom of the sidebar edge */}
