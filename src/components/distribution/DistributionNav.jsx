@@ -33,7 +33,22 @@ export default function DistributionNav() {
   const [campaignsOpen, setCampaignsOpen] = useState(true);
   useEffect(() => { if (onCampaigns) setCampaignsOpen(true); }, [onCampaigns]);
 
-  const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
+  // Collapsed/mobile rail: include Campaigns sub-items (each with its icon and
+  // route) so every sub-item, including Deliveries, stays reachable when the
+  // submenu is collapsed to the icon rail.
+  const railItems = ITEMS.flatMap(item => {
+    const self = { label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path };
+    if (!item.children) return [self];
+    const kids = item.children
+      .filter(c => !c.comingSoon)
+      .map(c => ({
+        label: c.label,
+        icon: c.icon,
+        to: c.to || `${item.path}?tab=${c.tab}`,
+        active: c.to ? location.pathname === c.to : false,
+      }));
+    return [self, ...kids];
+  });
 
   return (
     <SubNavShell items={railItems}>
