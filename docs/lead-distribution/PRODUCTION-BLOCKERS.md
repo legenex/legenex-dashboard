@@ -261,6 +261,51 @@ Needs sandbox creds from Nick. Also Phase 14 is gated on Checkpoint B.
 Current: client query capped at 2000 leads. Required: server-side/pre-aggregated reporting for the
 full metric list with defined tz/semantics. Verify: server aggregation tests + cap-independence.
 
+### PB-025 Native buyer delivery model (Delivery / SubDelivery) - IN-PROGRESS (core PROVEN; secret storage + live-test wiring NEEDS-ENV)
+Context: LeadByte modelled a buyer "delivery" as one or more endpoint tiers. The native model adds a
+Delivery entity (belongs to exactly one Buyer; status draft/active/paused/archived) and a SubDelivery
+entity (one outbound endpoint tier: target_url/method/encoding/headers/field_map/transforms/
+response_mapping/timeout/retry). RouteMember.sub_delivery_id is now the CANONICAL destination pointer.
+- Fail-closed resolution (PROVEN, snapshot.test.js): a member whose sub-delivery is missing, inactive,
+  cross-buyer, or whose parent Delivery is not active is CONFIG_INVALID and never routes. The four
+  required fixtures (missing / inactive / cross-buyer / archived-parent) are covered, plus a member
+  with neither pointer.
+- Per-endpoint retries + circuit breaker (PROVEN): DeliveryAttempt and DestinationHealth carry
+  sub_delivery_id; attempts and health key on the endpoint, not the buyer.
+- Routing wire-up (PROVEN, routingDelivery.integration.test.js): the snapshot resolves a SubDelivery
+  into the directPost cfg and, against the local mock destination, two members on ONE buyer with
+  DIFFERENT sub-deliveries deliver to DIFFERENT endpoints with their own prices and caps.
+- Credential hard rule (PROVEN, deliveryResolve.test.js + previewClient.test.js): buyer API keys /
+  auth headers are NEVER stored in SubDelivery JSON and NEVER reach the browser. Only an opaque
+  credential_ref is stored; the real secret is resolved server-side at send time (directPost
+  resolveCredential). No credential value appears in any operator/portal projection or persisted
+  attempt. NEEDS-ENV: the production resolveCredential -> secret store binding (campaignDeliveryTest
+  reads IntegrationConfig as a placeholder) requires deployment secret storage.
+- Publish validation (PROVEN, configPublish.test.js): publish fails closed unless every member's
+  sub-delivery exists, is active, belongs to that member's buyer, and has a target_url and response
+  mapping.
+- Live outbound test (STRUCTURAL, NEEDS-ENV): campaignDeliveryTest is OPERATOR-ONLY, refuses unless
+  distribution_mode is past legacy_only, requires explicit confirm=true, and writes a DistributionAudit
+  record before sending. Dry-run payload preview and response-mapping tester are client-side and send
+  nothing (the default). A real send end-to-end depends on secret storage (NEEDS-ENV).
+- UI (PARTIAL): Campaigns > Deliveries page (own route /campaigns/deliveries, own permission key
+  dist_deliveries, fail-closed) with list-by-buyer, a tab per sub-delivery, dry-run payload preview,
+  field-map autocomplete from known lead fields, a response-mapping tester, a route-member backlink
+  with an in-use deactivation warning, and the gated live-test dialog. Not yet exercised against a live
+  Base44 preview.
+
+Compatibility note (destination_id deprecation): RouteMember.destination_id, DeliveryAttempt.
+destination_id, and DestinationHealth.destination_id are marked DEPRECATED in their schema descriptions
+and retained additively so existing records keep resolving. sub_delivery_id supersedes them as the
+canonical destination. No rename or deletion; legacy destination_id-only members still resolve via the
+deprecated path. New members must use sub_delivery_id.
+
+Rename note (safety-critical): the former "Lead Distribution > Deliveries" page (LeadByteConnector /
+ApiConnector manager) is now "Webhooks" at /distribution/webhooks with its own permission key
+(dist_webhooks); /deliveries redirects there. This is a RENAME ONLY: the live connector records are
+unchanged (same SettingsLeadByte manager, same records, no enabled/endpoint/payload/trigger/filter/
+mapping change, no migration).
+
 ## Notes
 - No blocker below is closed. Phase 0 established ground truth only.
 - PB-008/010 external-datastore escape hatch requires Nick approval AND Morne infra sign-off; do not
