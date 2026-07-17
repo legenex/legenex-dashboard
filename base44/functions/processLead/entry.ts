@@ -1261,6 +1261,11 @@ Deno.serve(async (req) => {
     const gatewayModeRaw = String(appSettings.gateway_mode || '').trim().toLowerCase();
     const gatewayMode = ['live', 'test', 'capture_only'].includes(gatewayModeRaw) ? gatewayModeRaw : 'live';
     const captureOnly = gatewayMode === 'capture_only';
+    // Distribution engine mode (ADDITIVE, flag-gated). Default legacy_only keeps
+    // the existing LeadByte path fully authoritative and runs no new code.
+    const distModeRaw = String(appSettings.distribution_mode || '').trim().toLowerCase();
+    const distributionMode = ['legacy_only', 'shadow', 'canary', 'new_primary_with_legacy_fallback', 'new_only']
+      .includes(distModeRaw) ? distModeRaw : 'legacy_only';
     const tsFmt = appSettings.timestamp_format || 'MM/DD/YYYY HH:MM:SS';
     leadPayload.timestamp = formatTimestamp(now, tsFmt);
 
@@ -1276,6 +1281,38 @@ Deno.serve(async (req) => {
     const systemLeadId = await nextLeadId(db);
     leadPayload.lead_id = systemLeadId;
     await db.entities.Lead.update(leadId, { lead_id: systemLeadId });
+
+    // ── Distribution engine SHADOW hook (ADDITIVE, flag-gated) ────────────────
+    // Runs ONLY when distribution_mode is past legacy_only. Calls the ONE
+    // canonical engine (via the generated bundle) through the snapshot loader and
+    // writes ONLY a RouteDecisionTrace. It sends/reserves/bills nothing and is
+    // fully isolated: the dynamic import runs only when enabled (so production on
+    // legacy_only never loads it), and any error is caught so it can never alter
+    // the legacy LeadByte outcome or the supplier response envelope. Deployment of
+    // the generated bundle to the function runtime is verified in staging (CAP-2).
+    if (distributionMode !== 'legacy_only') {
+      try {
+        const leadDist = await import('../_shared/routingEngine.generated.js');
+        await leadDist.runShadow(db, {
+          distributionMode,
+          leadId,
+          campaignId: leadPayload.campaign_id || leadPayload._campaign || null,
+          idempotencyKey: String(systemLeadId),
+          leadData: leadPayload,
+          nowMs: Date.now(),
+        });
+      } catch (shadowErr) {
+        // The new engine must never break the authoritative legacy path. Record
+        // the failure best-effort; do not rethrow.
+        try {
+          await db.entities.RouteDecisionTrace.create({
+            lead_id: leadId, distribution_mode: distributionMode, result: 'engine_load_error',
+            error_message: String(shadowErr && (shadowErr as Error).message || shadowErr).slice(0, 300),
+            created_at: new Date().toISOString(),
+          });
+        } catch (_ignore) { /* nothing else is safe to do */ }
+      }
+    }
 
     // Load all config in parallel
     const [hlrSettingsArr, emailSettingsArr, allDestinations, calcs, customFields, apiConnectors, responseMappings] = await Promise.all([

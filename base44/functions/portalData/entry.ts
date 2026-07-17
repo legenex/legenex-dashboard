@@ -1,8 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// Authenticated buyer-portal data endpoint. Returns everything the portal needs,
-// strictly scoped to a single buyer_id. Uses the service role to read Lead
-// (which is admin-RLS) but never returns another buyer's data.
+// Caller model: BUYER-SCOPED. Authenticated buyer-portal data endpoint. Returns
+// everything the portal needs, strictly scoped to a single buyer_id. Uses the
+// service role to read Lead (admin-RLS) but never returns another buyer's data,
+// raw payloads, routing traces, or internal cost/margin. Deny-by-default allowlist.
 //
 // Scoping rules:
 // - A buyer-role user is scoped to their own user.linked_buyer_id.
@@ -48,7 +49,6 @@ Deno.serve(async (req) => {
       email: l.email,
       final_status: l.final_status,
       revenue: l.revenue,
-      cost: l.cost,
       buyer_feedback: l.buyer_feedback,
       created_date: l.created_date,
     }));

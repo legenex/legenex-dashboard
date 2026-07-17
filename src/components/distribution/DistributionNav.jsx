@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, Webhook, Zap, ChevronRight, Layers, Users, Truck, Tag } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Send, Zap, ChevronRight, Webhook, Layers, Users, Truck, Tag } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
@@ -9,8 +9,11 @@ const ITEMS = [
     { label: 'Verticals', tab: 'verticals', icon: Layers },
     { label: 'Buyers', tab: 'buyers', icon: Users },
     { label: 'Suppliers', tab: 'suppliers', icon: Truck },
+    { label: 'Deliveries', to: '/campaigns/deliveries', icon: Send },
     { label: 'Brands', tab: 'brands', icon: Tag },
   ] },
+  // Webhooks is Nick's live rename of the former Deliveries page; it stays at
+  // /deliveries (the live route) and is NOT moved to a new path.
   { label: 'Webhooks', path: '/deliveries', icon: Webhook },
   { label: 'Conversion Events', path: '/conversion-events', icon: Zap },
 ];
@@ -30,7 +33,22 @@ export default function DistributionNav() {
   const [campaignsOpen, setCampaignsOpen] = useState(true);
   useEffect(() => { if (onCampaigns) setCampaignsOpen(true); }, [onCampaigns]);
 
-  const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
+  // Collapsed/mobile rail: include Campaigns sub-items (each with its icon and
+  // route) so every sub-item, including Deliveries, stays reachable when the
+  // submenu is collapsed to the icon rail.
+  const railItems = ITEMS.flatMap(item => {
+    const self = { label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path };
+    if (!item.children) return [self];
+    const kids = item.children
+      .filter(c => !c.comingSoon)
+      .map(c => ({
+        label: c.label,
+        icon: c.icon,
+        to: c.to || `${item.path}?tab=${c.tab}`,
+        active: c.to ? location.pathname === c.to : false,
+      }));
+    return [self, ...kids];
+  });
 
   return (
     <SubNavShell items={railItems}>
@@ -73,11 +91,15 @@ export default function DistributionNav() {
                           </div>
                         );
                       }
-                      const childActive = onCampaigns && activeTab === child.tab;
+                      // A child may be its own page (child.to) or a tab on the parent.
+                      const childActive = child.to
+                        ? location.pathname === child.to
+                        : (onCampaigns && activeTab === child.tab);
+                      const childTo = child.to || `${item.path}?tab=${child.tab}`;
                       return (
                         <Link
-                          key={child.tab}
-                          to={`${item.path}?tab=${child.tab}`}
+                          key={child.to || child.tab}
+                          to={childTo}
                           className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                             childActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
                           }`}

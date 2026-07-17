@@ -1,0 +1,29 @@
+{
+  // Additive (lead distribution platform). A buyer destination within a RouteGroup, with pricing, caps, filters + schedule.
+  // Caller model: operator writes; read by processLead + simulator.
+  "name": "RouteMember",
+  "type": "object",
+  "properties": {
+    "route_group_id": { "type": "string", "description": "RouteGroup this member belongs to" },
+    "buyer_id": { "type": "string", "description": "Buyer that owns this destination" },
+    "sub_delivery_id": { "type": "string", "description": "CANONICAL destination pointer: the SubDelivery this member delivers to. Must resolve to an active SubDelivery whose parent Delivery is active and belongs to this member's buyer, else the member is CONFIG_INVALID and ineligible." },
+    "destination_id": { "type": "string", "description": "DEPRECATED (compatibility only): legacy LeadByteConnector/ApiConnector id. Superseded by sub_delivery_id as the canonical destination. Retained additively for existing records; do not use for new members." },
+    "active": { "type": "boolean", "default": true },
+    "priority": { "type": "number", "default": 1, "description": "Priority ranking within the group (lower wins)" },
+    "weight": { "type": "number", "default": 1, "description": "Relative weight for weighted/round_robin distribution" },
+    "reserve_price": { "type": "number", "description": "Minimum acceptable price for this member" },
+    "price_mode": {
+      "type": "string",
+      "enum": ["fixed", "rule", "auction"],
+      "default": "fixed"
+    },
+    "fixed_price": { "type": "number", "description": "Price used when price_mode is fixed" },
+    "filters": { "type": "string", "description": "JSON: states/zips/counties/verticals/brands/suppliers/sources" },
+    "conditions": { "type": "string", "description": "JSON condition tree for qualification" },
+    "caps": { "type": "string", "description": "JSON: total/hourly/daily/weekly/monthly limits" },
+    "schedule": { "type": "string", "description": "JSON: timezone + windows" },
+    "suppression_list_id": { "type": "string", "description": "Suppression list applied to this member" },
+    "pause_reason": { "type": "string", "description": "Reason this member is paused, if any" }
+  },
+  "required": ["route_group_id", "buyer_id"]
+}

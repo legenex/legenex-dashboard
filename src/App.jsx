@@ -36,7 +36,10 @@ import Reports from '@/pages/Reports';
 import Finances from '@/pages/Finances';
 
 import Deliveries from '@/pages/Deliveries';
+import CampaignDeliveries from '@/pages/CampaignDeliveries';
 import ConversionEvents from '@/pages/ConversionEvents';
+import RouteSimulator from '@/pages/RouteSimulator';
+import RouteGroups from '@/pages/RouteGroups';
 import Notifications from '@/pages/Notifications';
 import Verification from '@/pages/Verification';
 import Settings from '@/pages/Settings';
@@ -186,8 +189,12 @@ const AuthenticatedApp = () => {
           <Route element={<DistributionLayout />}>
             <Route path="/distribution" element={<DistributionDashboard />} />
             <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/campaigns/deliveries" element={<CampaignDeliveries />} />
+            {/* Nick's live rename: /deliveries stays and renders the Webhooks page. */}
             <Route path="/deliveries" element={<Deliveries />} />
             <Route path="/conversion-events" element={<ConversionEvents />} />
+            <Route path="/distribution/routes" element={<RouteGroups />} />
+            <Route path="/distribution/simulator" element={<RouteSimulator />} />
           </Route>
           <Route path="/suppliers/:id" element={<SupplierDetail />} />
           <Route path="/buyers/:id" element={<BuyerDetail />} />
