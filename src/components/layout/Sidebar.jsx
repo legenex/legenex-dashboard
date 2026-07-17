@@ -160,7 +160,14 @@ export default function Sidebar() {
             <div key={group.label}>
               <div className="flex items-center">
                 <button
-                  onClick={() => toggleGroup(group.label)}
+                  onClick={() => {
+                    if (group.path) {
+                      navigate(group.path);
+                      if (!isOpen) toggleGroup(group.label);
+                    } else {
+                      toggleGroup(group.label);
+                    }
+                  }}
                   className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
                     ${highlight ? 'text-foreground' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
                 >
