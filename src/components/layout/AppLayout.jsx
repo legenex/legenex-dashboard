@@ -55,11 +55,6 @@ export default function AppLayout() {
 
   return (
     <div className="h-screen bg-background overflow-hidden">
-      {/* System clock: fixed top-right on every page (desktop only — mobile header is compact) */}
-      <div className="hidden lg:block fixed top-4 right-6 z-40">
-        <SystemClock />
-      </div>
-
       {/* Desktop sidebar: lg and up only */}
       <div className="hidden lg:block">
         <Sidebar />
@@ -105,6 +100,9 @@ export default function AppLayout() {
           ref={scrollRef}
           className="app-scroll h-[calc(100%-52px-env(safe-area-inset-top))] lg:h-full overflow-y-auto overflow-x-hidden p-4 lg:p-8"
         >
+          <div className="hidden lg:flex justify-end mb-4">
+            <SystemClock />
+          </div>
           <Outlet />
         </div>
       </main>
