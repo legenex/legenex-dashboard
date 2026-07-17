@@ -93,7 +93,6 @@ export default function RouteGroupPublishDialog({ open, onOpenChange, group, for
     setPublishErrors(null);
     setPublished(null);
     runValidate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, group?.id]);
 
   const diff = useMemo(() => {
