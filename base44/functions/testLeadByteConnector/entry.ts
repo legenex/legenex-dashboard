@@ -136,6 +136,26 @@ async function buildPayloadFromTemplate(template, data) {
 
 // ── Handler ───────────────────────────────────────────────────────────────
 
+// Caller model: operator-only. Fires an outbound POST to an operator-configured
+// LeadByte destination using operator credentials, so it is gated to operators
+// BEFORE any service-role read. Portal accounts and unauthenticated callers are
+// rejected.
+const OPERATOR_PERMISSION_KEYS = ['leads', 'reports', 'overview', 'finances', 'distribution', 'operations'];
+
+async function assertOperator(base44, user) {
+  const record = await base44.asServiceRole.entities.User.get(user.id).catch(() => null);
+  const caller = record || user;
+  if (caller.base_role === 'supplier' || caller.base_role === 'buyer') return false;
+  if (caller.linked_buyer_id || caller.linked_supplier_id) return false;
+  let permissions = {};
+  try {
+    permissions = typeof caller.permissions === 'string'
+      ? JSON.parse(caller.permissions || '{}')
+      : (caller.permissions || {});
+  } catch { permissions = {}; }
+  return caller.role === 'admin' || OPERATOR_PERMISSION_KEYS.some((k) => permissions[k] === true);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -149,8 +169,10 @@ Deno.serve(async (req) => {
   }
 
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
+  let user = null;
+  try { user = await base44.auth.me(); } catch { user = null; }
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await assertOperator(base44, user))) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
   const { connector_id, test_payload } = body;
