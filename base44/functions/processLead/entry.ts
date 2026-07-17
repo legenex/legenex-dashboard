@@ -604,9 +604,9 @@ async function sendDestinationAwait(dest, leadData, leadId, trigger) {
 
 // Built-in lead statuses that fire via lifecycle triggers. Any other lead_status
 // value (e.g. "24m Lead") fires via the custom-status trigger point after enrichment.
-const BUILTIN_LEAD_STATUSES = ['Qualified', 'Disqualified', 'Sold', 'Unsold', 'Rejected', 'Duplicates', 'Queued'];
+const BUILTIN_LEAD_STATUSES = ['Qualified', 'Disqualified', 'Sold', 'Unsold', 'Rejected', 'Duplicates', 'Queued', 'Error'];
 function triggerKeyForStatus(statusLabel) {
-  const map = { Qualified: 'on_received', Sold: 'on_sold', Unsold: 'on_unsold', Disqualified: 'on_dq', Queued: 'on_queued', Rejected: 'on_rejected', Duplicates: 'on_duplicates' };
+  const map = { Qualified: 'on_received', Sold: 'on_sold', Unsold: 'on_unsold', Disqualified: 'on_dq', Queued: 'on_queued', Rejected: 'on_rejected', Duplicates: 'on_duplicates', Error: 'on_error' };
   if (map[statusLabel]) return map[statusLabel];
   const slug = String(statusLabel || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return `on_${slug || 'status'}`;
@@ -1081,6 +1081,15 @@ const QUEUE_REJECTION_PATTERNS = ['missing', 'required', 'invalid', 'not provide
 function isQueueableRejection(reasonText) {
   const lower = String(reasonText || '').toLowerCase();
   return QUEUE_REJECTION_PATTERNS.some(p => lower.includes(p));
+}
+
+// Patterns that indicate a LeadByte rejection is a content/value mismatch, which
+// should classify as Disqualified (fires on_dq) rather than a catch-all Error.
+const CONTENT_REJECTION_PATTERNS = ['not an expected value', 'not accepted', 'not allowed', 'out of range', 'does not match'];
+
+function isContentRejection(reasonText) {
+  const lower = String(reasonText || '').toLowerCase();
+  return CONTENT_REJECTION_PATTERNS.some(p => lower.includes(p));
 }
 
 // ── Response envelope ──────────────────────────────────────────────────────
@@ -2018,6 +2027,8 @@ Deno.serve(async (req) => {
         });
         await evaluateNotifications(db, ['api_error'], { id: leadId }, supplierAttribution,
           { message: `Unexpected LeadByte status: ${recordStatus}` }).catch(() => {});
+        fireConnectors(db, apiConnectors, 'on_error', enrichedData, leadId, supplierAttribution, supplierRecord);
+        fireDeliveries(db, allDestinations, 'on_error', enrichedData, leadId, supplierAttribution, supplierRecord);
       }
     } else {
       // ── f. Top-level non-success: handle errors[] shape ──────────────
@@ -2042,6 +2053,13 @@ Deno.serve(async (req) => {
         fireConnectors(db, apiConnectors, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
         fireDeliveries(db, allDestinations, 'on_queued', leadPayload, leadId, supplierAttribution, supplierRecord);
         await evaluateNotifications(db, ['lead_queued', 'missing_fields'], { id: leadId, queue_reason: queueReason }, supplierAttribution, { queue_reason: queueReason });
+      } else if (isContentRejection(firstError)) {
+        finalStatus = 'Disqualified';
+        supplierResponse = { Response: 'Disqualified', reason: firstError };
+        envAcceptance = 'accepted'; envLeadStatus = 'disqualified'; envCode = 'CONTENT_REJECTED';
+        await db.entities.Lead.update(leadId, { queue_reason: `LeadByte content rejection: ${firstError}` });
+        fireConnectors(db, apiConnectors, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
+        fireDeliveries(db, allDestinations, 'on_dq', enrichedData, leadId, supplierAttribution, supplierRecord);
       } else {
         finalStatus = 'Error';
         supplierResponse = { Response: 'Error', reason: firstError || lbResult.message || 'LeadByte returned non-success' };
@@ -2053,6 +2071,8 @@ Deno.serve(async (req) => {
         });
         await evaluateNotifications(db, ['api_error'], { id: leadId }, supplierAttribution,
           { message: firstError || lbResult.message || 'LeadByte returned non-success' }).catch(() => {});
+        fireConnectors(db, apiConnectors, 'on_error', enrichedData, leadId, supplierAttribution, supplierRecord);
+        fireDeliveries(db, allDestinations, 'on_error', enrichedData, leadId, supplierAttribution, supplierRecord);
       }
     }
 
