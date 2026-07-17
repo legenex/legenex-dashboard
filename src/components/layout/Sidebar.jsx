@@ -15,6 +15,81 @@ import { navGroups, filterNav } from './navConfig';
 
 const COLLAPSED_WIDTH = 68;
 
+// A flat list of {label, icon, to, comingSoon} leaf entries for a group,
+// recursing into nested dropdowns (e.g. Campaigns) so the collapsed flyout
+// shows every reachable destination with its own icon.
+function flattenLeaves(children = []) {
+  const out = [];
+  for (const c of children) {
+    if (c.children && c.children.length > 0) {
+      out.push(...flattenLeaves(c.children));
+    } else {
+      out.push({
+        label: c.label,
+        icon: c.icon,
+        to: c.tab ? `${c.path}?tab=${c.tab}` : c.path,
+        comingSoon: c.comingSoon,
+      });
+    }
+  }
+  return out;
+}
+
+// A single collapsed-rail icon with a hover/focus flyout listing its children.
+function CollapsedItem({ group, highlight, target, location, navigate }) {
+  const Icon = group.icon;
+  const leaves = group.type === 'single' ? [] : flattenLeaves(group.children);
+
+  return (
+    <div className="relative group/rail w-full flex justify-center">
+      <button
+        onClick={() => navigate(target)}
+        aria-label={group.label}
+        className={`relative w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-150
+          ${highlight ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
+      >
+        {highlight && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
+        <Icon className="w-[18px] h-[18px]" />
+      </button>
+
+      {/* Flyout: appears on hover/focus. Groups with children list them; single links just show a label. */}
+      <div className="pointer-events-none absolute left-full top-0 ml-2 z-50 opacity-0 translate-x-[-4px] transition-all duration-150 group-hover/rail:opacity-100 group-hover/rail:translate-x-0 group-hover/rail:pointer-events-auto group-focus-within/rail:opacity-100 group-focus-within/rail:translate-x-0 group-focus-within/rail:pointer-events-auto">
+        <div className="min-w-[200px] rounded-lg border border-sidebar-border bg-popover shadow-xl p-1.5">
+          <div className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</div>
+          {leaves.length === 0 ? null : (
+            <div className="space-y-0.5">
+              {leaves.map(leaf => {
+                const LeafIcon = leaf.icon;
+                if (leaf.comingSoon) {
+                  return (
+                    <div key={leaf.label} className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground/60 cursor-not-allowed">
+                      {LeafIcon && <LeafIcon className="w-4 h-4 shrink-0" />}
+                      <span className="flex-1">{leaf.label}</span>
+                      <span className="shrink-0 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-sidebar-border">Soon</span>
+                    </div>
+                  );
+                }
+                const active = location.pathname + location.search === leaf.to || (!leaf.to.includes('?') && location.pathname === leaf.to);
+                return (
+                  <Link
+                    key={leaf.label}
+                    to={leaf.to}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150
+                      ${active ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
+                  >
+                    {LeafIcon && <LeafIcon className={`w-4 h-4 shrink-0 ${active ? 'text-primary' : ''}`} />}
+                    <span className="flex-1">{leaf.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function isChildActive(location, child) {
   if (child.tab) {
     const params = new URLSearchParams(location.search);
@@ -163,7 +238,6 @@ export default function Sidebar() {
         </Link>
         <nav className="flex-1 px-2 space-y-1 mt-2 overflow-y-auto no-scrollbar w-full flex flex-col items-center">
           {groups.map(group => {
-            const Icon = group.icon;
             const highlight = group.type === 'single'
               ? (group.path === '/' ? location.pathname === '/' : location.pathname === group.path)
               : (group.children.some(c => isChildActive(location, c)) || (group.path && location.pathname === group.path));
@@ -171,17 +245,14 @@ export default function Sidebar() {
               ? group.path
               : (group.path || (group.children[0]?.tab ? `${group.children[0].path}?tab=${group.children[0].tab}` : group.children[0]?.path));
             return (
-              <button
+              <CollapsedItem
                 key={group.label}
-                onClick={() => navigate(target)}
-                title={group.label}
-                aria-label={group.label}
-                className={`relative w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-150
-                  ${highlight ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
-              >
-                {highlight && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
-                <Icon className="w-[18px] h-[18px]" />
-              </button>
+                group={group}
+                highlight={highlight}
+                target={target}
+                location={location}
+                navigate={navigate}
+              />
             );
           })}
         </nav>
