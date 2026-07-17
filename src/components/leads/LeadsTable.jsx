@@ -72,7 +72,6 @@ function matchesSearch(lead, q) {
 
 // Permanent filter dropdown options shown above every leads table.
 const STATUS_FILTER_OPTIONS = [
-  { value: '', label: 'All Status' },
   { value: 'Sold', label: 'Sold' },
   { value: 'Qualified', label: 'Qualified' },
   { value: 'Disqualified', label: 'Disqualified' },
@@ -174,9 +173,9 @@ export default function LeadsTable({ view }) {
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitProgress, setResubmitProgress] = useState(null);
   const [columnConfig, setColumnConfig] = useState(() => loadColumnConfig(view));
-  const [statusFilter, setStatusFilter] = useState('');
-  const [supplierFilter, setSupplierFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState([]);
+  const [supplierFilter, setSupplierFilter] = useState([]);
+  const [sourceFilter, setSourceFilter] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -188,9 +187,9 @@ export default function LeadsTable({ view }) {
     setSavedSets(loadSavedSets(view));
     setSelectedIds(new Set());
     setColumnConfig(loadColumnConfig(view));
-    setStatusFilter('');
-    setSupplierFilter('');
-    setSourceFilter('');
+    setStatusFilter([]);
+    setSupplierFilter([]);
+    setSourceFilter([]);
   }, [view]);
 
   // Persist column layout whenever it changes.
@@ -253,13 +252,13 @@ export default function LeadsTable({ view }) {
   const supplierOptions = useMemo(() => {
     const set = new Set();
     leads.forEach(l => { if (l.supplier_name) set.add(l.supplier_name); });
-    return [{ value: '', label: 'All Suppliers' }, ...Array.from(set).sort().map(s => ({ value: s, label: s }))];
+    return Array.from(set).sort().map(s => ({ value: s, label: s }));
   }, [leads]);
 
   const sourceOptions = useMemo(() => {
     const set = new Set();
     leads.forEach(l => { const s = getSource(l); if (s) set.add(s); });
-    return [{ value: '', label: 'All Sources' }, ...Array.from(set).sort().map(s => ({ value: s, label: s }))];
+    return Array.from(set).sort().map(s => ({ value: s, label: s }));
   }, [leads]);
 
   const columns = columnConfig.columns;
@@ -302,9 +301,9 @@ export default function LeadsTable({ view }) {
       if (end && (!inst || inst > end)) return false;
       if (!customFilters.every(f => matchesFilter(lead, f))) return false;
       if (search && !matchesSearch(lead, search)) return false;
-      if (statusFilter && lead.final_status !== statusFilter) return false;
-      if (supplierFilter && lead.supplier_name !== supplierFilter) return false;
-      if (sourceFilter && getSource(lead) !== sourceFilter) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(lead.final_status)) return false;
+      if (supplierFilter.length > 0 && !supplierFilter.includes(lead.supplier_name)) return false;
+      if (sourceFilter.length > 0 && !sourceFilter.includes(getSource(lead))) return false;
       return true;
     });
     // Sort newest first by the lead's real event time. leadEventInstant is the
@@ -487,8 +486,15 @@ export default function LeadsTable({ view }) {
       subtitle={config.subtitle}
       count={filtered.length}
       onRefresh={async () => {
+        // Force a fresh network fetch of the leads list plus the nav counts,
+        // bypassing staleness so a just-arrived lead shows without a full page
+        // reload. refetchQueries forces the fetch; invalidate keeps other lead
+        // views (Reports, Finances, campaign metrics) in sync too.
+        await Promise.all([
+          qc.refetchQueries({ queryKey: ['leads-all-non-archived'], type: 'active' }),
+          qc.refetchQueries({ queryKey: ['leads-nav-counts'], type: 'active' }),
+        ]);
         invalidateLeadCaches(qc);
-        await qc.refetchQueries({ queryKey: ['leads-all-non-archived'] });
       }}
       onExport={exportCSV}
       columnConfig={columnConfig}

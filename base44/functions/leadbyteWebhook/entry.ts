@@ -219,8 +219,20 @@ Deno.serve(async (req) => {
     let resultStatus: string | null = finalStatus;
 
     let existing: any = null;
+    // 1. Primary match: the LeadByte lead id.
     if (leadbyteId !== null) {
       const found = await svc.entities.Lead.filter({ leadbyte_lead_id: leadbyteId });
+      existing = (Array.isArray(found) ? found : [])[0] || null;
+    }
+    // 2. Fallback match: email, then phone. Outcome webhooks for direct-route
+    //    leads carry no leadbyte_lead_id (those leads never went to LeadByte),
+    //    so match them on contact identity instead of creating a phantom lead.
+    if (!existing && contactEmail) {
+      const found = await svc.entities.Lead.filter({ email: contactEmail });
+      existing = (Array.isArray(found) ? found : [])[0] || null;
+    }
+    if (!existing && contactPhone) {
+      const found = await svc.entities.Lead.filter({ mobile: contactPhone });
       existing = (Array.isArray(found) ? found : [])[0] || null;
     }
 
@@ -243,33 +255,21 @@ Deno.serve(async (req) => {
       await svc.entities.Lead.update(existing.id, patch);
       resultStatus = patch.final_status || existing.final_status || null;
     } else {
-      // Derive supplier_name from the real supplier identified by supplier_sid,
-      // not the ad platform (supplier_source) or brand.
-      let supplierName = 'LeadByte';
-      const sid = clean(body.supplier_sid);
-      if (sid) {
-        supplierName = sid;
-        const suppliers = await svc.entities.Supplier.filter({ sid });
-        const supplier = (Array.isArray(suppliers) ? suppliers : [])[0] || null;
-        const resolvedName = supplier ? clean(supplier.name) : null;
-        if (resolvedName) supplierName = resolvedName;
-      }
-      const createData: Record<string, any> = {
-        ...outcome,
-        supplier_name: supplierName,
-        // A create must always have a final_status; default to Processing when
-        // the payload lead_status did not map.
-        final_status: finalStatus || 'Processing',
-        mapped_fields: JSON.stringify(canonical),
-      };
-      if (leadbyteId !== null) createData.leadbyte_lead_id = leadbyteId;
-      if (contactFirst) createData.first_name = contactFirst;
-      if (contactLast) createData.last_name = contactLast;
-      if (contactEmail) createData.email = contactEmail;
-      if (contactPhone) createData.mobile = contactPhone;
-      const created = await svc.entities.Lead.create(createData);
-      leadId = created.id;
-      resultStatus = createData.final_status;
+      // No matching lead. This is an outcome/postback webhook: it records the
+      // buyer outcome onto a lead that already exists in our system. It must
+      // NEVER create a new lead — doing so produced phantom "Processing"
+      // duplicates for direct-route leads. Acknowledge and skip.
+      await svc.entities.InboundWebhookRoute.update(route.id, {
+        receipt_count: (Number(route.receipt_count) || 0) + 1,
+        last_received_at: new Date().toISOString(),
+      });
+      return Response.json({
+        ok: true,
+        matched: false,
+        lead_id: null,
+        final_status: null,
+        message: 'No matching lead found; outcome ignored (no lead created).',
+      }, { status: 200 });
     }
 
     // On success, bump receipt telemetry on the route.

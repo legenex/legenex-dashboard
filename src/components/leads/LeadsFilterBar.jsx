@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Panel } from '@/components/settings/settingsUi';
 import MobileFilterSheet from '@/components/shared/MobileFilterSheet';
@@ -59,9 +60,9 @@ export default function LeadsFilterBar({
     setCustomPeriod({ from: '', to: '' });
     setCustomFilters([]);
     setActiveSetId('');
-    if (setStatusFilter) setStatusFilter('');
-    if (setSupplierFilter) setSupplierFilter('');
-    if (setSourceFilter) setSourceFilter('');
+    if (setStatusFilter) setStatusFilter([]);
+    if (setSupplierFilter) setSupplierFilter([]);
+    if (setSourceFilter) setSourceFilter([]);
   };
 
   const handleApplySet = (id) => {
@@ -87,33 +88,39 @@ export default function LeadsFilterBar({
     if (activeSetId === id) setActiveSetId('');
   };
 
-  const hasActiveFilters = search || period !== 'this_month' || customFilters.length > 0 || statusFilter || supplierFilter || sourceFilter;
+  const statusCount = Array.isArray(statusFilter) ? statusFilter.length : 0;
+  const supplierCount = Array.isArray(supplierFilter) ? supplierFilter.length : 0;
+  const sourceCount = Array.isArray(sourceFilter) ? sourceFilter.length : 0;
+  const hasActiveFilters = search || period !== 'this_month' || customFilters.length > 0 || statusCount || supplierCount || sourceCount;
 
   // Count active filters for the mobile Filters badge (search is separate).
   const activeCount = (period !== 'this_month' ? 1 : 0) + customFilters.length +
-    (statusFilter ? 1 : 0) + (supplierFilter ? 1 : 0) + (sourceFilter ? 1 : 0);
+    statusCount + supplierCount + sourceCount;
 
   // Status / Suppliers / Sources / Time / Filters / Save controls. Rendered
   // inline on desktop and inside the mobile sheet. Identical markup either way.
   const controls = (
     <>
-      <SearchableSelect
-        value={statusFilter || ''}
+      <MultiSelect
+        value={Array.isArray(statusFilter) ? statusFilter : []}
         onValueChange={setStatusFilter}
-        className="w-full lg:w-[140px] bg-card border-border"
-        options={statusOptions}
-      />
-      <SearchableSelect
-        value={supplierFilter || ''}
-        onValueChange={setSupplierFilter}
         className="w-full lg:w-[160px] bg-card border-border"
-        options={supplierOptions}
+        options={statusOptions}
+        placeholder="All Status"
       />
-      <SearchableSelect
-        value={sourceFilter || ''}
+      <MultiSelect
+        value={Array.isArray(supplierFilter) ? supplierFilter : []}
+        onValueChange={setSupplierFilter}
+        className="w-full lg:w-[180px] bg-card border-border"
+        options={supplierOptions}
+        placeholder="All Suppliers"
+      />
+      <MultiSelect
+        value={Array.isArray(sourceFilter) ? sourceFilter : []}
         onValueChange={setSourceFilter}
-        className="w-full lg:w-[150px] bg-card border-border"
+        className="w-full lg:w-[170px] bg-card border-border"
         options={sourceOptions}
+        placeholder="All Sources"
       />
 
       <LeadsPeriodFilter

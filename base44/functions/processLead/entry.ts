@@ -9,15 +9,44 @@ function resolvePhoneVerified(hlrResult, source) {
   return hlrResult.lh_hlr_response || '';
 }
 
+// The app operates on America/Regina (Saskatchewan, UTC-6, no DST) for ALL
+// reporting. Every lead timestamp must be stamped in this zone, never UTC, so
+// the Leads table (which interprets mapped_fields.timestamp as APP_TZ local)
+// shows the correct local time.
+const APP_TZ = 'America/Regina';
+
+// Extract America/Regina wall-clock parts from a Date via Intl, then render the
+// requested format string. Falls back to UTC parts only if Intl is unavailable.
 function formatTimestamp(date, fmt) {
   const pad = (n) => String(n).padStart(2, '0');
+  let parts;
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: APP_TZ, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    const p = {};
+    for (const { type, value } of dtf.formatToParts(date)) p[type] = value;
+    parts = {
+      YYYY: p.year, MM: p.month, DD: p.day,
+      hh: p.hour, mm: p.minute, ss: p.second,
+    };
+  } catch {
+    parts = {
+      YYYY: String(date.getUTCFullYear()), MM: pad(date.getUTCMonth() + 1), DD: pad(date.getUTCDate()),
+      hh: pad(date.getUTCHours()), mm: pad(date.getUTCMinutes()), ss: pad(date.getUTCSeconds()),
+    };
+  }
+  // Replace largest tokens first; time tokens use distinct placeholders so the
+  // second MM (minutes) is not clobbered by the month replacement.
   return (fmt || 'MM/DD/YYYY HH:MM:SS')
-    .replace('YYYY', date.getUTCFullYear())
-    .replace('MM', pad(date.getUTCMonth() + 1))
-    .replace('DD', pad(date.getUTCDate()))
-    .replace('HH', pad(date.getUTCHours()))
-    .replace('MM', pad(date.getUTCMinutes()))
-    .replace('SS', pad(date.getUTCSeconds()));
+    .replace('YYYY', parts.YYYY)
+    .replace('DD', parts.DD)
+    .replace('HH', parts.hh)
+    .replace('SS', parts.ss)
+    .replace(/MM/, parts.MM)   // first MM = month
+    .replace(/MM/, parts.mm);  // second MM = minutes
 }
 
 // Evaluate a single conditional condition against the full lead context.
