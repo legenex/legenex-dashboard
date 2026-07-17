@@ -4,7 +4,7 @@ import { APP_TZ } from '@/lib/periodRange';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MonitorCog, Globe } from 'lucide-react';
 
 const STORAGE_KEY = 'legenex_secondary_tz';
 
@@ -51,12 +51,14 @@ export default function SystemClock() {
 
   return (
     <div className="flex flex-col items-center gap-0.5 text-muted-foreground">
-      <div className="font-mono text-[11px] font-medium text-foreground tabular-nums">
+      <div className="flex items-center gap-1.5 font-mono text-[11px] font-medium text-foreground tabular-nums">
+        <MonitorCog className="w-3 h-3 text-muted-foreground shrink-0" />
         {appTime} {appAbbr}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1 font-mono text-[11px] tabular-nums hover:text-foreground transition-colors">
+          <button className="flex items-center gap-1.5 font-mono text-[11px] tabular-nums hover:text-foreground transition-colors">
+            <Globe className="w-3 h-3 shrink-0" />
             {secTime} {secAbbr}
             <ChevronDown className="w-3 h-3" />
           </button>
