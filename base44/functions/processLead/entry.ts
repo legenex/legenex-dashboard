@@ -1385,8 +1385,9 @@ Deno.serve(async (req) => {
       event: leadRouteRaw.includes('event'),
       queue: leadRouteRaw.includes('queue'),
       test: leadRouteRaw.includes('test'),
+      internal: leadRouteRaw.includes('internal'),
     };
-    routeIs.standard = !routeIs.direct && !routeIs.data && !routeIs.event && !routeIs.queue && !routeIs.test;
+    routeIs.standard = !routeIs.direct && !routeIs.data && !routeIs.event && !routeIs.queue && !routeIs.test && !routeIs.internal;
 
     // TEST route: save only - no processing, no triggers
     if (routeIs.test) {
@@ -1403,6 +1404,28 @@ Deno.serve(async (req) => {
         response_returned: JSON.stringify(testResponse),
       });
       return Response.json(testResponse, { status: 200 });
+    }
+
+    // INTERNAL route: save only - a real lead saved to the system with nothing
+    // else fired. Same shape as the TEST route, but it is a genuine lead (not a
+    // test record), so it keeps a reporting-visible final_status.
+    if (routeIs.internal) {
+      const internalInbound = String(leadPayload.lead_status || '').trim();
+      const internalFinalStatus = (internalInbound && BUILTIN_LEAD_STATUSES.includes(internalInbound))
+        ? internalInbound : 'Qualified';
+      const internalResponse = buildEnvelope(traceId, {
+        ok: true, acceptance: 'accepted', lead_id: systemLeadId, lead_status: 'accepted',
+        code: 'INTERNAL_ROUTE', reason: 'Internal route - lead saved to system only',
+        message: 'Internal route - lead saved to system only', Response: internalFinalStatus,
+      });
+      await db.entities.Lead.update(leadId, {
+        final_status: internalFinalStatus,
+        queue_reason: '',
+        processed_at: new Date().toISOString(),
+        process_time_ms: Date.now() - startTime,
+        response_returned: JSON.stringify(internalResponse),
+      });
+      return Response.json(internalResponse, { status: 200 });
     }
 
     // QUEUE route: hold for manual processing - fire on_queued, skip LeadByte
