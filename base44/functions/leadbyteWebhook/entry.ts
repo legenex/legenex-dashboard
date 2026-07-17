@@ -240,6 +240,17 @@ Deno.serve(async (req) => {
       matched = true;
       leadId = existing.id;
       const patch: Record<string, any> = { ...outcome };
+      // Guard: an outcome postback must never downgrade a lead that already
+      // sold at intake. If the lead is already Sold, keep it Sold and never
+      // zero out its captured revenue.
+      const alreadySold = String(existing.final_status || '').toLowerCase() === 'sold';
+      if (alreadySold && patch.final_status && patch.final_status !== 'Sold' && !toBool(body.buyer_returned)) {
+        delete patch.final_status;
+      }
+      // Never overwrite an existing non-zero revenue with a null/zero outcome value.
+      if (patch.revenue == null || Number(patch.revenue) === 0) {
+        if (Number(existing.revenue) > 0) delete patch.revenue;
+      }
       // Fill contact fields only when currently empty.
       if (!clean(existing.first_name) && contactFirst) patch.first_name = contactFirst;
       if (!clean(existing.last_name) && contactLast) patch.last_name = contactLast;

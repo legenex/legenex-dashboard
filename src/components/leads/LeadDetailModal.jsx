@@ -9,6 +9,7 @@ import StatusPill from '@/components/shared/StatusPill';
 import JsonViewer from '@/components/shared/JsonViewer';
 import CapiLogView from '@/components/leads/CapiLogView';
 import DeliveryStatusList from '@/components/leads/DeliveryStatusList';
+import DeliveryLogView from '@/components/leads/DeliveryLogView';
 import LeadEditForm from '@/components/leads/LeadEditForm';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -136,7 +137,6 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="raw">Raw Data</TabsTrigger>
             <TabsTrigger value="hlr">HLR Trace</TabsTrigger>
-            <TabsTrigger value="leadbyte">Webhooks</TabsTrigger>
             <TabsTrigger value="capi">CAPI Log</TabsTrigger>
             <TabsTrigger value="delivery">Delivery Log</TabsTrigger>
           </TabsList>
@@ -220,53 +220,12 @@ export default function LeadDetailModal({ lead, open, onClose, initialTab = 'sum
             )}
           </TabsContent>
 
-          <TabsContent value="leadbyte" className="mt-4 space-y-4">
-            {(() => {
-              const isEmpty = (v) => {
-                if (v == null) return true;
-                const s = String(v).trim();
-                return s === '' || s.toLowerCase() === 'null';
-              };
-              const hasRequest = !isEmpty(lead.leadbyte_request);
-              const hasResponse = !isEmpty(lead.leadbyte_response);
-              const hasOutcome = !!lead.leadbyte_outcome_payload;
-              const hasDelivery = !isEmpty(lead.delivery_log) && lead.delivery_log !== '[]';
-              if (!hasRequest && !hasResponse && !hasOutcome && !hasDelivery) {
-                return <div className="text-[12px] text-muted-foreground">No webhooks recorded for this lead.</div>;
-              }
-              return (
-                <>
-                  {(hasRequest || hasResponse) && (
-                    <div className="space-y-2">
-                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LeadByte</div>
-                      {hasRequest && <JsonViewer data={lead.leadbyte_request} title="Outbound Request" />}
-                      {hasResponse && <JsonViewer data={lead.leadbyte_response} title="Response" />}
-                    </div>
-                  )}
-                  {hasDelivery && (
-                    <div className="space-y-2 pt-2 border-t border-border">
-                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Delivery Destinations</div>
-                      <JsonViewer data={lead.delivery_log} title="Webhooks Sent" />
-                    </div>
-                  )}
-                  {hasOutcome && (
-                    <div className="space-y-1.5 pt-2 border-t border-border">
-                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Inbound Outcome</div>
-                      <JsonViewer data={lead.leadbyte_outcome_payload} title="Outcome Payload" />
-                      <div className="text-[12px] text-muted-foreground">Received via the inbound outcome webhook.</div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </TabsContent>
-
           <TabsContent value="capi" className="mt-4">
             <CapiLogView capiLog={lead.capi_log} />
           </TabsContent>
 
           <TabsContent value="delivery" className="mt-4">
-            <JsonViewer data={lead.delivery_log} title="Delivery Log" />
+            <DeliveryLogView lead={lead} />
           </TabsContent>
         </Tabs>
 

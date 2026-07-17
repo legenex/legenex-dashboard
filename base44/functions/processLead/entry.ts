@@ -821,12 +821,12 @@ function fireDeliveries(db, destinations, trigger, leadData, leadId, supplierAtt
     if (!connectorMatchesFilters(dest, leadData, supplierAttribution, supplierRecord)) continue;
     if (!connectorMatchesConditions(dest, leadData)) continue;
 
-    const conn = { ...dest, name: dest.api_name };
-    sendHttpEvent(conn, leadData, leadId, '')
+    sendDestinationAwait(dest, leadData, leadId, trigger)
       .then(async (result) => {
         await appendDeliveryLog(db, leadId, {
           connector: dest.api_name, trigger, http_status: result.http_status,
           success: !!result.success, error: result.error || '',
+          payload: result.payload, response: result.response,
           timestamp: new Date().toISOString(),
         });
         if (!result.success) {

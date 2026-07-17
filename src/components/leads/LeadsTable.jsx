@@ -354,7 +354,7 @@ export default function LeadsTable({ view }) {
   };
 
   const openLeadDetail = (lead, stage) => {
-    setInitialTab(stage === 'hlr' ? 'hlr' : stage === 'leadbyte' ? 'leadbyte' : 'summary');
+    setInitialTab(stage === 'hlr' ? 'hlr' : stage === 'leadbyte' ? 'delivery' : 'summary');
     setSelectedLead(lead);
   };
 
