@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, Send, Zap, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Send, Zap, ChevronRight, Webhook, Layers, Users, Truck, Tag } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
   { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard },
   { label: 'Campaigns', path: '/campaigns', icon: Megaphone, children: [
-    { label: 'Verticals', tab: 'verticals' },
-    { label: 'Buyers', tab: 'buyers' },
-    { label: 'Suppliers', tab: 'suppliers' },
-    { label: 'Brands', tab: 'brands' },
+    { label: 'Verticals', tab: 'verticals', icon: Layers },
+    { label: 'Buyers', tab: 'buyers', icon: Users },
+    { label: 'Suppliers', tab: 'suppliers', icon: Truck },
+    { label: 'Deliveries', icon: Send, comingSoon: true },
+    { label: 'Brands', tab: 'brands', icon: Tag },
   ] },
-  { label: 'Deliveries', path: '/deliveries', icon: Send },
+  { label: 'Webhooks', path: '/settings?tab=inbound-webhooks', icon: Webhook },
   { label: 'Conversion Events', path: '/conversion-events', icon: Zap },
 ];
 
@@ -59,15 +60,30 @@ export default function DistributionNav() {
                 {campaignsOpen && (
                   <div className="mt-0.5 ml-4 pl-2.5 border-l border-border space-y-0.5">
                     {item.children.map(child => {
+                      const ChildIcon = child.icon;
+                      if (child.comingSoon) {
+                        return (
+                          <div
+                            key={child.label}
+                            title="Coming soon"
+                            className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-muted-foreground/60 cursor-not-allowed"
+                          >
+                            {ChildIcon && <ChildIcon className="w-4 h-4 shrink-0" />}
+                            <span className="flex-1">{child.label}</span>
+                            <span className="shrink-0 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">Soon</span>
+                          </div>
+                        );
+                      }
                       const childActive = onCampaigns && activeTab === child.tab;
                       return (
                         <Link
                           key={child.tab}
                           to={`${item.path}?tab=${child.tab}`}
-                          className={`block px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+                          className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                             childActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
                           }`}
                         >
+                          {ChildIcon && <ChildIcon className="w-4 h-4 shrink-0" />}
                           {child.label}
                         </Link>
                       );

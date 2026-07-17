@@ -37,6 +37,92 @@ function loadOpenGroups() {
   return [];
 }
 
+// A single child row inside an expanded group. Either a leaf link (icon + label,
+// with an optional "Soon" pill) or a nested dropdown (e.g. Campaigns) that opens
+// its own grandchildren, each with its own icon.
+function ChildRow({ child, location, navigate, openGroups, toggleGroup }) {
+  const ChildIcon = child.icon;
+
+  // Nested dropdown (has its own children, e.g. Campaigns under Lead Distribution)
+  if (child.children && child.children.length > 0) {
+    const isOpen = openGroups.includes(child.label);
+    const grandActive = child.children.some(g => isChildActive(location, g));
+    const parentActive = child.path ? location.pathname === child.path : false;
+    const highlight = grandActive || parentActive;
+    return (
+      <div>
+        <div className="flex items-center">
+          <button
+            onClick={() => {
+              if (child.path) {
+                navigate(child.tab ? `${child.path}?tab=${child.tab}` : child.path);
+                if (!isOpen) toggleGroup(child.label);
+              } else {
+                toggleGroup(child.label);
+              }
+            }}
+            className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150
+              ${highlight ? 'text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
+          >
+            {ChildIcon && <ChildIcon className={`w-4 h-4 shrink-0 ${highlight ? 'text-primary' : ''}`} />}
+            <span className="flex-1 text-left">{child.label}</span>
+          </button>
+          <button
+            onClick={() => toggleGroup(child.label)}
+            aria-label={isOpen ? 'Collapse' : 'Expand'}
+            className={`shrink-0 mr-1.5 p-0.5 rounded border transition-all duration-150
+              ${isOpen ? 'bg-primary/15 text-primary border-primary/30' : 'bg-muted/60 border-sidebar-border text-sidebar-foreground hover:text-foreground hover:bg-accent'}`}
+          >
+            {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+        </div>
+        {isOpen && (
+          <div className="ml-3.5 pl-3 border-l border-sidebar-border space-y-0.5 mt-0.5 mb-1">
+            {child.children.map(g => (
+              <ChildRow
+                key={g.label}
+                child={g}
+                location={location}
+                navigate={navigate}
+                openGroups={openGroups}
+                toggleGroup={toggleGroup}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Coming-soon leaf: shown but not navigable
+  if (child.comingSoon) {
+    return (
+      <div
+        title="Coming soon"
+        className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground/60 cursor-not-allowed"
+      >
+        {ChildIcon && <ChildIcon className="w-4 h-4 shrink-0" />}
+        <span className="flex-1 text-left">{child.label}</span>
+        <span className="shrink-0 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-sidebar-border">Soon</span>
+      </div>
+    );
+  }
+
+  // Leaf link
+  const active = isChildActive(location, child);
+  const to = child.tab ? `${child.path}?tab=${child.tab}` : child.path;
+  return (
+    <Link
+      to={to}
+      className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150
+        ${active ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
+    >
+      {ChildIcon && <ChildIcon className={`w-4 h-4 shrink-0 ${active ? 'text-primary' : ''}`} />}
+      <span className="flex-1 text-left">{child.label}</span>
+    </Link>
+  );
+}
+
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -186,20 +272,16 @@ export default function Sidebar() {
               </div>
               {isOpen && (
                 <div className="ml-4 pl-3 border-l border-sidebar-border space-y-0.5 mt-0.5 mb-1">
-                  {group.children.map(child => {
-                    const active = isChildActive(location, child);
-                    const to = child.tab ? `${child.path}?tab=${child.tab}` : child.path;
-                    return (
-                      <Link
-                        key={child.label}
-                        to={to}
-                        className={`flex items-center px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150
-                          ${active ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
-                      >
-                        {child.label}
-                      </Link>
-                    );
-                  })}
+                  {group.children.map(child => (
+                    <ChildRow
+                      key={child.label}
+                      child={child}
+                      location={location}
+                      navigate={navigate}
+                      openGroups={openGroups}
+                      toggleGroup={toggleGroup}
+                    />
+                  ))}
                 </div>
               )}
             </div>
