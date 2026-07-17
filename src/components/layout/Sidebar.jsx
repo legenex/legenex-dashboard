@@ -318,11 +318,19 @@ export default function Sidebar() {
               <div className="flex items-center">
                 <button
                   onClick={() => {
+                    // Labels of nested child dropdowns to auto-expand when this group opens
+                    const nestedDropdowns = (group.children || []).filter(c => c.children && c.children.length > 0).map(c => c.label);
                     if (group.path) {
                       navigate(group.path);
-                      if (!isOpen) toggleGroup(group.label);
+                      if (!isOpen) {
+                        setOpenGroups(prev => Array.from(new Set([...prev, group.label, ...nestedDropdowns])));
+                      }
                     } else {
-                      toggleGroup(group.label);
+                      if (!isOpen) {
+                        setOpenGroups(prev => Array.from(new Set([...prev, group.label, ...nestedDropdowns])));
+                      } else {
+                        toggleGroup(group.label);
+                      }
                     }
                   }}
                   className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
