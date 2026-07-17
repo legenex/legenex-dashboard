@@ -26,8 +26,8 @@ export default function DistributionNav() {
   const onCampaigns = location.pathname === '/campaigns';
   const activeTab = new URLSearchParams(location.search).get('tab') || 'verticals';
 
-  // Auto-expand the Campaigns dropdown while on the Campaigns page.
-  const [campaignsOpen, setCampaignsOpen] = useState(onCampaigns);
+  // Campaigns dropdown starts expanded; auto-open again whenever on the Campaigns page.
+  const [campaignsOpen, setCampaignsOpen] = useState(true);
   useEffect(() => { if (onCampaigns) setCampaignsOpen(true); }, [onCampaigns]);
 
   const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
