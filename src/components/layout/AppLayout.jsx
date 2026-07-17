@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import DrawerNav from './DrawerNav';
 import MobileBottomTabs from './MobileBottomTabs';
 import DataBotWidget from '@/components/databot/DataBotWidget';
+import SystemClock from './SystemClock';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { navGroups } from './navConfig';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -54,6 +55,11 @@ export default function AppLayout() {
 
   return (
     <div className="h-screen bg-background overflow-hidden">
+      {/* System clock: fixed top-right on every page (desktop only — mobile header is compact) */}
+      <div className="hidden lg:block fixed top-4 right-6 z-40">
+        <SystemClock />
+      </div>
+
       {/* Desktop sidebar: lg and up only */}
       <div className="hidden lg:block">
         <Sidebar />
@@ -76,6 +82,7 @@ export default function AppLayout() {
         </button>
         <div className="text-[15px] font-semibold text-foreground truncate">{title}</div>
         <div className="flex-1" />
+        <SystemClock />
       </header>
 
       {/* Mobile drawer */}
