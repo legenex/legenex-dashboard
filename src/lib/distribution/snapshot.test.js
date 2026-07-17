@@ -123,3 +123,74 @@ describe('buildRoutingSnapshot -> engine (Phase 3 required fixtures)', () => {
     expect(decide(s).reason).toBe(REASON.NO_ELIGIBLE_MEMBER);
   });
 });
+
+// Canonical SubDelivery destination model: RouteMember.sub_delivery_id must
+// resolve to an ACTIVE sub-delivery whose parent Delivery is ACTIVE and belongs
+// to the member's buyer, else the member is CONFIG_INVALID and never routes.
+describe('buildRoutingSnapshot -> SubDelivery destination (fail-closed)', () => {
+  function delivery(over = {}) { return { id: 'del1', buyer_id: 'b1', status: 'active', ...over }; }
+  function subDelivery(over = {}) {
+    return {
+      id: 'sd1', delivery_id: 'del1', active: true, target_url: 'https://buyer.example/api',
+      method: 'POST', encoding: 'json', response_mapping: JSON.stringify({ accepted: 'ok', revenue: 'price' }),
+      field_map: JSON.stringify([{ src: 'email', dest: 'Email' }]), credential_ref: 'secref-1', ...over,
+    };
+  }
+  // Member points at the sub-delivery (canonical) and carries no legacy destination.
+  function subMember(over = {}) { return member({ destination_id: undefined, sub_delivery_id: 'sd1', ...over }); }
+  function snapSub(records, over = {}) {
+    return buildRoutingSnapshot(
+      { groups: [group()], members: [subMember()], buyers: [buyer()],
+        destinations: [], deliveries: [delivery()], subDeliveries: [subDelivery()], health: [], ...records },
+      { campaignId: CAMPAIGN, nowMs: NOW, capCountsFor: () => 0, ...over },
+    );
+  }
+
+  it('happy path: valid active sub-delivery routes and carries resolved cfg', () => {
+    const s = snapSub({});
+    expect(s.configErrors).toEqual([]);
+    const d = decide(s);
+    expect(d.winner?.id).toBe('m1');
+    const mem = s.groups[0].members[0];
+    expect(mem.subDeliveryId).toBe('sd1');
+    expect(mem.delivery.targetUrl).toBe('https://buyer.example/api');
+    expect(mem.delivery.credentialRef).toBe('secref-1');
+    // No resolved secret value ever appears in the snapshot cfg.
+    expect(JSON.stringify(mem.delivery)).not.toMatch(/secret|password|apikey|api_key|bearer/i);
+  });
+
+  it('missing sub_delivery_id (unresolvable) -> CONFIG_INVALID + ineligible', () => {
+    const s = snapSub({ subDeliveries: [] });
+    expect(s.configErrors.some((e) => e.detail === 'missing sub-delivery')).toBe(true);
+    expect(decide(s).winner).toBe(null);
+  });
+
+  it('inactive sub-delivery -> CONFIG_INVALID + ineligible', () => {
+    const s = snapSub({ subDeliveries: [subDelivery({ active: false })] });
+    expect(s.configErrors.some((e) => e.detail === 'inactive sub-delivery')).toBe(true);
+    expect(decide(s).winner).toBe(null);
+  });
+
+  it('parent Delivery belongs to a different buyer -> fail closed (CONFIG_INVALID)', () => {
+    const s = snapSub({ deliveries: [delivery({ buyer_id: 'OTHER_BUYER' })] });
+    expect(s.configErrors.some((e) => e.detail === 'cross-buyer sub-delivery')).toBe(true);
+    expect(decide(s).winner).toBe(null);
+  });
+
+  it('archived parent Delivery -> CONFIG_INVALID + ineligible', () => {
+    const s = snapSub({ deliveries: [delivery({ status: 'archived' })] });
+    expect(s.configErrors.some((e) => e.detail === 'parent delivery not active')).toBe(true);
+    expect(decide(s).winner).toBe(null);
+  });
+
+  it('member with neither sub_delivery_id nor destination_id -> CONFIG_INVALID', () => {
+    const s = snapSub({ members: [subMember({ sub_delivery_id: undefined })] });
+    expect(s.configErrors.some((e) => e.detail === 'missing sub_delivery_id')).toBe(true);
+    expect(decide(s).winner).toBe(null);
+  });
+
+  it('circuit breaker keys on sub_delivery_id (per endpoint)', () => {
+    const s = snapSub({ health: [{ sub_delivery_id: 'sd1', state: 'open' }] });
+    expect(decide(s).trace[0].candidates[0].reason).toBe(REASON.DESTINATION_UNHEALTHY);
+  });
+});

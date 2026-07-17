@@ -13,6 +13,7 @@
 
 import { OPERATORS } from './conditions.js';
 import { isWithinSchedule } from './schedule.js';
+import { resolveSubDeliveryCfg } from './deliveryResolve.js';
 
 const KNOWN_OPS = new Set(OPERATORS);
 
@@ -67,7 +68,10 @@ export function buildRoutingSnapshot(records, ctx = {}) {
   const capCountsFor = ctx.capCountsFor || (() => 0);
   const buyersById = indexBy(records.buyers, 'id');
   const destById = indexBy(records.destinations, 'id');
+  const subDeliveriesById = indexBy(records.subDeliveries, 'id');
+  const deliveriesById = indexBy(records.deliveries, 'id');
   const healthByDest = indexBy(records.health, 'destination_id');
+  const healthBySubDelivery = indexBy(records.health, 'sub_delivery_id');
   const configErrors = [];
 
   const groups = (records.groups || [])
@@ -86,19 +90,44 @@ export function buildRoutingSnapshot(records, ctx = {}) {
       members: (records.members || [])
         .filter((m) => String(m.route_group_id) === String(g.id))
         .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-        .map((m) => buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs: ctx.nowMs })),
+        .map((m) => buildMember(m, { buyersById, destById, subDeliveriesById, deliveriesById, healthByDest, healthBySubDelivery, capCountsFor, configErrors, nowMs: ctx.nowMs })),
     }));
 
   return { groups, configVersionId: configVersionId || null, configErrors, configHash: hashConfig(records) };
 }
 
-function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs }) {
+// Resolve a member's canonical endpoint. Prefers sub_delivery_id (fail-closed);
+// falls back to the DEPRECATED destination_id only for legacy members that carry
+// no sub_delivery_id. Returns { subDeliveryId, delivery, healthKey } or marks invalid.
+function resolveEndpoint(m, { destById, subDeliveriesById, deliveriesById, err }) {
+  if (m.sub_delivery_id) {
+    const sd = subDeliveriesById[m.sub_delivery_id];
+    if (!sd) { err('CONFIG_INVALID', 'missing sub-delivery'); return null; }
+    if (sd.active === false) { err('CONFIG_INVALID', 'inactive sub-delivery'); return null; }
+    const del = deliveriesById[sd.delivery_id];
+    if (!del) { err('CONFIG_INVALID', 'missing parent delivery'); return null; }
+    if (String(del.status) !== 'active') { err('CONFIG_INVALID', 'parent delivery not active'); return null; }
+    // Fail closed: a sub-delivery whose parent Delivery belongs to a different
+    // buyer than the member must NEVER route.
+    if (String(del.buyer_id) !== String(m.buyer_id)) { err('CONFIG_INVALID', 'cross-buyer sub-delivery'); return null; }
+    if (!sd.target_url) { err('CONFIG_INVALID', 'sub-delivery missing target_url'); return null; }
+    return { subDeliveryId: sd.id, delivery: resolveSubDeliveryCfg(sd), healthKey: sd.id, kind: 'sub_delivery' };
+  }
+  // Legacy deprecated path: an existing member with only destination_id.
+  if (m.destination_id && destById[m.destination_id]) {
+    return { subDeliveryId: null, delivery: null, healthKey: m.destination_id, kind: 'legacy' };
+  }
+  err('CONFIG_INVALID', m.destination_id ? 'missing destination' : 'missing sub_delivery_id');
+  return null;
+}
+
+function buildMember(m, { buyersById, destById, subDeliveriesById, deliveriesById, healthByDest, healthBySubDelivery, capCountsFor, configErrors, nowMs }) {
   let invalid = false;
   const err = (code, detail) => { invalid = true; configErrors.push({ member_id: m.id, code: code || 'CONFIG_INVALID', detail }); };
 
   const buyer = buyersById[m.buyer_id];
   if (!buyer) err('CONFIG_INVALID', 'missing buyer');
-  if (!destById[m.destination_id]) err('CONFIG_INVALID', 'missing destination');
+  const endpoint = resolveEndpoint(m, { destById, subDeliveriesById, deliveriesById, err });
 
   const filters = strictJson(m.filters, () => err('CONFIG_INVALID', 'bad filters json'));
   const conditions = strictJson(m.conditions, () => err('CONFIG_INVALID', 'bad conditions json'));
@@ -117,10 +146,16 @@ function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, conf
     ? { active: buyer.active, status: buyer.status }
     : { active: false, status: 'missing' };
 
+  const healthKey = endpoint ? endpoint.healthKey : m.destination_id;
+  const healthState = (healthBySubDelivery[healthKey]?.state) || (healthByDest[healthKey]?.state) || 'closed';
+
   return {
     id: m.id,
     buyerId: m.buyer_id,
     destinationId: m.destination_id,
+    subDeliveryId: endpoint ? endpoint.subDeliveryId : null,
+    // Canonical outbound cfg resolved from the SubDelivery (null for legacy members).
+    delivery: endpoint ? endpoint.delivery : null,
     // PB-017: invalid config makes the member ineligible, never unrestricted.
     active: m.active !== false && !invalid,
     _configInvalid: invalid,
@@ -139,7 +174,7 @@ function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, conf
     caps: caps || {},
     buyer: buyerSnap,
     wallet: buildWallet(buyer),
-    health: { state: healthByDest[m.destination_id]?.state || 'closed' },
+    health: { state: healthState },
   };
 }
 

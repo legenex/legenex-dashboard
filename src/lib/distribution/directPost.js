@@ -56,7 +56,17 @@ export async function deliverDirectPost(cfg, ctx) {
 
   const payload = buildPayload(cfg.leadData || {}, cfg.fieldMap);
   const encoding = cfg.encoding === 'form' ? 'form' : 'json';
-  const headers = { ...(cfg.headers || {}) };
+  const headers = { ...(cfg.headers || {}) }; // NON-secret headers only (never carries a stored key)
+  // CREDENTIAL HARD RULE: resolve the opaque credential_ref to real secret headers
+  // HERE, server-side, at send time. The secret never lives in the SubDelivery
+  // JSON, the snapshot, or any browser-facing shape. It exists only in this local
+  // request header object for the duration of the send.
+  if (cfg.credentialRef && typeof ctx.resolveCredential === 'function') {
+    const resolved = await ctx.resolveCredential(cfg.credentialRef);
+    if (resolved && typeof resolved === 'object') {
+      for (const [k, v] of Object.entries(resolved)) { if (v != null) headers[k] = v; }
+    }
+  }
   headers['Idempotency-Key'] = cfg.idempotencyKey;
   let body;
   if (encoding === 'form') {
@@ -69,7 +79,7 @@ export async function deliverDirectPost(cfg, ctx) {
 
   // Persist the attempt BEFORE sending (durable record for crash recovery).
   const pending = await ctx.store.createAttempt({
-    lead_id: cfg.leadId, destination_id: cfg.destinationId, trigger: cfg.trigger || 'primary',
+    lead_id: cfg.leadId, sub_delivery_id: cfg.subDeliveryId || null, destination_id: cfg.destinationId, trigger: cfg.trigger || 'primary',
     attempt_number: attemptNumber, idempotency_key: cfg.idempotencyKey, is_primary: !!cfg.isPrimary,
     status: ATTEMPT_STATUS.PENDING, started_at: new Date(nowMs).toISOString(),
   });

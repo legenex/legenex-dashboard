@@ -1,11 +1,12 @@
 {
-  // Additive (lead distribution platform). Circuit breaker health state per destination.
-  // Uniqueness (destination_id).
+  // Additive (lead distribution platform). Circuit breaker health state per endpoint (sub-delivery).
+  // Uniqueness (sub_delivery_id). destination_id retained additively for legacy records.
   // Caller model: processLead + worker.
   "name": "DestinationHealth",
   "type": "object",
   "properties": {
-    "destination_id": { "type": "string", "description": "Destination this health record tracks" },
+    "sub_delivery_id": { "type": "string", "description": "CANONICAL endpoint this health record tracks. The circuit breaker is per endpoint (sub-delivery), not per buyer." },
+    "destination_id": { "type": "string", "description": "DEPRECATED (compatibility only): legacy destination id. Superseded by sub_delivery_id." },
     "consecutive_failures": { "type": "number", "default": 0, "description": "Consecutive failures since last success" },
     "success_rate": { "type": "number", "description": "Rolling success rate (0-1)" },
     "state": {

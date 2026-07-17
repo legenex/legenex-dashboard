@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: e3cc9a70cce101f748cdfefce3c56de5ab84b23f3754bd52bea498724e475552
+// canonical-engine-sha256: 08ff10195cf87b8199c44e1c464d4c6303575ecae4ef39ef291047c21bc0353d
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -428,6 +428,80 @@ function isWithinSchedule(nowMs, schedule, fallbackTz) {
   });
 }
 
+// src/lib/distribution/deliveryResolve.js
+function parseJson(raw) {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "object") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function toResponseMapping(rm) {
+  if (!rm || typeof rm !== "object") return {};
+  return {
+    acceptRe: rm.accepted || rm.acceptRe || null,
+    rejectRe: rm.rejected || rm.rejectRe || null,
+    duplicateRe: rm.duplicate || rm.duplicateRe || null,
+    queueRe: rm.queued || rm.queueRe || null,
+    revenuePath: rm.revenue || rm.revenuePath || null,
+    leadIdPath: rm.buyer_lead_id || rm.leadIdPath || null
+  };
+}
+function toFieldMap(fm) {
+  if (Array.isArray(fm)) return fm;
+  if (fm && typeof fm === "object") return Object.entries(fm).map(([dest, src]) => ({ src, dest }));
+  return [];
+}
+var HEADER_SECRET_KEYS = ["authorization", "api_key", "apikey", "x-api-key", "password", "secret", "token", "bearer"];
+function projectSubDeliveryForClient(sd) {
+  if (!sd) return null;
+  const rawHeaders = parseJson(sd.headers) || {};
+  const headers = {};
+  for (const [k, v] of Object.entries(rawHeaders)) {
+    headers[k] = HEADER_SECRET_KEYS.some((s) => k.toLowerCase().includes(s)) ? "[redacted]" : v;
+  }
+  return {
+    id: sd.id,
+    delivery_id: sd.delivery_id,
+    name: sd.name || "",
+    active: sd.active !== false,
+    order_index: Number(sd.order_index) || 0,
+    target_url: sd.target_url || "",
+    method: sd.method || "POST",
+    encoding: sd.encoding || "json",
+    headers,
+    field_map: sd.field_map || "",
+    transforms: sd.transforms || "",
+    response_mapping: sd.response_mapping || "",
+    timeout_ms: Number(sd.timeout_ms) || 1e4,
+    retry_policy: sd.retry_policy || "",
+    // Credential: presence + last-updated only. Never the value, never the ref.
+    credential_present: !!sd.credential_ref,
+    credential_updated_at: sd.credential_updated_at || null
+  };
+}
+function resolveSubDeliveryCfg(sd) {
+  if (!sd) return null;
+  const retry = parseJson(sd.retry_policy) || {};
+  return {
+    subDeliveryId: sd.id,
+    targetUrl: sd.target_url || "",
+    method: sd.method || "POST",
+    encoding: sd.encoding === "form" ? "form" : "json",
+    headers: parseJson(sd.headers) || {},
+    // NON-secret headers only (schema forbids secrets here)
+    credentialRef: sd.credential_ref || null,
+    // opaque reference; resolved at send time
+    fieldMap: toFieldMap(parseJson(sd.field_map)),
+    transforms: parseJson(sd.transforms) || [],
+    responseMapping: toResponseMapping(parseJson(sd.response_mapping)),
+    timeoutMs: Number(sd.timeout_ms) || 1e4,
+    retryOpts: retry
+  };
+}
+
 // src/lib/distribution/snapshot.js
 var KNOWN_OPS = new Set(OPERATORS);
 function strictJson(raw, onError) {
@@ -481,7 +555,10 @@ function buildRoutingSnapshot(records, ctx = {}) {
   const capCountsFor = ctx.capCountsFor || (() => 0);
   const buyersById = indexBy(records.buyers, "id");
   const destById = indexBy(records.destinations, "id");
+  const subDeliveriesById = indexBy(records.subDeliveries, "id");
+  const deliveriesById = indexBy(records.deliveries, "id");
   const healthByDest = indexBy(records.health, "destination_id");
+  const healthBySubDelivery = indexBy(records.health, "sub_delivery_id");
   const configErrors = [];
   const groups = (records.groups || []).filter((g) => g.active === true && String(g.lifecycle || "").toLowerCase() === "active" && String(g.campaign_id) === String(campaignId) && (!configVersionId || String(g.config_version_id || "") === String(configVersionId))).sort((a, b) => (a.order_index || 0) - (b.order_index || 0)).map((g) => ({
     id: g.id,
@@ -489,11 +566,47 @@ function buildRoutingSnapshot(records, ctx = {}) {
     method: g.method || "priority",
     configHash: g.config_hash || null,
     weights: { price: num(g.price_weight) ?? 0.5, priority: num(g.priority_weight) ?? 0.5 },
-    members: (records.members || []).filter((m) => String(m.route_group_id) === String(g.id)).sort((a, b) => (a.priority || 0) - (b.priority || 0)).map((m) => buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs: ctx.nowMs }))
+    members: (records.members || []).filter((m) => String(m.route_group_id) === String(g.id)).sort((a, b) => (a.priority || 0) - (b.priority || 0)).map((m) => buildMember(m, { buyersById, destById, subDeliveriesById, deliveriesById, healthByDest, healthBySubDelivery, capCountsFor, configErrors, nowMs: ctx.nowMs }))
   }));
   return { groups, configVersionId: configVersionId || null, configErrors, configHash: hashConfig(records) };
 }
-function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, configErrors, nowMs }) {
+function resolveEndpoint(m, { destById, subDeliveriesById, deliveriesById, err }) {
+  if (m.sub_delivery_id) {
+    const sd = subDeliveriesById[m.sub_delivery_id];
+    if (!sd) {
+      err("CONFIG_INVALID", "missing sub-delivery");
+      return null;
+    }
+    if (sd.active === false) {
+      err("CONFIG_INVALID", "inactive sub-delivery");
+      return null;
+    }
+    const del = deliveriesById[sd.delivery_id];
+    if (!del) {
+      err("CONFIG_INVALID", "missing parent delivery");
+      return null;
+    }
+    if (String(del.status) !== "active") {
+      err("CONFIG_INVALID", "parent delivery not active");
+      return null;
+    }
+    if (String(del.buyer_id) !== String(m.buyer_id)) {
+      err("CONFIG_INVALID", "cross-buyer sub-delivery");
+      return null;
+    }
+    if (!sd.target_url) {
+      err("CONFIG_INVALID", "sub-delivery missing target_url");
+      return null;
+    }
+    return { subDeliveryId: sd.id, delivery: resolveSubDeliveryCfg(sd), healthKey: sd.id, kind: "sub_delivery" };
+  }
+  if (m.destination_id && destById[m.destination_id]) {
+    return { subDeliveryId: null, delivery: null, healthKey: m.destination_id, kind: "legacy" };
+  }
+  err("CONFIG_INVALID", m.destination_id ? "missing destination" : "missing sub_delivery_id");
+  return null;
+}
+function buildMember(m, { buyersById, destById, subDeliveriesById, deliveriesById, healthByDest, healthBySubDelivery, capCountsFor, configErrors, nowMs }) {
   let invalid = false;
   const err = (code, detail) => {
     invalid = true;
@@ -501,7 +614,7 @@ function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, conf
   };
   const buyer = buyersById[m.buyer_id];
   if (!buyer) err("CONFIG_INVALID", "missing buyer");
-  if (!destById[m.destination_id]) err("CONFIG_INVALID", "missing destination");
+  const endpoint = resolveEndpoint(m, { destById, subDeliveriesById, deliveriesById, err });
   const filters = strictJson(m.filters, () => err("CONFIG_INVALID", "bad filters json"));
   const conditions = strictJson(m.conditions, () => err("CONFIG_INVALID", "bad conditions json"));
   const hasConditions = conditions && typeof conditions === "object" && Object.keys(conditions).length > 0;
@@ -513,10 +626,15 @@ function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, conf
   const reservePrice = num(m.reserve_price);
   if (priceMode === "fixed" && (fixedPrice == null || fixedPrice < 0)) err("CONFIG_INVALID", "invalid price");
   const buyerSnap = buyer ? { active: buyer.active, status: buyer.status } : { active: false, status: "missing" };
+  const healthKey = endpoint ? endpoint.healthKey : m.destination_id;
+  const healthState = healthBySubDelivery[healthKey]?.state || healthByDest[healthKey]?.state || "closed";
   return {
     id: m.id,
     buyerId: m.buyer_id,
     destinationId: m.destination_id,
+    subDeliveryId: endpoint ? endpoint.subDeliveryId : null,
+    // Canonical outbound cfg resolved from the SubDelivery (null for legacy members).
+    delivery: endpoint ? endpoint.delivery : null,
     // PB-017: invalid config makes the member ineligible, never unrestricted.
     active: m.active !== false && !invalid,
     _configInvalid: invalid,
@@ -535,7 +653,7 @@ function buildMember(m, { buyersById, destById, healthByDest, capCountsFor, conf
     caps: caps || {},
     buyer: buyerSnap,
     wallet: buildWallet(buyer),
-    health: { state: healthByDest[m.destination_id]?.state || "closed" }
+    health: { state: healthState }
   };
 }
 function indexBy(arr, key) {
@@ -589,6 +707,7 @@ async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId }) {
   }
   const buyerIds = [...new Set(members.map((m) => m.buyer_id).filter(Boolean))];
   const destIds = [...new Set(members.map((m) => m.destination_id).filter(Boolean))];
+  const subDeliveryIds = [...new Set(members.map((m) => m.sub_delivery_id).filter(Boolean))];
   const buyers = [];
   for (const id of buyerIds) {
     const r = await db.entities.Buyer.filter({ id });
@@ -599,7 +718,26 @@ async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId }) {
     const r = await db.entities.LeadByteConnector.filter({ id });
     if (r && r[0]) destinations.push(r[0]);
   }
+  const subDeliveries = [];
+  if (db.entities.SubDelivery) {
+    for (const id of subDeliveryIds) {
+      const r = await db.entities.SubDelivery.filter({ id });
+      if (r && r[0]) subDeliveries.push(r[0]);
+    }
+  }
+  const deliveryIds = [...new Set(subDeliveries.map((sd) => sd.delivery_id).filter(Boolean))];
+  const deliveries = [];
+  if (db.entities.Delivery) {
+    for (const id of deliveryIds) {
+      const r = await db.entities.Delivery.filter({ id });
+      if (r && r[0]) deliveries.push(r[0]);
+    }
+  }
   const health = [];
+  for (const id of subDeliveryIds) {
+    const r = await db.entities.DestinationHealth.filter({ sub_delivery_id: id });
+    if (r && r[0]) health.push(r[0]);
+  }
   for (const id of destIds) {
     const r = await db.entities.DestinationHealth.filter({ destination_id: id });
     if (r && r[0]) health.push(r[0]);
@@ -616,7 +754,7 @@ async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersionId }) {
   }
   const capCountsFor = (memberId, window) => capMap[`${memberId}:${window}`] || 0;
   return buildRoutingSnapshot(
-    { groups, members, buyers, destinations, health },
+    { groups, members, buyers, destinations, subDeliveries, deliveries, health },
     { campaignId, nowMs, configVersionId, capCountsFor }
   );
 }
@@ -1195,6 +1333,14 @@ async function deliverDirectPost(cfg, ctx) {
   const payload = buildPayload(cfg.leadData || {}, cfg.fieldMap);
   const encoding = cfg.encoding === "form" ? "form" : "json";
   const headers = { ...cfg.headers || {} };
+  if (cfg.credentialRef && typeof ctx.resolveCredential === "function") {
+    const resolved = await ctx.resolveCredential(cfg.credentialRef);
+    if (resolved && typeof resolved === "object") {
+      for (const [k, v] of Object.entries(resolved)) {
+        if (v != null) headers[k] = v;
+      }
+    }
+  }
   headers["Idempotency-Key"] = cfg.idempotencyKey;
   let body;
   if (encoding === "form") {
@@ -1206,6 +1352,7 @@ async function deliverDirectPost(cfg, ctx) {
   }
   const pending = await ctx.store.createAttempt({
     lead_id: cfg.leadId,
+    sub_delivery_id: cfg.subDeliveryId || null,
     destination_id: cfg.destinationId,
     trigger: cfg.trigger || "primary",
     attempt_number: attemptNumber,
@@ -1740,24 +1887,42 @@ function computeConfigHash(group, members) {
   }
   return (h >>> 0).toString(16).padStart(8, "0");
 }
-function validateConfigForPublish({ group, members, buyers, destinations }, nowMs) {
+function validateConfigForPublish({ group, members, buyers, destinations, subDeliveries, deliveries }, nowMs) {
   const errors = [];
   if (!group || !group.campaign_id) errors.push({ code: "CONFIG_INVALID", detail: "group missing campaign" });
   if (!members || members.length === 0) errors.push({ code: "CONFIG_INVALID", detail: "group has no members" });
   const snap = buildRoutingSnapshot(
-    { groups: [{ ...group, active: true, lifecycle: "active" }], members, buyers, destinations, health: [] },
+    { groups: [{ ...group, active: true, lifecycle: "active" }], members, buyers, destinations, subDeliveries, deliveries, health: [] },
     { campaignId: group && group.campaign_id, nowMs: nowMs ?? 0 }
   );
   for (const e of snap.configErrors) errors.push(e);
   const buyerById = index(buyers, "id");
   const destById = index(destinations, "id");
+  const subById = index(subDeliveries, "id");
+  const delById = index(deliveries, "id");
   for (const m of members || []) {
     const b = buyerById[m.buyer_id];
     if (!b) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "buyer not found" });
     else if (!(String(b.status).toLowerCase() === "active" && b.active === true)) {
       errors.push({ member_id: m.id, code: "BUYER_INELIGIBLE", detail: "buyer not active" });
     }
-    if (!destById[m.destination_id]) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "destination not found" });
+    if (m.sub_delivery_id) {
+      const sd = subById[m.sub_delivery_id];
+      if (!sd) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "sub-delivery not found" });
+      else {
+        if (sd.active === false) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "sub-delivery inactive" });
+        const del = delById[sd.delivery_id];
+        if (!del) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "parent delivery not found" });
+        else {
+          if (String(del.status) !== "active") errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "parent delivery not active" });
+          if (String(del.buyer_id) !== String(m.buyer_id)) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "sub-delivery belongs to a different buyer" });
+        }
+        if (!sd.target_url) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "sub-delivery missing target_url" });
+        if (!sd.response_mapping || String(sd.response_mapping).trim() === "") errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "sub-delivery missing response mapping" });
+      }
+    } else if (!destById[m.destination_id]) {
+      errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "destination not found" });
+    }
     if (m.price_mode === "fixed" && !(Number(m.fixed_price) >= 0)) errors.push({ member_id: m.id, code: "CONFIG_INVALID", detail: "invalid price" });
   }
   return { valid: errors.length === 0, errors, configHash: group ? computeConfigHash(group, members) : null };
@@ -1916,11 +2081,13 @@ export {
   nextHealth,
   nextRetryAtIso,
   planExecution,
+  projectSubDeliveryForClient,
   rankBids,
   redact,
   release,
   reserve,
   resolvePrice,
+  resolveSubDeliveryCfg,
   resolveTraceVersion,
   routeWaterfall,
   runPingPost,

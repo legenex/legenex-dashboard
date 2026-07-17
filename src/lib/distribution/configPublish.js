@@ -23,28 +23,49 @@ export function computeConfigHash(group, members) {
 // unless the whole group is routable: config parses, every member has an existing
 // eligible buyer and an existing destination, caps/pricing/schedule are valid.
 // Reuses buildRoutingSnapshot so validation matches routing exactly.
-export function validateConfigForPublish({ group, members, buyers, destinations }, nowMs) {
+export function validateConfigForPublish({ group, members, buyers, destinations, subDeliveries, deliveries }, nowMs) {
   const errors = [];
   if (!group || !group.campaign_id) errors.push({ code: 'CONFIG_INVALID', detail: 'group missing campaign' });
   if (!members || members.length === 0) errors.push({ code: 'CONFIG_INVALID', detail: 'group has no members' });
 
   // Force the group active so the mapper evaluates it, then read configErrors.
   const snap = buildRoutingSnapshot(
-    { groups: [{ ...group, active: true, lifecycle: 'active' }], members, buyers, destinations, health: [] },
+    { groups: [{ ...group, active: true, lifecycle: 'active' }], members, buyers, destinations, subDeliveries, deliveries, health: [] },
     { campaignId: group && group.campaign_id, nowMs: nowMs ?? 0 },
   );
   for (const e of snap.configErrors) errors.push(e);
 
-  // Every member must map to an eligible (allowlisted-active) buyer and a real destination.
+  // Every member must map to an eligible (allowlisted-active) buyer.
   const buyerById = index(buyers, 'id');
   const destById = index(destinations, 'id');
+  const subById = index(subDeliveries, 'id');
+  const delById = index(deliveries, 'id');
   for (const m of members || []) {
     const b = buyerById[m.buyer_id];
     if (!b) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'buyer not found' });
     else if (!(String(b.status).toLowerCase() === 'active' && b.active === true)) {
       errors.push({ member_id: m.id, code: 'BUYER_INELIGIBLE', detail: 'buyer not active' });
     }
-    if (!destById[m.destination_id]) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'destination not found' });
+    // Canonical destination: publish fails closed unless the member's sub-delivery
+    // exists, is active, belongs to the member's buyer, and has a target_url and
+    // a response mapping. Legacy destination_id-only members keep the old check.
+    if (m.sub_delivery_id) {
+      const sd = subById[m.sub_delivery_id];
+      if (!sd) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'sub-delivery not found' });
+      else {
+        if (sd.active === false) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'sub-delivery inactive' });
+        const del = delById[sd.delivery_id];
+        if (!del) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'parent delivery not found' });
+        else {
+          if (String(del.status) !== 'active') errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'parent delivery not active' });
+          if (String(del.buyer_id) !== String(m.buyer_id)) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'sub-delivery belongs to a different buyer' });
+        }
+        if (!sd.target_url) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'sub-delivery missing target_url' });
+        if (!sd.response_mapping || String(sd.response_mapping).trim() === '') errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'sub-delivery missing response mapping' });
+      }
+    } else if (!destById[m.destination_id]) {
+      errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'destination not found' });
+    }
     if (m.price_mode === 'fixed' && !(Number(m.fixed_price) >= 0)) errors.push({ member_id: m.id, code: 'CONFIG_INVALID', detail: 'invalid price' });
   }
   return { valid: errors.length === 0, errors, configHash: group ? computeConfigHash(group, members) : null };

@@ -6,7 +6,8 @@
   "properties": {
     "route_group_id": { "type": "string", "description": "RouteGroup this member belongs to" },
     "buyer_id": { "type": "string", "description": "Buyer that owns this destination" },
-    "destination_id": { "type": "string", "description": "LeadByteConnector/ApiConnector id or adapter ref" },
+    "sub_delivery_id": { "type": "string", "description": "CANONICAL destination pointer: the SubDelivery this member delivers to. Must resolve to an active SubDelivery whose parent Delivery is active and belongs to this member's buyer, else the member is CONFIG_INVALID and ineligible." },
+    "destination_id": { "type": "string", "description": "DEPRECATED (compatibility only): legacy LeadByteConnector/ApiConnector id. Superseded by sub_delivery_id as the canonical destination. Retained additively for existing records; do not use for new members." },
     "active": { "type": "boolean", "default": true },
     "priority": { "type": "number", "default": 1, "description": "Priority ranking within the group (lower wins)" },
     "weight": { "type": "number", "default": 1, "description": "Relative weight for weighted/round_robin distribution" },

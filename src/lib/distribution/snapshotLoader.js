@@ -47,11 +47,26 @@ export async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersion
   }
   const buyerIds = [...new Set(members.map((m) => m.buyer_id).filter(Boolean))];
   const destIds = [...new Set(members.map((m) => m.destination_id).filter(Boolean))];
+  const subDeliveryIds = [...new Set(members.map((m) => m.sub_delivery_id).filter(Boolean))];
   const buyers = [];
   for (const id of buyerIds) { const r = await db.entities.Buyer.filter({ id }); if (r && r[0]) buyers.push(r[0]); }
   const destinations = [];
   for (const id of destIds) { const r = await db.entities.LeadByteConnector.filter({ id }); if (r && r[0]) destinations.push(r[0]); }
+
+  // Canonical SubDelivery endpoints + their parent Delivery (for buyer/status checks).
+  const subDeliveries = [];
+  if (db.entities.SubDelivery) {
+    for (const id of subDeliveryIds) { const r = await db.entities.SubDelivery.filter({ id }); if (r && r[0]) subDeliveries.push(r[0]); }
+  }
+  const deliveryIds = [...new Set(subDeliveries.map((sd) => sd.delivery_id).filter(Boolean))];
+  const deliveries = [];
+  if (db.entities.Delivery) {
+    for (const id of deliveryIds) { const r = await db.entities.Delivery.filter({ id }); if (r && r[0]) deliveries.push(r[0]); }
+  }
+
+  // Health is per endpoint. Load by sub_delivery_id (canonical) and by legacy destination_id.
   const health = [];
+  for (const id of subDeliveryIds) { const r = await db.entities.DestinationHealth.filter({ sub_delivery_id: id }); if (r && r[0]) health.push(r[0]); }
   for (const id of destIds) { const r = await db.entities.DestinationHealth.filter({ destination_id: id }); if (r && r[0]) health.push(r[0]); }
 
   // Pre-load cap counters for these members (async), then hand the mapper a sync lookup.
@@ -67,7 +82,7 @@ export async function loadRoutingSnapshot(db, { campaignId, nowMs, configVersion
   const capCountsFor = (memberId, window) => capMap[`${memberId}:${window}`] || 0;
 
   return buildRoutingSnapshot(
-    { groups, members, buyers, destinations, health },
+    { groups, members, buyers, destinations, subDeliveries, deliveries, health },
     { campaignId, nowMs, configVersionId, capCountsFor },
   );
 }

@@ -1,12 +1,13 @@
 {
   // Additive (lead distribution platform). Durable delivery record (replaces JSON-blob logging).
-  // Uniqueness (lead_id, destination_id, attempt_number); index (status, next_retry_at) for the retry worker; portals see only allowlisted outcome fields.
+  // Uniqueness (lead_id, sub_delivery_id, attempt_number); index (status, next_retry_at) for the retry worker; portals see only allowlisted outcome fields. destination_id retained additively for legacy records.
   // Caller model: processLead + authorized manual retry.
   "name": "DeliveryAttempt",
   "type": "object",
   "properties": {
     "lead_id": { "type": "string", "description": "Lead being delivered" },
-    "destination_id": { "type": "string", "description": "Destination the attempt targets" },
+    "sub_delivery_id": { "type": "string", "description": "CANONICAL endpoint the attempt targets. Retries and health/circuit-breaker key on this so they are per endpoint, not per buyer." },
+    "destination_id": { "type": "string", "description": "DEPRECATED (compatibility only): legacy destination id. Superseded by sub_delivery_id." },
     "trigger": { "type": "string", "description": "What triggered this attempt (e.g. route, retry, manual)" },
     "attempt_number": { "type": "number", "default": 1, "description": "Sequential attempt number for this lead+destination" },
     "idempotency_key": { "type": "string", "description": "Idempotency key for the outbound delivery" },

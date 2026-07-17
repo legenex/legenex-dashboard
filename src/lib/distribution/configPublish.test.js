@@ -30,6 +30,40 @@ describe('validateConfigForPublish (fail closed)', () => {
   });
 });
 
+describe('validateConfigForPublish (canonical sub-delivery, fail closed)', () => {
+  const delivery = { id: 'del1', buyer_id: 'b1', status: 'active' };
+  const sub = { id: 'sd1', delivery_id: 'del1', active: true, target_url: 'https://buyer.example/api', response_mapping: '{"accepted":"ok"}' };
+  const subMember = { ...member, destination_id: undefined, sub_delivery_id: 'sd1' };
+  const base = (over = {}) => validateConfigForPublish({
+    group, members: [subMember], buyers: [buyer], destinations: [],
+    deliveries: [delivery], subDeliveries: [sub], ...over,
+  }, 0);
+
+  it('passes when the sub-delivery exists, is active, same buyer, has url + response mapping', () => {
+    expect(base().valid).toBe(true);
+  });
+  it('fails when the sub-delivery does not exist', () => {
+    expect(base({ subDeliveries: [] }).valid).toBe(false);
+  });
+  it('fails when the sub-delivery is inactive', () => {
+    expect(base({ subDeliveries: [{ ...sub, active: false }] }).valid).toBe(false);
+  });
+  it('fails when the parent delivery belongs to a different buyer', () => {
+    const r = base({ deliveries: [{ ...delivery, buyer_id: 'OTHER' }] });
+    expect(r.valid).toBe(false);
+    expect(r.errors.some((e) => /different buyer|cross-buyer/i.test(e.detail))).toBe(true);
+  });
+  it('fails when the parent delivery is archived', () => {
+    expect(base({ deliveries: [{ ...delivery, status: 'archived' }] }).valid).toBe(false);
+  });
+  it('fails when the sub-delivery has no target_url', () => {
+    expect(base({ subDeliveries: [{ ...sub, target_url: '' }] }).valid).toBe(false);
+  });
+  it('fails when the sub-delivery has no response mapping', () => {
+    expect(base({ subDeliveries: [{ ...sub, response_mapping: '' }] }).valid).toBe(false);
+  });
+});
+
 describe('computeConfigHash + diff + version resolution', () => {
   it('hash is stable and changes when config changes', () => {
     const h1 = computeConfigHash(group, [member]);
