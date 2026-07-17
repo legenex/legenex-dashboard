@@ -101,6 +101,18 @@ function evalCalcNode(ctx, node, depth = 0) {
   return true;
 }
 
+// Resolve {{token}} placeholders in a calculated field output against the
+// evaluation context. Unknown tokens resolve to an empty string. Plain text
+// with no placeholders is returned unchanged.
+function resolveCalcOutput(text, ctx) {
+  const s = String(text ?? '');
+  if (!s.includes('{{')) return s;
+  return s.replace(/\{\{\s*([\w. ]+)\s*\}\}/g, (_m, token) => {
+    const v = ctx[String(token).trim()];
+    return v == null ? '' : String(v);
+  });
+}
+
 function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName, supplierType) {
   const enriched = { ...leadData };
   enriched[phoneVerifiedFieldName || 'phone_verified'] = resolvePhoneVerified(hlrResult, phoneVerifiedSource);
@@ -148,10 +160,10 @@ function runCalculations(calcs, leadData, hlrResult, phoneVerifiedSource, phoneV
         }
       } else if (calc.transform_type === 'conditional') {
         const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
-        let output = cfg.fallback ?? '';
+        let output = resolveCalcOutput(cfg.fallback ?? '', ctx);
         for (const rule of rules) {
           const allMatch = evalCalcNode(ctx, normalizeCalcConditions(rule.conditions));
-          if (allMatch) { output = rule.output ?? ''; break; }
+          if (allMatch) { output = resolveCalcOutput(rule.output ?? '', ctx); break; }
         }
         enriched[calc.output_token] = output;
       } else if (calc.transform_type === 'clone') {
