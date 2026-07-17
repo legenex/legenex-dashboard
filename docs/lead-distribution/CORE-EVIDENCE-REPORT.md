@@ -1,7 +1,15 @@
 # Core Evidence Report - Checkpoint A
 
+> MERGED TO MAIN (2026-07-17). Squash-merged into `main` via PR #2 (merge commit `49f6411`); Phase 1
+> security repairs via PR #1 (merge commit `7d3f429`). Base44 synced `main`; all new distribution
+> entities are live. PRODUCTION IS LIVE ON legacy_only (AppSettings.distribution_mode unset -> reads
+> the schema default legacy_only; all new code is inert). Post-merge read-only verification confirmed
+> the four LeadByteConnector records and three Facebook ApiConnector conversion events are unchanged
+> (enabled=true, endpoints + updated_date identical to the pre-merge baseline) and CustomCalculation
+> still has the vertical field.
+
 Verification date: 2026-07-15. Branch: integration/native-lead-distribution-v2 (rebased on main
-717d7bd). Prepared for Nick. This report covers Definition-of-Done Tier 1 items 1 through 16 with an
+717d7bd), merged to main 2026-07-17. Prepared for Nick. This report covers Definition-of-Done Tier 1 items 1 through 16 with an
 honest per-item status. PROVEN means a command in this repo demonstrates it now. NEEDS-ENV names the
 exact missing environment. PARTIAL means the core logic is proven but a later (ungated or gated)
 phase completes the wiring. Nothing is claimed that a command does not show.
