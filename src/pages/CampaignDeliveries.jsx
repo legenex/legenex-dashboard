@@ -16,7 +16,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Send, Loader2, KeyRound, AlertTriangle, Link2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Send, Loader2, KeyRound, AlertTriangle, Link2, GitBranch, Route as RouteIcon } from 'lucide-react';
 import { CORE_LEAD_FIELDS } from '@/components/settings/leadSourceFields';
 import { buildDeliveryPreview, classifySampleResponse } from '@/lib/distribution/previewClient';
 
@@ -75,6 +76,9 @@ export default function CampaignDeliveries() {
   return (
     <div className="h-full flex flex-col min-h-0">
       <SectionHeader title="Deliveries" subtitle="Native buyer delivery endpoints, grouped by buyer">
+        {/* Routing-config tools live here (not in the primary nav) so they are reachable, not orphaned. */}
+        <Button asChild size="sm" variant="ghost"><Link to="/distribution/routes"><GitBranch className="w-4 h-4 mr-1" />Route Groups</Link></Button>
+        <Button asChild size="sm" variant="ghost"><Link to="/distribution/simulator"><RouteIcon className="w-4 h-4 mr-1" />Simulator</Link></Button>
         <Button size="sm" onClick={() => setNewOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Delivery</Button>
       </SectionHeader>
 

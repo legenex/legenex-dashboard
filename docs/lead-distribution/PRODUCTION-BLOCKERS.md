@@ -301,10 +301,20 @@ canonical destination. No rename or deletion; legacy destination_id-only members
 deprecated path. New members must use sub_delivery_id.
 
 Rename note (safety-critical): the former "Lead Distribution > Deliveries" page (LeadByteConnector /
-ApiConnector manager) is now "Webhooks" at /distribution/webhooks with its own permission key
-(dist_webhooks); /deliveries redirects there. This is a RENAME ONLY: the live connector records are
-unchanged (same SettingsLeadByte manager, same records, no enabled/endpoint/payload/trigger/filter/
-mapping change, no migration).
+ApiConnector manager) is titled "Webhooks". Nick performed this rename in Base44 independently and it
+is live on main: the page keeps its route /deliveries, the SectionHeader title is "Webhooks", the
+coming-soon nav item was removed, and rail icons were added. This branch adapts to that live structure
+rather than introducing a new /distribution/webhooks route: /deliveries is gated by its own permission
+key (dist_webhooks) and the nav "Webhooks" item points at /deliveries. This is a RENAME ONLY: the live
+connector records are unchanged (same SettingsLeadByte manager, same records, no enabled/endpoint/
+payload/trigger/filter/mapping change, no migration).
+
+Route Groups (/distribution/routes, key dist_routes) and Simulator (/distribution/simulator, key
+dist_simulator) are not primary nav items in the exact structure (Dashboard; Campaigns; Webhooks;
+Conversion Events). They remain first-class routes with their own permission keys and are reachable
+from the Campaigns > Deliveries page header ("Route Groups" and "Simulator" quick links), so they are
+not orphaned. They live off the Deliveries surface because both are routing-config tools: Route Groups
+builds the routing that consumes deliveries, and Simulator dry-runs that routing.
 
 ## Notes
 - No blocker below is closed. Phase 0 established ground truth only.
