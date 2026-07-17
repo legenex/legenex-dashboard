@@ -1596,6 +1596,11 @@ Deno.serve(async (req) => {
       enrichedData[emailValidFieldName] = emailValidResult;
     }
 
+    // Persist the enriched payload back to mapped_fields so calculated fields
+    // (lead_type, Supplier Source, accident_date buckets, state maps, etc.) are
+    // visible in the Leads table and lead summary, not just used for forwarding.
+    await db.entities.Lead.update(leadId, { mapped_fields: JSON.stringify(enrichedData) });
+
     // ── d. GATE: TrustedForm cert (hard enforce) ─────────────────────────
     const requireCert = appSettings.require_trustedform_cert !== false;
     const trustedformUrl = leadPayload.trustedform_url || leadPayload.trustedform_cert || '';

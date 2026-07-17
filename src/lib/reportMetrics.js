@@ -83,10 +83,19 @@ const S = (l) => String(l.final_status || '');
 export function leadEventInstant(lead) {
   const ts = leadField(lead, 'timestamp');
   if (typeof ts === 'string' && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(ts.trim())) {
-    const d = fromZonedTime(ts.trim().replace(' ', 'T'), APP_TZ);
+    const raw = ts.trim().replace(' ', 'T');
+    // If the string already carries a timezone (trailing Z or ±HH:MM offset),
+    // parse it as an absolute instant. Only naive wall-clock strings are
+    // interpreted in APP_TZ.
+    const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(raw);
+    const d = hasZone ? new Date(raw) : fromZonedTime(raw, APP_TZ);
     if (!isNaN(d.getTime())) return d;
   }
-  const created = new Date(lead.created_date);
+  // created_date is stored without a timezone suffix; it is a UTC value, so
+  // append Z when missing to avoid the browser parsing it as local time.
+  const cd = lead.created_date;
+  const norm = (typeof cd === 'string' && !/(?:Z|[+-]\d{2}:?\d{2})$/.test(cd)) ? cd + 'Z' : cd;
+  const created = new Date(norm);
   return isNaN(created.getTime()) ? null : created;
 }
 

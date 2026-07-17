@@ -7,7 +7,12 @@ import { APP_TZ } from '@/lib/periodRange';
 // Format an ISO / date value in APP_TZ. Returns '-' for empty or invalid input.
 export function formatLeadTime(value, pattern = 'MMM d, yyyy HH:mm') {
   if (!value) return '-';
-  const d = new Date(value);
+  // Timestamps stored without a timezone suffix are UTC. Append Z so the
+  // browser does not parse them as local time before converting to APP_TZ.
+  const norm = (typeof value === 'string' && !/(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim()))
+    ? value.trim() + 'Z'
+    : value;
+  const d = new Date(norm);
   if (isNaN(d.getTime())) return '-';
   return formatInTimeZone(d, APP_TZ, pattern);
 }
