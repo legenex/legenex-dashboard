@@ -275,18 +275,10 @@ export default function Sidebar() {
     <aside data-resize-origin className="fixed left-0 top-0 bottom-0 bg-sidebar flex flex-col border-r border-sidebar-border z-50"
       style={{ width: `${width}px`, borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}>
 
-      <div className="flex items-center justify-between pl-5 pr-3 py-6">
+      <div className="flex items-center pl-5 pr-3 py-6">
         <Link to="/" className="flex items-center min-w-0">
           <img src={logoSrc} alt="Legenex DashFlo" className="h-10 w-auto max-w-full object-contain" />
         </Link>
-        <button
-          onClick={toggle}
-          aria-label="Collapse sidebar"
-          title="Collapse sidebar"
-          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md border border-sidebar-border text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent transition-all duration-150"
-        >
-          <PanelLeftClose className="w-4 h-4" />
-        </button>
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5 mt-2 overflow-y-auto">
@@ -390,7 +382,17 @@ export default function Sidebar() {
         </button>
         <ViewAsSwitcher />
         <SidebarProfile />
-        <SystemClock />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0"><SystemClock /></div>
+          <button
+            onClick={toggle}
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md border border-sidebar-border text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent transition-all duration-150"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Resize handle — grip fixed at the bottom of the sidebar edge */}
