@@ -8,7 +8,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  GripVertical, ChevronUp, ChevronDown, Search, Columns3, Plus, MoreVertical, Pencil, Pause, Play, Trash2,
+  GripVertical, ChevronUp, ChevronDown, Search, Columns3, MoreVertical, Pencil, Pause, Play, Trash2,
 } from 'lucide-react';
 
 const money = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? '--' : `$${Number(v).toFixed(2)}`);
@@ -28,7 +28,7 @@ const COLUMNS = [
 ];
 
 export default function BuyersRoutingTable({
-  members, buyerName, onReorder, onMove, onEdit, onToggle, onRemove, onAdd,
+  members, buyerName, onReorder, onMove, onEdit, onToggle, onRemove,
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -86,7 +86,6 @@ export default function BuyersRoutingTable({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" className="h-9 gap-1.5" onClick={onAdd}><Plus className="w-4 h-4" />Add Buyer</Button>
         </div>
       </div>
 
@@ -103,7 +102,7 @@ export default function BuyersRoutingTable({
           </thead>
           <tbody className="divide-y divide-border">
             {rows.length === 0 && (
-              <tr><td colSpan={cols.length + 3} className="px-3 py-10 text-center text-muted-foreground">No buyers. Add one to start routing.</td></tr>
+              <tr><td colSpan={cols.length + 3} className="px-3 py-10 text-center text-muted-foreground">No buyers linked to this campaign's vertical yet. Link a buyer to this vertical in Operations.</td></tr>
             )}
             {rows.map((m, i) => {
               const active = m.active !== false;
@@ -129,7 +128,7 @@ export default function BuyersRoutingTable({
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? 'bg-primary' : 'bg-muted-foreground'}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? 'bg-[hsl(var(--chart-5))]' : 'bg-muted-foreground'}`} />
                       <span className="truncate">{name}</span>
                     </div>
                   </td>

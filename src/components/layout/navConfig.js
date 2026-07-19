@@ -26,9 +26,9 @@ export const navGroups = [
     label: 'Operations', icon: SlidersHorizontal, type: 'dropdown', path: '/operations', permKey: 'operations',
     children: [
       { label: 'Dashboard', path: '/operations', icon: Gauge, permKey: 'operations' },
+      { label: 'Verticals', path: '/operations/verticals', icon: Layers, permKey: 'operations' },
       { label: 'Buyers', path: '/operations/buyers', icon: Users, permKey: 'operations' },
       { label: 'Suppliers', path: '/operations/suppliers', icon: Truck, permKey: 'operations' },
-      { label: 'Verticals', path: '/operations/verticals', icon: Layers, permKey: 'operations' },
       { label: 'Active States', path: '/operations/active-states', icon: MapPin, permKey: 'operations' },
       { label: 'Billing Reports', path: '/operations/billing-reports', icon: FileBarChart, permKey: 'operations' },
       { label: 'Buyer Onboarding', path: '/operations/buyer-onboarding', icon: UserPlus, permKey: 'operations' },
