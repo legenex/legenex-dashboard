@@ -25,7 +25,7 @@ export default function FinanceShell({ tabName, subtitle, telemetry = {}, onRefr
             <h1 className="text-[19px] font-semibold text-foreground">
               Finances <span className="text-muted-foreground/70 font-normal">/ {tabName}</span>
             </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(152_65%_54%)]/30 bg-[hsl(152_65%_54%)]/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[hsl(152_65%_54%)]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-status-sold px-2 py-0.5 text-[10px] font-semibold tracking-wide status-sold">
               <PulseDot /> LIVE
             </span>
           </div>
