@@ -37,16 +37,7 @@ export const navGroups = [
     label: 'Lead Distribution', icon: Share2, type: 'dropdown', path: '/distribution', permKey: 'dist_dashboard',
     children: [
       { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard, permKey: 'dist_dashboard' },
-      {
-        label: 'Campaigns', path: '/campaigns', icon: Megaphone, permKey: 'dist_campaigns',
-        children: [
-          { label: 'Verticals', path: '/campaigns', tab: 'verticals', icon: Layers, permKey: 'dist_campaigns' },
-          { label: 'Buyers', path: '/campaigns', tab: 'buyers', icon: Users, permKey: 'dist_campaigns' },
-          { label: 'Suppliers', path: '/campaigns', tab: 'suppliers', icon: Truck, permKey: 'dist_campaigns' },
-          { label: 'Deliveries', path: '/campaigns/deliveries', icon: Send, permKey: 'dist_campaigns' },
-          { label: 'Brands', path: '/campaigns', tab: 'brands', icon: Tag, permKey: 'dist_campaigns' },
-        ],
-      },
+      { label: 'Campaigns', path: '/campaigns', icon: Megaphone, permKey: 'dist_campaigns' },
       { label: 'Webhooks', path: '/deliveries', icon: Webhook, permKey: 'dist_deliveries' },
       { label: 'Conversion Events', path: '/conversion-events', icon: Zap, permKey: 'dist_conversion_events' },
     ],

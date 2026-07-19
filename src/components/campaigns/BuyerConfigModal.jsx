@@ -17,16 +17,17 @@ import {
   Collapsible, CollapsibleTrigger, CollapsibleContent,
 } from '@/components/ui/collapsible';
 import {
-  ChevronDown, Plus, Trash2, Loader2, Save, Send, CheckCircle2,
+  ChevronDown, Plus, Trash2, Loader2, Save,
 } from 'lucide-react';
 import {
   FiltersEditor, CapsEditor, cleanFilters, cleanCaps,
 } from '@/components/distribution/memberFieldEditors';
 
-// Edit Destination Configuration modal. Layout only: every section is wired to a
-// real RouteMember field (status/priority/payout/caps/filters live on the
-// canonical fields; the additive JSON fields carry budget caps, KPI, transforms,
-// ping and delivery config). No routing/engine logic is touched here.
+// Edit Buyer Configuration modal. Every section is wired to a real RouteMember
+// field (status/priority/payout/caps/filters on canonical fields; the additive
+// JSON fields carry budget caps, KPI, transforms, ping and delivery config). No
+// routing/engine logic is touched here. The Ping section renders only when the
+// campaign method includes ping.
 
 function parseJson(raw, fallback) {
   if (raw == null || raw === '') return fallback;
@@ -52,7 +53,6 @@ const DELIVERY_METHODS = [
   { value: 'email', label: 'Email' },
   { value: 'google_sheet', label: 'Google Sheet' },
   { value: 'ghl', label: 'GHL' },
-  { value: 'sms', label: 'SMS' },
 ];
 
 // Collapsible section shell using the Legenex card tokens.
@@ -72,22 +72,11 @@ function Section({ title, description, defaultOpen = false, children }) {
   );
 }
 
-function ToggleRow({ label, checked, onCheckedChange, children }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Switch checked={checked} onCheckedChange={onCheckedChange} />
-        <Label className="text-[13px]">{label}</Label>
-      </div>
-      {checked && children}
-    </div>
-  );
-}
-
-export default function DestinationConfigModal({ open, onOpenChange, member, buyerName }) {
+export default function BuyerConfigModal({ open, onOpenChange, member, buyerName, method = 'direct_post' }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(null);
+  const showPing = method === 'ping_post' || method === 'both';
 
   useEffect(() => {
     if (!open || !member) return;
@@ -98,31 +87,24 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
       active: member.active !== false,
       destination_name: member.destination_name || '',
       alias: member.alias || '',
-      // Payout
       payout_type: member.payout_type || 'flat_cpl',
       fixed_price: member.fixed_price ?? '',
       conditional_pricing_enabled: !!member.conditional_pricing_enabled,
-      // Caps
       caps: parseJson(member.caps, {}),
       budget_caps: parseJson(member.budget_caps, {}),
       budgetEnabled: BUDGET_KEYS.reduce((a, b) => ({ ...a, [b.key]: parseJson(member.budget_caps, {})[b.key] != null }), {}),
-      // Filters
       filters: parseJson(member.filters, {}),
-      // KPI
       target_cpa: kpi.target_cpa ?? '',
-      // Transforms
       transforms: parseJson(member.transforms, []),
-      // Ping
       ping: {
         url: ping.url || '', format: ping.format || 'json', timeout_ms: ping.timeout_ms || 8000,
         headers: ping.headers || '', body_template: ping.body_template || '',
         accept_field: ping.accept_field || '', accept_operator: ping.accept_operator || 'equals', accept_value: ping.accept_value || '',
         realtime_price: !!ping.realtime_price,
       },
-      // Delivery
       delivery: {
         method: delivery.method || 'webhook', url: delivery.url || '', format: delivery.format || 'json',
-        timeout_ms: delivery.timeout_ms || 10000, headers: delivery.headers || '', body_template: delivery.body_template || '',
+        headers: delivery.headers || '', body_template: delivery.body_template || '',
       },
     });
   }, [open, member]);
@@ -143,7 +125,7 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
   const addTransform = () => setForm((f) => ({ ...f, transforms: [...f.transforms, { field: '', from: '', to: '' }] }));
   const removeTransform = (i) => setForm((f) => ({ ...f, transforms: f.transforms.filter((_, idx) => idx !== i) }));
 
-  function buildPayload(extra = {}) {
+  function buildPayload() {
     const budget = {};
     BUDGET_KEYS.forEach(({ key }) => {
       if (form.budgetEnabled[key]) { const n = Number(form.budget_caps[key]); if (Number.isFinite(n) && n > 0) budget[key] = n; }
@@ -164,16 +146,15 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
       transforms: JSON.stringify(transforms),
       ping_config: JSON.stringify(form.ping),
       delivery_config: JSON.stringify(form.delivery),
-      ...extra,
     };
   }
 
-  async function save(extra) {
+  async function save() {
     setSaving(true);
     try {
-      await base44.entities.RouteMember.update(member.id, buildPayload(extra));
+      await base44.entities.RouteMember.update(member.id, buildPayload());
       await qc.invalidateQueries({ queryKey: ['routeMembers'] });
-      toast.success('Destination configuration saved');
+      toast.success('Buyer configuration saved');
       onOpenChange(false);
     } catch (e) { toast.error('Save failed: ' + (e?.message || 'error')); } finally { setSaving(false); }
   }
@@ -182,26 +163,28 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover border-border max-w-[820px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Destination Configuration — {buyerName || 'Destination'}</DialogTitle>
-          <DialogDescription className="text-[12px]">Configure payout, caps, filters, KPI, transforms and delivery for this destination.</DialogDescription>
+          <DialogTitle>Edit Buyer Configuration - {buyerName || 'Buyer'}</DialogTitle>
+          <DialogDescription className="text-[12px]">Configure payout, caps, filters, KPI, transforms and delivery for this buyer.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Status / Destination Name / Alias */}
-          <div className="rounded-[10px] border border-border bg-card p-5 grid grid-cols-1 sm:grid-cols-[auto_1fr_1fr] gap-3 items-end">
-            <div className="flex items-center gap-2 pb-1.5">
-              <Switch checked={form.active} onCheckedChange={(v) => set({ active: v })} />
-              <Label className="text-[13px]">{form.active ? 'Enabled' : 'Paused'}</Label>
+          {/* Status / Name / Alias */}
+          <Section title="Status, Name &amp; Alias" defaultOpen>
+            <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_1fr] gap-3 items-end">
+              <div className="flex items-center gap-2 pb-1.5">
+                <Switch checked={form.active} onCheckedChange={(v) => set({ active: v })} />
+                <Label className="text-[13px]">{form.active ? 'Enabled' : 'Paused'}</Label>
+              </div>
+              <div>
+                <Label className="text-[12px] font-medium">Buyer name</Label>
+                <Input value={form.destination_name} onChange={(e) => set({ destination_name: e.target.value })} className="mt-1 bg-background h-9" placeholder={buyerName} />
+              </div>
+              <div>
+                <Label className="text-[12px] font-medium">Alias</Label>
+                <Input value={form.alias} onChange={(e) => set({ alias: e.target.value })} className="mt-1 bg-background h-9" placeholder="short alias" />
+              </div>
             </div>
-            <div>
-              <Label className="text-[12px] font-medium">Destination name</Label>
-              <Input value={form.destination_name} onChange={(e) => set({ destination_name: e.target.value })} className="mt-1 bg-background h-9" placeholder={buyerName} />
-            </div>
-            <div>
-              <Label className="text-[12px] font-medium">Alias</Label>
-              <Input value={form.alias} onChange={(e) => set({ alias: e.target.value })} className="mt-1 bg-background h-9" placeholder="short alias" />
-            </div>
-          </div>
+          </Section>
 
           <Section title="Payout" description="Payout basis and per-lead amount." defaultOpen>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -223,7 +206,7 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
             </div>
           </Section>
 
-          <Section title="Cap Settings" description="Lead caps and budget caps for this destination.">
+          <Section title="Cap Settings" description="Lead caps and budget caps for this buyer.">
             <div>
               <div className="text-[11px] font-medium text-muted-foreground mb-2">Lead caps</div>
               <CapsEditor value={form.caps} onChange={(v) => set({ caps: v })} />
@@ -244,11 +227,11 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
             </div>
           </Section>
 
-          <Section title="Lead Filters" description="Lead attributes this destination accepts.">
+          <Section title="Lead Filters" description="Lead attributes this buyer accepts.">
             <FiltersEditor value={form.filters} onChange={(v) => set({ filters: v })} />
           </Section>
 
-          <Section title="KPI Metrics" description="Performance targets for this destination.">
+          <Section title="KPI Metrics" description="Performance targets for this buyer.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-[12px] font-medium">Target CPA ($)</Label>
@@ -272,51 +255,50 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
             </div>
           </Section>
 
-          <Section title="Ping Configuration" description="Ping request and response parsing.">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
-              <div>
-                <Label className="text-[12px] font-medium">Ping URL</Label>
-                <Input value={form.ping.url} onChange={(e) => setPing({ url: e.target.value })} className="mt-1 bg-background h-9" placeholder="https://buyer.example/ping" />
+          {showPing && (
+            <Section title="Ping Configuration" description="Ping request and response parsing.">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
+                <div>
+                  <Label className="text-[12px] font-medium">Ping URL</Label>
+                  <Input value={form.ping.url} onChange={(e) => setPing({ url: e.target.value })} className="mt-1 bg-background h-9" placeholder="https://buyer.example/ping" />
+                </div>
+                <div>
+                  <Label className="text-[12px] font-medium">Format</Label>
+                  <Select value={form.ping.format} onValueChange={(v) => setPing({ format: v })}>
+                    <SelectTrigger className="mt-1 bg-background h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>{PING_FORMATS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-[12px] font-medium">Timeout (ms)</Label>
+                  <Input type="number" value={form.ping.timeout_ms} onChange={(e) => setPing({ timeout_ms: e.target.value })} className="mt-1 bg-background h-9 font-mono text-[12px]" />
+                </div>
               </div>
               <div>
-                <Label className="text-[12px] font-medium">Format</Label>
-                <Select value={form.ping.format} onValueChange={(v) => setPing({ format: v })}>
-                  <SelectTrigger className="mt-1 bg-background h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>{PING_FORMATS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label className="text-[12px] font-medium">Headers (JSON)</Label>
+                <Textarea value={form.ping.headers} onChange={(e) => setPing({ headers: e.target.value })} rows={2} className="mt-1 bg-background font-mono text-[12px]" placeholder='{"X-Env":"prod"}' />
               </div>
               <div>
-                <Label className="text-[12px] font-medium">Timeout (ms)</Label>
-                <Input type="number" value={form.ping.timeout_ms} onChange={(e) => setPing({ timeout_ms: e.target.value })} className="mt-1 bg-background h-9 font-mono text-[12px]" />
+                <Label className="text-[12px] font-medium">Ping body template</Label>
+                <Textarea value={form.ping.body_template} onChange={(e) => setPing({ body_template: e.target.value })} rows={3} className="mt-1 bg-background font-mono text-[12px]" />
               </div>
-            </div>
-            <div>
-              <Label className="text-[12px] font-medium">Headers (JSON)</Label>
-              <Textarea value={form.ping.headers} onChange={(e) => setPing({ headers: e.target.value })} rows={2} className="mt-1 bg-background font-mono text-[12px]" placeholder='{"X-Env":"prod"}' />
-            </div>
-            <div>
-              <Label className="text-[12px] font-medium">Ping body template</Label>
-              <Textarea value={form.ping.body_template} onChange={(e) => setPing({ body_template: e.target.value })} rows={3} className="mt-1 bg-background font-mono text-[12px]" />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-muted-foreground mb-2">Response parsing (accept when)</div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Input value={form.ping.accept_field} onChange={(e) => setPing({ accept_field: e.target.value })} placeholder="field" className="bg-background h-9 text-[12px]" />
-                <Select value={form.ping.accept_operator} onValueChange={(v) => setPing({ accept_operator: v })}>
-                  <SelectTrigger className="bg-background h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>{PING_OPERATORS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input value={form.ping.accept_value} onChange={(e) => setPing({ accept_value: e.target.value })} placeholder="value" className="bg-background h-9 text-[12px]" />
+              <div>
+                <div className="text-[11px] font-medium text-muted-foreground mb-2">Response parsing (accept when)</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Input value={form.ping.accept_field} onChange={(e) => setPing({ accept_field: e.target.value })} placeholder="field" className="bg-background h-9 text-[12px]" />
+                  <Select value={form.ping.accept_operator} onValueChange={(v) => setPing({ accept_operator: v })}>
+                    <SelectTrigger className="bg-background h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>{PING_OPERATORS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input value={form.ping.accept_value} onChange={(e) => setPing({ accept_value: e.target.value })} placeholder="value" className="bg-background h-9 text-[12px]" />
+                </div>
               </div>
-            </div>
-            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Switch checked={form.ping.realtime_price} onCheckedChange={(v) => setPing({ realtime_price: v })} />
                 <Label className="text-[13px]">Real-time price</Label>
               </div>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info('Ping test is not wired in this layout')}><Send className="w-3.5 h-3.5" />Test Ping</Button>
-            </div>
-          </Section>
+            </Section>
+          )}
 
           <Section title="Delivery Method" description="How accepted leads are delivered.">
             <div>
@@ -326,7 +308,7 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
                 <SelectContent>{DELIVERY_METHODS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
               <div>
                 <Label className="text-[12px] font-medium">Endpoint URL</Label>
                 <Input value={form.delivery.url} onChange={(e) => setDelivery({ url: e.target.value })} className="mt-1 bg-background h-9" placeholder="https://buyer.example/api" />
@@ -338,30 +320,22 @@ export default function DestinationConfigModal({ open, onOpenChange, member, buy
                   <SelectContent>{PING_FORMATS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-[12px] font-medium">Timeout (ms)</Label>
-                <Input type="number" value={form.delivery.timeout_ms} onChange={(e) => setDelivery({ timeout_ms: e.target.value })} className="mt-1 bg-background h-9 font-mono text-[12px]" />
-              </div>
             </div>
             <div>
               <Label className="text-[12px] font-medium">Headers (JSON)</Label>
               <Textarea value={form.delivery.headers} onChange={(e) => setDelivery({ headers: e.target.value })} rows={2} className="mt-1 bg-background font-mono text-[12px]" placeholder='{"Authorization":"Bearer ..."}' />
             </div>
             <div>
-              <Label className="text-[12px] font-medium">Post body template</Label>
+              <Label className="text-[12px] font-medium">Body template</Label>
               <Textarea value={form.delivery.body_template} onChange={(e) => setDelivery({ body_template: e.target.value })} rows={3} className="mt-1 bg-background font-mono text-[12px]" />
             </div>
           </Section>
-
-          <Button variant="outline" className="w-full gap-1.5" disabled={saving} onClick={() => save({ integration_complete: true, active: true })}>
-            <CheckCircle2 className="w-4 h-4" />Mark Integration Complete &amp; Activate
-          </Button>
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => save()} disabled={saving} className="gap-1.5">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save Changes
+          <Button onClick={save} disabled={saving} className="gap-1.5">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save
           </Button>
         </DialogFooter>
       </DialogContent>

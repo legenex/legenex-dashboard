@@ -13,31 +13,27 @@ import {
 
 const money = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? '--' : `$${Number(v).toFixed(2)}`);
 
-// Column set for the Destinations table. `key` doubles as the metric accessor;
-// live metrics are not computed here (layout only) so unknown metrics show --.
+// Buyers routing table columns. `key` doubles as the metric accessor; live
+// per-buyer metrics are not computed here (layout/wiring only) so unknown
+// metrics show --. Payout reads the RouteMember fixed_price.
 const COLUMNS = [
   { key: 'cap', label: 'Cap' },
   { key: 'accepted', label: 'Accepted' },
   { key: 'leads_14d', label: 'Leads 14D' },
   { key: 'payout', label: 'Payout', money: true },
-  { key: 'pending', label: 'Pending' },
-  { key: 'not_qualified', label: 'Not Qualified' },
-  { key: 'converted', label: 'Converted' },
   { key: 'conv_rate', label: 'Conv Rate' },
   { key: 'cpl', label: 'CPL', money: true },
-  { key: 'cpa', label: 'CPA', money: true },
   { key: 'revenue', label: 'Revenue', money: true },
   { key: 'billing', label: 'Billing' },
 ];
 
-export default function DestinationsTable({
+export default function BuyersRoutingTable({
   members, buyerName, onReorder, onMove, onEdit, onToggle, onRemove, onAdd,
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dragIndex, setDragIndex] = useState(null);
   const [visibleCols, setVisibleCols] = useState(COLUMNS.map((c) => c.key));
-  const [colsOpen, setColsOpen] = useState(false);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -58,13 +54,15 @@ export default function DestinationsTable({
     setDragIndex(null);
   };
 
+  const payoutFor = (m) => (m.fixed_price != null && m.fixed_price !== '' ? m.fixed_price : m.reserve_price);
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="w-4 h-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search destinations" className="pl-8 h-9 bg-background" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search buyers" className="pl-8 h-9 bg-background" />
         </div>
         <div className="flex items-center gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -75,7 +73,7 @@ export default function DestinationsTable({
               <SelectItem value="paused">Paused</SelectItem>
             </SelectContent>
           </Select>
-          <DropdownMenu open={colsOpen} onOpenChange={setColsOpen}>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 gap-1.5"><Columns3 className="w-4 h-4" />Columns</Button>
             </DropdownMenuTrigger>
@@ -88,7 +86,7 @@ export default function DestinationsTable({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" className="h-9 gap-1.5" onClick={onAdd}><Plus className="w-4 h-4" />Add Destination</Button>
+          <Button size="sm" className="h-9 gap-1.5" onClick={onAdd}><Plus className="w-4 h-4" />Add Buyer</Button>
         </div>
       </div>
 
@@ -98,14 +96,14 @@ export default function DestinationsTable({
           <thead>
             <tr className="border-b border-border text-muted-foreground text-left">
               <th className="px-3 py-2.5 font-medium w-28">Order</th>
-              <th className="px-3 py-2.5 font-medium min-w-[180px]">Destination</th>
+              <th className="px-3 py-2.5 font-medium min-w-[180px]">Buyer</th>
               {cols.map((c) => <th key={c.key} className="px-3 py-2.5 font-medium whitespace-nowrap text-right">{c.label}</th>)}
               <th className="px-3 py-2.5 font-medium w-10" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {rows.length === 0 && (
-              <tr><td colSpan={cols.length + 3} className="px-3 py-10 text-center text-muted-foreground">No destinations. Add one to start routing.</td></tr>
+              <tr><td colSpan={cols.length + 3} className="px-3 py-10 text-center text-muted-foreground">No buyers. Add one to start routing.</td></tr>
             )}
             {rows.map((m, i) => {
               const active = m.active !== false;
@@ -137,7 +135,7 @@ export default function DestinationsTable({
                   </td>
                   {cols.map((c) => (
                     <td key={c.key} className="px-3 py-2.5 text-right font-mono tabular-nums whitespace-nowrap">
-                      {c.money ? money(m[c.key]) : (m[c.key] ?? '--')}
+                      {c.key === 'payout' ? money(payoutFor(m)) : c.money ? money(m[c.key]) : (m[c.key] ?? '--')}
                     </td>
                   ))}
                   <td className="px-3 py-2.5 text-right">
