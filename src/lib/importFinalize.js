@@ -40,16 +40,12 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Derive lead_type when the payload did not carry one. Rules are ordered and
-// intentionally simple so they are easy to extend per supplier or funnel.
+// Derive lead_type when the payload did not carry one. Per Nick's decision on
+// 20 Jul 2026, every lead missing a lead_type is filled with 'Quiz'.
 export function deriveLeadType(mapped) {
   const existing = clean(mapped.lead_type);
   if (existing) return existing;
-  const optin = String(mapped.optin_url || mapped.opt_in_url || '').toLowerCase();
-  const ssid = String(mapped.ssid || '').toLowerCase();
-  if (optin.includes('quiz.') || optin.includes('/quiz')) return 'Quiz';
-  if (ssid.includes('survey')) return 'Survey';
-  return null;
+  return 'Quiz';
 }
 
 // Build the top-level patch for one lead from its mapped fields. Only fills
