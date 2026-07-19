@@ -9,7 +9,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { generateBundle, OUT_PATH } from './generate-backend-engine.mjs';
+import { generateBundle, OUT_PATH, CONSUMER_DIRS, consumerPath } from './generate-backend-engine.mjs';
 
 function fail(msg) { console.error(`PARITY CHECK FAILED: ${msg}`); process.exit(1); }
 
@@ -21,6 +21,20 @@ catch { fail(`${OUT_PATH} is missing. Run: node scripts/generate-backend-engine.
 const { content } = await generateBundle();
 if (committed !== content) {
   fail(`${OUT_PATH} is stale. Run: node scripts/generate-backend-engine.mjs and commit the result.`);
+}
+
+// 1b. Every per-function consumer copy must exist and match the canonical
+// bundle byte for byte. The Base44 bundler cannot import across function
+// folders, so consumers carry generated copies; this check is what keeps them
+// honest as copies of the one canonical engine.
+for (const dir of CONSUMER_DIRS) {
+  const p = consumerPath(dir);
+  let copy;
+  try { copy = readFileSync(p, 'utf8'); }
+  catch { fail(`${p} is missing. Run: node scripts/generate-backend-engine.mjs`); }
+  if (copy !== content) {
+    fail(`${p} is stale. Run: node scripts/generate-backend-engine.mjs and commit the result.`);
+  }
 }
 
 // 2. Anti-mirror: no hand-written routing engine DEFINITION may exist in
@@ -40,7 +54,7 @@ function scan(dir) {
     const s = statSync(p);
     if (s.isDirectory()) { scan(p); continue; }
     if (!p.endsWith('.ts') && !p.endsWith('.js')) continue;
-    if (p.includes('_shared/routingEngine.generated')) continue; // the allowed engine
+    if (p.endsWith('routingEngine.generated.js')) continue; // generated engine copies are allowed
     const src = readFileSync(p, 'utf8');
     for (const re of FORBIDDEN) {
       if (re.test(src)) fail(`hand-written routing logic found in ${p} (matches ${re}). Use the canonical engine.`);
