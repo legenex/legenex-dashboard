@@ -1,32 +1,31 @@
 import React from 'react';
-import { Play, Pause, Ban, Trash2, Pencil } from 'lucide-react';
+import { Play, Pause, Copy, Trash2, Pencil } from 'lucide-react';
 import RowActionsMenu from '@/components/campaigns/RowActionsMenu';
 
-// Per status row actions, presented as a shared 3-dot overflow menu. Instant
-// transitions (Activate) call onTransition directly. Pause, Terminate and
-// Delete are routed through their confirm dialogs by the parent via
-// onPause / onTerminate / onDelete. Status logic is unchanged; only the
-// presentation moved from inline buttons to the dropdown.
-export default function SupplierRowActions({ supplier, onTransition, onPause, onTerminate, onDelete, onEdit }) {
+// Per-row supplier actions in a shared 3-dot overflow menu. Edit, Enable/Disable
+// (an instant status transition), Clone and Delete are always available. Status
+// transitions call onTransition directly; Delete is routed through its confirm
+// dialog by the parent.
+export default function SupplierRowActions({ supplier, onTransition, onDelete, onEdit, onClone }) {
   const status = String(supplier.status || 'new').toLowerCase();
+  const isActive = status === 'active';
   const actions = [];
 
   if (onEdit) {
     actions.push({ label: 'Edit', icon: Pencil, onClick: () => onEdit(supplier) });
   }
 
-  const first = onEdit ? { separatorBefore: true } : {};
-  if (status === 'new') {
-    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(supplier, 'active'), ...first });
-  } else if (status === 'active') {
-    actions.push({ label: 'Pause', icon: Pause, onClick: () => onPause(supplier), ...first });
-    actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(supplier), danger: true, separatorBefore: true });
-  } else if (status === 'paused') {
-    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(supplier, 'active'), ...first });
-    actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(supplier), danger: true, separatorBefore: true });
-  } else if (status === 'terminated') {
-    actions.push({ label: 'Delete', icon: Trash2, onClick: () => onDelete(supplier), danger: true, ...first });
+  actions.push(
+    isActive
+      ? { label: 'Disable', icon: Pause, onClick: () => onTransition(supplier, 'paused'), separatorBefore: !!onEdit }
+      : { label: 'Enable', icon: Play, onClick: () => onTransition(supplier, 'active'), separatorBefore: !!onEdit },
+  );
+
+  if (onClone) {
+    actions.push({ label: 'Clone', icon: Copy, onClick: () => onClone(supplier) });
   }
+
+  actions.push({ label: 'Delete', icon: Trash2, onClick: () => onDelete(supplier), danger: true, separatorBefore: true });
 
   return <RowActionsMenu actions={actions} />;
 }

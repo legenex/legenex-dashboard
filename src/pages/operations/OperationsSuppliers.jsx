@@ -14,6 +14,7 @@ import SuppliersEmptyState from '@/components/operations/suppliers/SuppliersEmpt
 import SupplierCreateModal from '@/components/operations/suppliers/SupplierCreateModal';
 import SupplierActionDialog from '@/components/operations/suppliers/SupplierActionDialog';
 import SupplierDeleteDialog from '@/components/operations/suppliers/SupplierDeleteDialog';
+import SupplierBulkDeleteBar from '@/components/operations/suppliers/SupplierBulkDeleteBar';
 import NoChannelBanner from '@/components/operations/suppliers/NoChannelBanner';
 import SupplierDetailPage from '@/components/operations/suppliers/SupplierDetailPage';
 import { suppliersWithNoChannel } from '@/components/operations/suppliers/supplierListModel';
@@ -46,6 +47,8 @@ export default function OperationsSuppliers() {
   const [deleteState, setDeleteState] = useState(null); // { supplier }
   const [drawer, setDrawer] = useState(null); // { supplierId, tab }
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['op-suppliers'],
@@ -127,6 +130,44 @@ export default function OperationsSuppliers() {
     qc.invalidateQueries({ queryKey: ['op-suppliers'] });
   };
 
+  // Clone a supplier: copy its editable fields, reset status to new, blank the
+  // SID, and append "(Copy)" to the name. Sources are not copied.
+  const cloneSupplier = async (supplier) => {
+    const { id, created_date, updated_date, created_by_id, ...rest } = supplier;
+    const created = await base44.entities.Supplier.create({
+      ...rest,
+      name: `${supplier.name || 'Supplier'} (Copy)`,
+      sid: '',
+      status: 'new',
+    });
+    toast.success('Supplier cloned');
+    await refresh();
+    setDrawer({ supplierId: created.id });
+  };
+
+  const toggleSelect = (id) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const toggleSelectAll = (checked) => setSelectedIds(checked ? new Set(rows.map((s) => s.id)) : new Set());
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      const ids = [...selectedIds];
+      await Promise.all(ids.map((id) => base44.entities.Supplier.delete(id)));
+      toast.success(`${ids.length} ${ids.length === 1 ? 'supplier' : 'suppliers'} deleted`);
+      clearSelection();
+      await qc.invalidateQueries({ queryKey: ['op-suppliers'] });
+    } catch (err) {
+      toast.error(`Could not delete suppliers: ${err?.message || 'unknown error'}`);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   // After a create, refresh the table then open the new supplier on Sources,
   // since a supplier with no source falls back to its supplier level payout.
   const onCreated = async (created) => {
@@ -189,6 +230,13 @@ export default function OperationsSuppliers() {
             <ColumnManager config={config} availableColumns={SUPPLIER_AVAILABLE_COLUMNS} onChange={onConfigChange} />
           </div>
 
+          <SupplierBulkDeleteBar
+            count={selectedIds.size}
+            onClear={clearSelection}
+            onConfirmDelete={confirmBulkDelete}
+            deleting={bulkDeleting}
+          />
+
           <SupplierTable
             suppliers={rows}
             sources={sources}
@@ -198,11 +246,13 @@ export default function OperationsSuppliers() {
             sortDir={sortDir}
             onSort={onSort}
             onTransition={transition}
-            onPause={openPause}
-            onTerminate={openTerminate}
             onDelete={(supplier) => setDeleteState({ supplier })}
+            onClone={cloneSupplier}
             onRowClick={openSupplier}
             onFixChannel={fixChannel}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
           />
         </>
       )}
