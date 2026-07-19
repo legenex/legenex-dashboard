@@ -102,6 +102,7 @@ export const PATH_KEYS = {
   '/distribution': 'dist_dashboard',
   '/campaigns': 'dist_campaigns',
   '/campaigns/deliveries': 'dist_deliveries',
+  '/distribution/buyers': 'dist_buyers',
   '/deliveries': 'dist_webhooks',
   '/conversion-events': 'dist_conversion_events',
   '/distribution/routes': 'dist_routes',
@@ -153,6 +154,7 @@ export function keyForLocation(pathname, search) {
   // Detail routes fall under their list permission.
   if (pathname.startsWith('/suppliers/')) return 'dist_suppliers';
   if (pathname.startsWith('/buyers/')) return 'dist_buyers';
+  if (pathname.startsWith('/distribution/buyers/')) return 'dist_buyers';
   return PATH_KEYS[pathname] || null;
 }
 

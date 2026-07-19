@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import SectionHeader from '@/components/shared/SectionHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,11 +15,15 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { Link } from 'react-router-dom';
-import { Plus, Send, Loader2, KeyRound, AlertTriangle, Link2, GitBranch, Route as RouteIcon } from 'lucide-react';
+import { Plus, Send, Loader2, KeyRound, AlertTriangle, Link2 } from 'lucide-react';
 import { CORE_LEAD_FIELDS } from '@/components/settings/leadSourceFields';
 import { buildDeliveryPreview, classifySampleResponse } from '@/lib/distribution/previewClient';
 
+// Per-buyer Deliveries panel. This is the former standalone CampaignDeliveries
+// content, scoped to a single buyer and embedded in the Buyers > Deliveries tab.
+// The endpoint config, payload preview, response tester, backlinks, and gated
+// live test are unchanged; only the surrounding list is filtered to this buyer
+// and a new delivery is pre-attached to the buyer.
 const STATUSES = ['draft', 'active', 'paused', 'archived'];
 const SAMPLE_LEAD = { first_name: 'Jane', last_name: 'Doe', email: 'jane@example.com', mobile: '5551234567', state: 'TX', zip: '75001', vertical: 'legal' };
 
@@ -31,14 +34,13 @@ function statusColor(s) {
     : s === 'archived' ? 'bg-muted text-muted-foreground' : 'bg-blue-500/15 text-blue-600';
 }
 
-export default function CampaignDeliveries() {
+export default function BuyerDeliveriesPanel({ buyerId }) {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
   const [newOpen, setNewOpen] = useState(false);
 
-  const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list('-created_date', 1000) });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('-created_date', 500) });
-  const { data: deliveries = [], isLoading } = useQuery({ queryKey: ['deliveries'], queryFn: () => base44.entities.Delivery.list('-created_date', 2000) });
+  const { data: allDeliveries = [], isLoading } = useQuery({ queryKey: ['deliveries'], queryFn: () => base44.entities.Delivery.list('-created_date', 2000) });
   const { data: subs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000) });
   const { data: members = [] } = useQuery({ queryKey: ['routemembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 5000) });
   const { data: settings = [] } = useQuery({ queryKey: ['appsettings'], queryFn: () => base44.entities.AppSettings.list() });
@@ -46,18 +48,12 @@ export default function CampaignDeliveries() {
   const distributionMode = String((settings[0] && settings[0].distribution_mode) || 'legacy_only');
   const liveTestEnabled = distributionMode !== 'legacy_only';
 
-  const buyerName = (id) => buyers.find((b) => b.id === id)?.name || buyers.find((b) => b.id === id)?.company_name || id || 'Unknown buyer';
-  const byBuyer = useMemo(() => {
-    const groups = {};
-    for (const d of deliveries) { (groups[d.buyer_id] = groups[d.buyer_id] || []).push(d); }
-    return groups;
-  }, [deliveries]);
-
+  const deliveries = useMemo(() => allDeliveries.filter((d) => d.buyer_id === buyerId), [allDeliveries, buyerId]);
   const selected = deliveries.find((d) => d.id === selectedId) || null;
   const selectedSubs = subs.filter((s) => s.delivery_id === selectedId).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
 
   async function createDelivery(payload) {
-    await base44.entities.Delivery.create(payload);
+    await base44.entities.Delivery.create({ ...payload, buyer_id: buyerId });
     await qc.invalidateQueries({ queryKey: ['deliveries'] });
     toast.success('Delivery created');
   }
@@ -74,37 +70,28 @@ export default function CampaignDeliveries() {
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0">
-      <SectionHeader title="Deliveries" subtitle="Native buyer delivery endpoints, grouped by buyer">
-        {/* Routing-config tools live here (not in the primary nav) so they are reachable, not orphaned. */}
-        <Button asChild size="sm" variant="ghost"><Link to="/distribution/routes"><GitBranch className="w-4 h-4 mr-1" />Route Groups</Link></Button>
-        <Button asChild size="sm" variant="ghost"><Link to="/distribution/simulator"><RouteIcon className="w-4 h-4 mr-1" />Simulator</Link></Button>
+    <div className="flex flex-col min-h-0">
+      <div className="flex items-center justify-between pb-2">
+        <div className="text-xs text-muted-foreground">Delivery endpoints for this buyer</div>
         <Button size="sm" onClick={() => setNewOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Delivery</Button>
-      </SectionHeader>
+      </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-[300px_1fr] gap-4 overflow-hidden">
-        {/* List grouped by buyer */}
-        <div className="border-r border-border overflow-y-auto pr-2 space-y-4">
+      <div className="grid grid-cols-[280px_1fr] gap-4">
+        {/* Delivery list for this buyer */}
+        <div className="border-r border-border overflow-y-auto pr-2 space-y-0.5">
           {isLoading && <div className="text-sm text-muted-foreground p-3"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Loading</div>}
-          {!isLoading && deliveries.length === 0 && <div className="text-sm text-muted-foreground p-3">No deliveries yet.</div>}
-          {Object.entries(byBuyer).map(([bid, list]) => (
-            <div key={bid}>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 mb-1">{buyerName(bid)}</div>
-              <div className="space-y-0.5">
-                {list.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setSelectedId(d.id)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-[13px] flex items-center justify-between gap-2 ${
-                      selectedId === d.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent/40'
-                    }`}
-                  >
-                    <span className="truncate">{d.name || '(unnamed delivery)'}</span>
-                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${statusColor(d.status)}`}>{d.status || 'draft'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+          {!isLoading && deliveries.length === 0 && <div className="text-sm text-muted-foreground p-3">No deliveries yet for this buyer.</div>}
+          {deliveries.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => setSelectedId(d.id)}
+              className={`w-full text-left px-3 py-2 rounded-md text-[13px] flex items-center justify-between gap-2 ${
+                selectedId === d.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent/40'
+              }`}
+            >
+              <span className="truncate">{d.name || '(unnamed delivery)'}</span>
+              <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${statusColor(d.status)}`}>{d.status || 'draft'}</span>
+            </button>
           ))}
         </div>
 
@@ -127,7 +114,7 @@ export default function CampaignDeliveries() {
         </div>
       </div>
 
-      <NewDeliveryDialog open={newOpen} onOpenChange={setNewOpen} buyers={buyers} verticals={verticals} onCreate={createDelivery} />
+      <NewDeliveryDialog open={newOpen} onOpenChange={setNewOpen} verticals={verticals} onCreate={createDelivery} />
     </div>
   );
 }
@@ -387,19 +374,13 @@ function Field({ label, children }) {
   return <div><Label className="text-xs">{label}</Label><div className="mt-1">{children}</div></div>;
 }
 
-function NewDeliveryDialog({ open, onOpenChange, buyers, verticals, onCreate }) {
-  const [form, setForm] = useState({ buyer_id: '', name: '', vertical_id: '', status: 'draft' });
+function NewDeliveryDialog({ open, onOpenChange, verticals, onCreate }) {
+  const [form, setForm] = useState({ name: '', vertical_id: '', status: 'draft' });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>New delivery</DialogTitle><DialogDescription>A delivery belongs to exactly one buyer.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>New delivery</DialogTitle><DialogDescription>This delivery is attached to the current buyer.</DialogDescription></DialogHeader>
         <div className="space-y-3">
-          <Field label="Buyer">
-            <Select value={form.buyer_id} onValueChange={(v) => setForm((f) => ({ ...f, buyer_id: v }))}>
-              <SelectTrigger className="h-8"><SelectValue placeholder="Select buyer" /></SelectTrigger>
-              <SelectContent>{buyers.map((b) => <SelectItem key={b.id} value={b.id}>{b.name || b.company_name || b.id}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
           <Field label="Name"><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="h-8" /></Field>
           <Field label="Vertical (optional)">
             <Select value={form.vertical_id} onValueChange={(v) => setForm((f) => ({ ...f, vertical_id: v }))}>
@@ -410,7 +391,7 @@ function NewDeliveryDialog({ open, onOpenChange, buyers, verticals, onCreate }) 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button disabled={!form.buyer_id} onClick={async () => { await onCreate(form); onOpenChange(false); setForm({ buyer_id: '', name: '', vertical_id: '', status: 'draft' }); }}>Create</Button>
+          <Button onClick={async () => { await onCreate(form); onOpenChange(false); setForm({ name: '', vertical_id: '', status: 'draft' }); }}>Create</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
