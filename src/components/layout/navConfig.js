@@ -23,6 +23,17 @@ export const navGroups = [
     ],
   },
   {
+    label: 'Operations', icon: SlidersHorizontal, type: 'dropdown', path: '/operations', permKey: 'operations',
+    children: [
+      { label: 'Dashboard', path: '/operations', icon: Gauge, permKey: 'operations' },
+      { label: 'Buyers', path: '/operations/buyers', icon: Users, permKey: 'operations' },
+      { label: 'Suppliers', path: '/operations/suppliers', icon: Truck, permKey: 'operations' },
+      { label: 'Active States', path: '/operations/active-states', icon: MapPin, permKey: 'operations' },
+      { label: 'Billing Reports', path: '/operations/billing-reports', icon: FileBarChart, permKey: 'operations' },
+      { label: 'Buyer Onboarding', path: '/operations/buyer-onboarding', icon: UserPlus, permKey: 'operations' },
+    ],
+  },
+  {
     label: 'Lead Distribution', icon: Share2, type: 'dropdown', path: '/distribution', permKey: 'dist_dashboard',
     children: [
       { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard, permKey: 'dist_dashboard' },
@@ -63,17 +74,6 @@ export const navGroups = [
       { label: 'Supplier Payouts', path: '/finances', tab: 'payouts', icon: HandCoins, permKey: 'finances' },
       { label: 'Ad Spend', path: '/finances', tab: 'adspend', icon: BadgeDollarSign, permKey: 'finances' },
       { label: 'Settings', path: '/finances', tab: 'settings', icon: Cog, permKey: 'finances' },
-    ],
-  },
-  {
-    label: 'Operations', icon: SlidersHorizontal, type: 'dropdown', path: '/operations', permKey: 'operations',
-    children: [
-      { label: 'Dashboard', path: '/operations', icon: Gauge, permKey: 'operations' },
-      { label: 'Buyers', path: '/operations/buyers', icon: Users, permKey: 'operations' },
-      { label: 'Suppliers', path: '/operations/suppliers', icon: Truck, permKey: 'operations' },
-      { label: 'Active States', path: '/operations/active-states', icon: MapPin, permKey: 'operations' },
-      { label: 'Billing Reports', path: '/operations/billing-reports', icon: FileBarChart, permKey: 'operations' },
-      { label: 'Buyer Onboarding', path: '/operations/buyer-onboarding', icon: UserPlus, permKey: 'operations' },
     ],
   },
   {
