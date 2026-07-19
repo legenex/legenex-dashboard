@@ -32,6 +32,7 @@ export const navGroups = [
           { label: 'Verticals', path: '/campaigns', tab: 'verticals', icon: Layers, permKey: 'dist_campaigns' },
           { label: 'Buyers', path: '/campaigns', tab: 'buyers', icon: Users, permKey: 'dist_campaigns' },
           { label: 'Suppliers', path: '/campaigns', tab: 'suppliers', icon: Truck, permKey: 'dist_campaigns' },
+          { label: 'Deliveries', path: '/campaigns/deliveries', icon: Send, permKey: 'dist_campaigns' },
           { label: 'Brands', path: '/campaigns', tab: 'brands', icon: Tag, permKey: 'dist_campaigns' },
         ],
       },

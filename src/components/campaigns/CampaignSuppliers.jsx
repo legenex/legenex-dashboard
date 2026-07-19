@@ -19,6 +19,7 @@ import { resolvePeriod } from '@/lib/periodRange';
 import { money } from '@/lib/partnerMetrics';
 import { supplierCostMetrics, payoutSummary } from '@/lib/supplierCost';
 import SupplierSourceRows from '@/components/campaigns/SupplierSourceRows';
+import RowActionsMenu from '@/components/campaigns/RowActionsMenu';
 
 function generateKey(supplierType = '') {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -237,9 +238,11 @@ export default function CampaignSuppliers() {
                   <span className="text-right font-mono text-[12px] text-foreground">{money(m.moneyDue)}</span>
                   <span className="flex items-center justify-end gap-1">
                     <span onClick={e => e.stopPropagation()} className="mr-1"><Switch checked={!!s.portal_enabled} onCheckedChange={() => {}} onClick={(e) => togglePortal(s, e)} /></span>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit" onClick={(e) => openEdit(s, e)}><Pencil className="w-3.5 h-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Clone" onClick={(e) => cloneSupplier(s, e)}><Files className="w-3.5 h-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Delete" onClick={(e) => { e.stopPropagation(); setDeleteTarget(s); }}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    <RowActionsMenu
+                      onEdit={(e) => openEdit(s, e)}
+                      onClone={(e) => cloneSupplier(s, e)}
+                      onDelete={(e) => { e.stopPropagation(); setDeleteTarget(s); }}
+                    />
                   </span>
                 </div>
                 {isOpen && (
