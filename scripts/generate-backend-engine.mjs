@@ -14,6 +14,19 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 export const OUT_PATH = 'base44/functions/_shared/routingEngine.generated.js';
+// The Base44 function bundler cannot resolve relative imports outside a
+// function's own folder, so every consuming function gets an identical
+// generated copy alongside its entry.ts. These copies are generated artifacts
+// only: the parity check fails if any of them drifts from the canonical bundle.
+export const CONSUMER_DIRS = [
+  'base44/functions/processLead',
+  'base44/functions/distributionSimulate',
+  'base44/functions/distributionSetMode',
+  'base44/functions/distributionConfig',
+  'base44/functions/distributionShadowReport',
+  'base44/functions/campaignDeliveryTest',
+];
+export const consumerPath = (dir) => `${dir}/routingEngine.generated.js`;
 const ENTRY = 'src/lib/distribution/backend-entry.js';
 
 export async function generateBundle() {
@@ -41,6 +54,10 @@ async function main() {
   mkdirSync(dirname(OUT_PATH), { recursive: true });
   writeFileSync(OUT_PATH, content);
   console.log(`wrote ${OUT_PATH} (canonical-engine-sha256: ${hash})`);
+  for (const dir of CONSUMER_DIRS) {
+    writeFileSync(consumerPath(dir), content);
+    console.log(`wrote ${consumerPath(dir)}`);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
