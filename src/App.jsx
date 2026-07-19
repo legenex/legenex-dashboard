@@ -61,12 +61,14 @@ import ToolsDashboard from '@/pages/ToolsDashboard';
 import PortalLayout from '@/components/portal/PortalLayout';
 import PortalDashboard from '@/pages/portal/PortalDashboard';
 import PortalLeads from '@/pages/portal/PortalLeads';
+import PortalReports from '@/pages/portal/PortalReports';
 import PortalReturns from '@/pages/portal/PortalReturns';
 import PortalSettings from '@/pages/portal/PortalSettings';
 
 import SupplierPortalLayout from '@/components/supplierportal/SupplierPortalLayout';
 import SupplierPortalDashboard from '@/pages/supplierportal/SupplierPortalDashboard';
 import SupplierPortalLeads from '@/pages/supplierportal/SupplierPortalLeads';
+import SupplierPortalReports from '@/pages/supplierportal/SupplierPortalReports';
 import SupplierPortalReturns from '@/pages/supplierportal/SupplierPortalReturns';
 import SupplierPortalApi from '@/pages/supplierportal/SupplierPortalApi';
 import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSettings';
@@ -162,6 +164,7 @@ const AuthenticatedApp = () => {
         <Route element={<PortalLayout />}>
           <Route path="/portal" element={<PortalDashboard />} />
           <Route path="/portal/leads" element={<PortalLeads />} />
+          <Route path="/portal/reports" element={<PortalReports />} />
           <Route path="/portal/returns" element={<PortalReturns />} />
           <Route path="/portal/settings" element={<PortalSettings />} />
         </Route>
@@ -169,6 +172,7 @@ const AuthenticatedApp = () => {
         <Route element={<SupplierPortalLayout />}>
           <Route path="/supplier-portal" element={<SupplierPortalDashboard />} />
           <Route path="/supplier-portal/leads" element={<SupplierPortalLeads />} />
+          <Route path="/supplier-portal/reports" element={<SupplierPortalReports />} />
           <Route path="/supplier-portal/returns" element={<SupplierPortalReturns />} />
           <Route path="/supplier-portal/api" element={<SupplierPortalApi />} />
           <Route path="/supplier-portal/settings" element={<SupplierPortalSettings />} />

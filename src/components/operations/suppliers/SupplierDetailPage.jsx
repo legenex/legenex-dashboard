@@ -76,10 +76,21 @@ export default function SupplierDetailPage({ supplier, onBack }) {
               <SupplierPayoutTab supplier={supplier} />
             </div>
 
-            {/* Source Portal — reuses the existing notifications editor */}
+            {/* Source Portal — access + invite, then notifications editor */}
             <div className="rounded-lg border border-border bg-card p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Source Portal</p>
-              <SupplierNotificationsTab supplier={supplier} />
+              <PortalEnablementCard
+                record={supplier}
+                entityName="Supplier"
+                contactName={supplier.contact_name}
+                contactEmail={supplier.email}
+                previewPath={`/supplier-portal?supplier_id=${encodeURIComponent(supplier.id)}`}
+                queryKey={['op-suppliers']}
+                label="source portal"
+              />
+              <div className="mt-5 pt-5 border-t border-border">
+                <SupplierNotificationsTab supplier={supplier} />
+              </div>
             </div>
           </div>
 
