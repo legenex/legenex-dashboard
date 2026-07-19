@@ -12,10 +12,16 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // - An operator (admin) may pass ?supplier_id= to PREVIEW a supplier's portal.
 //   Non-admin callers cannot override their linked supplier.
 
-async function resolveSupplierScope(user: any, requestedSupplierId: string | null) {
+async function resolveSupplierScope(base44: any, user: any, requestedSupplierId: string | null, previewRole: boolean) {
   const isOperator = user.role === 'admin';
   if (isOperator && requestedSupplierId) return requestedSupplierId;
   if (user.linked_supplier_id) return user.linked_supplier_id;
+  // Operator using "View as → Supplier" with no specific target: preview the
+  // first portal-enabled supplier so the portal renders a real example.
+  if (isOperator && previewRole) {
+    const enabled = await base44.asServiceRole.entities.Supplier.filter({ portal_enabled: true }, '-created_date', 1).catch(() => []);
+    if (enabled && enabled.length > 0) return enabled[0].id;
+  }
   return null;
 }
 
@@ -33,7 +39,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const requestedSupplierId = body.supplier_id || null;
-    const supplierId = await resolveSupplierScope(user, requestedSupplierId);
+    const previewRole = !!body.preview_role;
+    const supplierId = await resolveSupplierScope(base44, user, requestedSupplierId, previewRole);
     if (!supplierId) return Response.json({ error: 'No supplier linked to this account' }, { status: 403 });
 
     const supplier = await base44.asServiceRole.entities.Supplier.get(supplierId).catch(() => null);
