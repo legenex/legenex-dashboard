@@ -1,7 +1,25 @@
 # Production Blocker Register
 
+> MERGED TO MAIN (2026-07-17). The native lead distribution platform (v2) was squash-merged into
+> `main` via PR #2 (merge commit `49f6411`), and the Phase 1 security repairs via PR #1 (merge commit
+> `7d3f429`). Base44 has synced `main`: all new entities (Delivery, SubDelivery, RouteGroup,
+> RouteMember, CapCounter, CapReservation, DeliveryAttempt, BidAttempt, DestinationHealth,
+> RouteDecisionTrace, RouteConfigVersion, DistributionAudit, BuyerWallet) are live, and
+> WalletTransaction carries the additive idempotency_key + status. PRODUCTION IS LIVE ON legacy_only:
+> `AppSettings.distribution_mode` is unset on the live record and reads as the schema default
+> `legacy_only`, so the shadow/native code is inert and the existing LeadByte path stays authoritative.
+> Post-merge live verification confirmed all four LeadByteConnector records and the three Facebook
+> ApiConnector conversion events are still enabled=true with unchanged endpoints and updated_date, and
+> CustomCalculation still has the vertical field. Nothing new activates until an operator moves
+> distribution_mode past legacy_only via the audited distributionSetMode function.
+>
+> UPDATE (2026-07-19): the buyer-centric Lead Distribution IA recomposition (UI only) was squash-merged
+> via PR #4 (merge commit `31d6297`); no engine, entity schema, or backend function file changed. The
+> IA note below records the details. Production remains on legacy_only.
+
 Primary source of truth for the native lead distribution platform (v2). Verification date:
-2026-07-15. Branch: `integration/native-lead-distribution-v2` (from `main` @ `7ac2a41`).
+2026-07-15. Branch: `integration/native-lead-distribution-v2` (from `main` @ `7ac2a41`), merged to
+`main` 2026-07-17.
 
 Status values: OPEN, IN-PROGRESS, CLOSED (acceptance proven), INVALID (verified not a problem),
 BLOCKED-ON-CREDENTIALS, NEEDS-ENV, AWAITING-APPROVAL. A blocker closes ONLY when its acceptance
