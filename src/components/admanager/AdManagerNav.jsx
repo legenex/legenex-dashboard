@@ -56,7 +56,7 @@ export default function AdManagerNav() {
       <div className="space-y-0.5">
         {platforms.map((p) => (
           <div key={p.id} className="w-full flex items-center gap-2.5 px-3 h-8 rounded-md text-[11.5px] text-muted-foreground">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.connected ? 'bg-[#3DD68C]' : 'bg-muted-foreground/40'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.connected ? 'bg-current status-sold' : 'bg-muted-foreground/40'}`} />
             <span className="flex-1 truncate">{p.label}</span>
             <span className="text-[9.5px] text-muted-foreground/60">{p.connected ? 'connected' : 'not connected'}</span>
           </div>
