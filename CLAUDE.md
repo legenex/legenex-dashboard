@@ -6,10 +6,13 @@ Base44 app). Base44 deploys the `main` branch; feature branches do not deploy.
 ## Working Agreement (2026-07-19)
 
 1. **Claude Code is the only code writer.** The Base44 builder is retired for code
-   changes and is not used to modify code. Any future Base44 bot commit ("File
-   changes" or "External agent changes") on `main` is treated as Nick's
-   data-driven change or a legacy habit: rebase onto it, inherit it, never
-   overwrite it, and flag it in the report.
+   changes, with one narrow exception: Nick may make a small, single-concern,
+   UI-only fix through the builder (the hot lane) when no open PR touches that
+   area. Any Base44 bot commit ("File changes" or "External agent changes") on
+   `main` is treated as Nick's data-driven change, a hot-lane UI fix, or a legacy
+   habit: rebase onto it, inherit it, never overwrite it, and flag it in the
+   report. If a bot commit conflicts with an open branch, Nick's version on main
+   wins and the branch adapts to it.
 2. **Every task starts and ends with the ancestor check.** Start each task by
    fetching, rebasing onto `origin/main`, verifying with
    `git merge-base --is-ancestor origin/main HEAD`, and re-running the gates. End
