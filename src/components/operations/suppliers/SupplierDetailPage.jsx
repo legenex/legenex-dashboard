@@ -7,6 +7,7 @@ import SupplierChannelsCell from './SupplierChannelsCell';
 import SupplierPayoutTab from './SupplierPayoutTab';
 import SupplierNotificationsTab from './SupplierNotificationsTab';
 import SupplierSourcesTab from './SupplierSourcesTab';
+import PortalEnablementCard from '@/components/shared/PortalEnablementCard';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },

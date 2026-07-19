@@ -3,10 +3,11 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Archive, Wallet, CreditCard, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import BuyerStatusPill from './BuyerStatusPill';
 import BuyerProfileTab from './BuyerProfileTab';
 import BuyerCoverageTab from './BuyerCoverageTab';
+import PortalEnablementCard from '@/components/shared/PortalEnablementCard';
+import { billingTypeLabel } from '@/lib/billingTypes';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -83,7 +84,15 @@ export default function BuyerDetailPage({ buyer, verticals, onBack }) {
             {/* Partner Portal */}
             <div className="rounded-lg border border-border bg-card p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Partner Portal</p>
-              <PartnerPortalCard buyer={buyer} />
+              <PortalEnablementCard
+                record={buyer}
+                entityName="Buyer"
+                contactName={buyer.contact_name}
+                contactEmail={buyer.email}
+                previewPath={`/portal?buyer_id=${encodeURIComponent(buyer.id)}`}
+                queryKey={['op-buyers']}
+                label="partner portal"
+              />
             </div>
           </div>
 
@@ -97,7 +106,7 @@ export default function BuyerDetailPage({ buyer, verticals, onBack }) {
               <div className="space-y-3 text-[13px]">
                 <Row label="Balance"><span className="font-mono tabular-nums text-foreground">{money(buyer.balance)}</span></Row>
                 <Row label="Billing mode"><span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground capitalize">{buyer.billing_mode || 'lead_count'}</span></Row>
-                <Row label="Billing type"><span className="text-muted-foreground capitalize">{buyer.billing_type || 'prepay'}</span></Row>
+                <Row label="Billing type"><span className="text-muted-foreground">{billingTypeLabel(buyer.billing_type)}</span></Row>
                 <Row label="Min balance"><span className="font-mono tabular-nums text-muted-foreground">{money(buyer.min_balance)}</span></Row>
               </div>
             </div>
@@ -168,21 +177,6 @@ function Row({ label, children }) {
     <div className="flex items-center justify-between">
       <span className="text-muted-foreground">{label}</span>
       {children}
-    </div>
-  );
-}
-
-function PartnerPortalCard({ buyer }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2.5">
-        <div>
-          <p className="text-[13px] font-medium text-foreground">Portal access</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Let this buyer log into the partner portal.</p>
-        </div>
-        <Switch checked={!!buyer.portal_enabled} disabled />
-      </div>
-      <Button variant="outline" size="sm" className="w-full" disabled={!buyer.portal_enabled}>Preview portal</Button>
     </div>
   );
 }

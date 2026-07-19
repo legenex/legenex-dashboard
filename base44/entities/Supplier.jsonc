@@ -34,6 +34,10 @@
       "default": false,
       "description": "True when this supplier delivers inbound calls rather than form leads"
     },
+    "contact_name": {
+      "type": "string",
+      "description": "Primary contact person name. Required (with email) before the source portal can be enabled and an invite sent."
+    },
     "notify_email": {
       "type": "string",
       "description": "Email address for supplier notifications. Nullable."
