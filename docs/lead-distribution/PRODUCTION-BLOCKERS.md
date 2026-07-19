@@ -152,7 +152,7 @@ criteria are proven with evidence, never because code was written.
 Current: v2 starts from main, which has NO mirror (the v1 shadowEvaluateRouting never reached main),
 so there is nothing to delete. The single-canonical-engine mechanism is now built and proven:
 - Canonical engine: src/lib/distribution/ (backend surface: backend-entry.js).
-- Generated backend copy: base44/functions/_shared/routingEngine.generated.js via
+- Generated backend copies: canonical bundle at base44/functions/_shared/routingEngine.generated.js plus per-function copies (the Base44 bundler cannot import across function folders; parity check covers all copies) via
   scripts/generate-backend-engine.mjs (esbuild bundle, no imports, hash header).
 - Blocking parity + anti-mirror check: scripts/check-engine-parity.mjs (npm run engine:check), wired
   BLOCKING in .github/workflows/ci.yml. Proven to FAIL on a tampered bundle and on any reintroduced
