@@ -100,18 +100,9 @@ function isChildActive(location, child) {
   return location.pathname === child.path;
 }
 
-const SIDEBAR_GROUPS_KEY = 'legenex_sidebar_open_groups';
-
-// Persisted open groups - survives page refresh. Groups only ever open/close on
-// an explicit click, never automatically from navigation or route change, so
-// there is no route-derived expansion here.
-function loadOpenGroups() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(SIDEBAR_GROUPS_KEY));
-    if (Array.isArray(stored)) return stored;
-  } catch {}
-  return [];
-}
+// Open groups are session-only, never persisted: every page refresh resets the
+// sidebar menu groups to collapsed. They only expand on an explicit click and
+// stay open until the next refresh. Groups never auto-expand from navigation.
 
 // A single child row inside an expanded group. Either a leaf link (icon + label,
 // with an optional "Soon" pill) or a nested dropdown (e.g. Campaigns) that opens
@@ -208,11 +199,7 @@ export default function Sidebar() {
   const groups = filterNav(navGroups, can);
   const { width, startResize } = useSidebarWidth();
   const { collapsed, toggle } = useCollapsible({ storageKey: 'legenex_sidebar_collapsed' });
-  const [openGroups, setOpenGroups] = useState(() => loadOpenGroups());
-
-  useEffect(() => {
-    try { localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(openGroups)); } catch {}
-  }, [openGroups]);
+  const [openGroups, setOpenGroups] = useState([]);
 
   // Keep AppLayout's content margin in sync: collapsed uses the icon-rail width,
   // expanded uses the resizable width. Runs whenever either value changes.
