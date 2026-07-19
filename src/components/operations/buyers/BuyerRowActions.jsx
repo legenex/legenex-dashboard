@@ -28,7 +28,8 @@ export default function BuyerRowActions({ buyer, onTransition, onPause, onTermin
     actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(buyer, 'active'), ...first });
     actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(buyer), danger: true, separatorBefore: true });
   } else if (status === 'terminated') {
-    actions.push({ label: 'Delete', icon: Trash2, onClick: () => onDelete(buyer), danger: true, ...first });
+    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(buyer, 'active'), ...first });
+    actions.push({ label: 'Delete', icon: Trash2, onClick: () => onDelete(buyer), danger: true, separatorBefore: true });
   }
 
   return <RowActionsMenu actions={actions} />;

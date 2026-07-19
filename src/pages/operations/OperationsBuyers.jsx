@@ -30,10 +30,19 @@ const TABS = [
   { key: 'Network', label: 'Networks' },
   { key: 'Reseller', label: 'Resellers' },
   { key: 'unclassified', label: 'Unclassified' },
+  { key: 'disabled', label: 'Disabled' },
 ];
 
+// A buyer is considered disabled when its status is paused or terminated.
+function isDisabled(buyer) {
+  const status = String(buyer.status || '').toLowerCase();
+  return status === 'paused' || status === 'terminated';
+}
+
 // Match a buyer against a tab. Unclassified = client_type is null/empty.
+// Disabled = status paused or terminated.
 function matchesTab(buyer, tabKey) {
+  if (tabKey === 'disabled') return isDisabled(buyer);
   if (tabKey === 'all') return true;
   if (tabKey === 'unclassified') return !buyer.client_type;
   return buyer.client_type === tabKey;

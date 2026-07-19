@@ -27,10 +27,19 @@ const TABS = [
   { key: 'Internal', label: 'Internal' },
   { key: 'External', label: 'External' },
   { key: 'Calls', label: 'Calls' },
+  { key: 'disabled', label: 'Disabled' },
 ];
 
-// Match a supplier against a tab by its supplier_type field.
+// A supplier is considered disabled when its status is paused or terminated.
+function isDisabled(supplier) {
+  const status = String(supplier.status || '').toLowerCase();
+  return status === 'paused' || status === 'terminated';
+}
+
+// Match a supplier against a tab by its supplier_type field. Disabled = status
+// paused or terminated.
 function matchesTab(supplier, tabKey) {
+  if (tabKey === 'disabled') return isDisabled(supplier);
   if (tabKey === 'all') return true;
   return supplier.supplier_type === tabKey;
 }
