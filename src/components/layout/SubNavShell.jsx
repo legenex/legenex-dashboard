@@ -40,11 +40,17 @@ function CollapsedIcon({ item }) {
 // and collapsible. The collapsed preference is remembered across pages and
 // page refreshes.
 //
+// Congruency contract for every section:
+//   - `title` renders one canonical section label at the top of the column
+//     (same markup everywhere). Pass it from each section's nav.
+//   - The collapse / expand toggle is pinned at the BOTTOM of the column so it
+//     lines up with the main sidebar collapse toggle.
+//
 // At lg and up: renders the resizable vertical column. When collapsed, the
-// column shrinks to a thin rail with a single expand button.
+// column shrinks to a thin rail with the expand button pinned at the bottom.
 // Below lg: renders no column and no ResizeHandle. Instead, when the nav passes
 // an `items` array, it renders a horizontal scrolling rail (SubNavRail).
-export default function SubNavShell({ children, items }) {
+export default function SubNavShell({ children, items, title }) {
   // One shared width for every section's sub-nav — like the main sidebar,
   // it stays constant across all pages (ignores any per-section key).
   const { width, startResize } = useResizableWidth({
@@ -61,22 +67,23 @@ export default function SubNavShell({ children, items }) {
       {/* Mobile rail: below lg only */}
       {items && <SubNavRail items={items} />}
 
-      {/* Desktop collapsed rail: lg and up only. Shows an icon for each item. */}
+      {/* Desktop collapsed rail: lg and up only. Shows an icon for each item,
+          with the expand button pinned at the bottom to match the main sidebar. */}
       {collapsed && (
-        <div className="hidden lg:flex flex-col shrink-0 border-r border-border px-1 pt-2 h-full items-center gap-1 w-[56px] overflow-y-auto no-scrollbar">
-          <button
-            onClick={toggle}
-            aria-label="Expand menu"
-            title="Expand menu"
-            className="w-8 h-8 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-          </button>
-          {items && items.length > 0 && (
-            <div className="mt-2 w-full flex flex-col items-center gap-0.5">
-              {items.map((item, i) => <CollapsedIcon key={item.to || item.label || i} item={item} />)}
-            </div>
-          )}
+        <div className="hidden lg:flex flex-col shrink-0 border-r border-border px-1 pt-2 h-full items-center w-[56px]">
+          <div className="flex-1 min-h-0 w-full flex flex-col items-center gap-0.5 overflow-y-auto no-scrollbar">
+            {items && items.length > 0 && items.map((item, i) => <CollapsedIcon key={item.to || item.label || i} item={item} />)}
+          </div>
+          <div className="shrink-0 w-full flex justify-center pt-2 pb-1 mt-1 border-t border-border">
+            <button
+              onClick={toggle}
+              aria-label="Expand menu"
+              title="Expand menu"
+              className="w-8 h-8 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <PanelLeftOpen className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -84,10 +91,24 @@ export default function SubNavShell({ children, items }) {
       {!collapsed && (
         <nav
           data-resize-origin
-          className="hidden lg:block relative shrink-0 border-r border-border pr-2 h-full"
+          className="hidden lg:flex flex-col relative shrink-0 border-r border-border pr-2 h-full"
           style={{ width: `${width}px` }}
         >
-          <div className="flex justify-end pr-1 pt-2">
+          {/* Canonical section title — identical markup for every section. */}
+          {title && (
+            <div className="shrink-0 text-[9.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground/70 px-3 pt-2 pb-2">
+              {title}
+            </div>
+          )}
+
+          {/* Scrollable body: the section's own items and cards. */}
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+            {children}
+          </div>
+
+          {/* Collapse control pinned at the bottom, in line with the main
+              sidebar collapse control. */}
+          <div className="shrink-0 flex justify-end pr-1 pt-2 pb-1 mt-1 border-t border-border">
             <button
               onClick={toggle}
               aria-label="Collapse menu"
@@ -97,7 +118,7 @@ export default function SubNavShell({ children, items }) {
               <PanelLeftClose className="w-4 h-4" />
             </button>
           </div>
-          {children}
+
           <ResizeHandle onMouseDown={startResize} title="Drag to resize menu" />
         </nav>
       )}
