@@ -2,6 +2,8 @@
 // Design-token gate. Scans .jsx/.tsx under src/ for banned styling patterns that
 // bypass the semantic tokens in DESIGN-SYSTEM.md:
 //   - raw hex color literals in className (Tailwind arbitrary values like bg-[#3DD68C])
+//   - raw hsl()/rgb()/rgba() literals in className (bg-[hsl(152_65%_54%)],
+//     border-[hsl(38_78%_58%/0.4)]); token references like [hsl(var(--border))] are allowed
 //   - raw Tailwind palette utilities (bg-gray-800, text-slate-400, border-zinc-700,
 //     and every default color family) instead of the semantic tokens
 //   - bare text-white / text-black / bg-white / bg-black
@@ -33,6 +35,9 @@ const PREFIX = '(?:bg|text|border|ring|from|via|to|divide|fill|stroke|ring-offse
 const PATTERNS = [
   // Tailwind arbitrary hex value, e.g. bg-[#3DD68C], text-[#fff], border-[#243044]/40
   { name: 'raw-hex', re: new RegExp(`${PREFIX}-\\[#[0-9a-fA-F]{3,8}\\]`, 'g') },
+  // Tailwind arbitrary hsl()/rgb()/rgba() literal, e.g. bg-[hsl(152_65%_54%)],
+  // border-[hsl(38_78%_58%/0.4)]. Token references like [hsl(var(--border))] are allowed.
+  { name: 'raw-hsl-rgb', re: new RegExp(`${PREFIX}-\\[(?:hsl|hsla|rgb|rgba)\\((?!var\\()`, 'g') },
   // Raw palette utility, e.g. bg-gray-800, text-slate-400, border-zinc-700
   { name: 'raw-palette', re: new RegExp(`\\b${PREFIX}-(?:${PALETTE})-[0-9]{2,3}\\b`, 'g') },
   // Bare white/black
