@@ -90,13 +90,13 @@ export default function CampaignDetailPage({ campaign, onBack }) {
       if (!group) {
         setSyncing(true);
         try {
-          await base44.functions.invoke('distributionConfig', {
-            action: 'create_draft',
-            group: { campaign_id: campaign.id, name: 'Default', method: 'priority', order_index: 0 },
+          // Create the default routing group directly via the entities SDK.
+          // (The distributionConfig backend function is not always deployed,
+          // and its failure previously left this page stuck on "Loading buyers".)
+          await base44.entities.RouteGroup.create({
+            campaign_id: campaign.id, name: 'Default', method: 'priority', order_index: 0,
+            lifecycle: 'draft', active: false,
           });
-          // create_draft returns { ok, route_group_id }; the group is now in the
-          // DB. Refetch routeGroups so defaultGroup resolves and this effect
-          // re-runs to create the members.
           await qc.invalidateQueries({ queryKey: ['routeGroups'] });
         } catch (e) {
           toast.error('Could not set up routing: ' + (e?.message || 'error'));
