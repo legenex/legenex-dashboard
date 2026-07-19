@@ -11,6 +11,7 @@ import BuyerTable from '@/components/operations/buyers/BuyerTable';
 import BuyersEmptyState from '@/components/operations/buyers/BuyersEmptyState';
 import BuyerActionDialog from '@/components/operations/buyers/BuyerActionDialog';
 import BuyerDeleteDialog from '@/components/operations/buyers/BuyerDeleteDialog';
+import BuyerBulkDeleteBar from '@/components/operations/buyers/BuyerBulkDeleteBar';
 import BuyerDetailPage from '@/components/operations/buyers/BuyerDetailPage';
 import BuyerCreateModal from '@/components/operations/buyers/BuyerCreateModal';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,8 @@ export default function OperationsBuyers() {
   const [drawerBuyerId, setDrawerBuyerId] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [manualRecomputing, setManualRecomputing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const { recomputing, scheduleRecompute } = useRecomputeCoverage();
 
   const { data: buyers = [] } = useQuery({
@@ -171,6 +174,31 @@ export default function OperationsBuyers() {
     setDrawerBuyerId(buyer.id);
   };
 
+  const toggleSelect = (id) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const toggleSelectAll = (checked) => setSelectedIds(checked ? new Set(rows.map((b) => b.id)) : new Set());
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      const ids = [...selectedIds];
+      const affected = buyers.filter((b) => selectedIds.has(b.id));
+      await Promise.all(ids.map((id) => base44.entities.Buyer.delete(id)));
+      toast.success(`${ids.length} ${ids.length === 1 ? 'buyer' : 'buyers'} deleted`);
+      clearSelection();
+      await qc.invalidateQueries({ queryKey: ['op-buyers'] });
+      affected.forEach((b) => scheduleRecompute(b));
+    } catch (err) {
+      toast.error(`Could not delete buyers: ${err?.message || 'unknown error'}`);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   // Manual full recompute across all verticals. No buyer id, events enabled.
   // Reports the returned summary as a toast and refreshes the affected caches.
   const manualRecompute = async () => {
@@ -248,6 +276,13 @@ export default function OperationsBuyers() {
             <ColumnManager config={config} availableColumns={BUYER_AVAILABLE_COLUMNS} onChange={onConfigChange} />
           </div>
 
+          <BuyerBulkDeleteBar
+            count={selectedIds.size}
+            onClear={clearSelection}
+            onConfirmDelete={confirmBulkDelete}
+            deleting={bulkDeleting}
+          />
+
           <BuyerTable
             buyers={rows}
             config={config}
@@ -260,6 +295,9 @@ export default function OperationsBuyers() {
             onTerminate={openTerminate}
             onDelete={(buyer) => setDeleteState({ buyer })}
             onRowClick={(buyer) => openBuyer(buyer)}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
           />
         </>
       )}
