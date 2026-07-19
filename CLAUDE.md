@@ -5,10 +5,11 @@ Base44 app). Base44 deploys the `main` branch; feature branches do not deploy.
 
 ## Working Agreement (2026-07-19)
 
-1. **Claude Code is the only code writer.** The Base44 builder is not used for code
-   changes. If a Base44 bot commit ("File changes" or "External agent changes")
-   appears on `main` mid-task, treat it as Nick's data-driven change or a legacy
-   habit: rebase onto it, inherit it, never overwrite it, and flag it in the report.
+1. **Claude Code is the only code writer.** The Base44 builder is retired for code
+   changes and is not used to modify code. Any future Base44 bot commit ("File
+   changes" or "External agent changes") on `main` is treated as Nick's
+   data-driven change or a legacy habit: rebase onto it, inherit it, never
+   overwrite it, and flag it in the report.
 2. **Every task starts and ends with the ancestor check.** Start each task by
    fetching, rebasing onto `origin/main`, verifying with
    `git merge-base --is-ancestor origin/main HEAD`, and re-running the gates. End
@@ -29,3 +30,13 @@ Base44 app). Base44 deploys the `main` branch; feature branches do not deploy.
    flips it via `distributionSetMode`.
 6. **Done means proven by executed commands, never by claims.** Anything
    unverifiable in this environment is labeled NEEDS-ENV, never closed by mocking.
+7. **Data and record changes are allowed only when Nick instructs them, under the
+   overlap protocol.** Query the targets first and report their IDs and current
+   values. STOP and confirm if any target record's `updated_date` is within the
+   last 15 minutes. Connector enabled states, Conversion Events,
+   `distribution_mode`, credentials, billing records, and buyer pricing are RED and
+   need explicit approval regardless of phrasing. Capture before and after values
+   for rollback. Use the entity tools for data, never code commits.
+8. **Build and maintenance modes.** Multi-phase builds run under `/goal` with
+   deterministic done-criteria and a hard stop. Open-PR maintenance runs under
+   `/loop`, which never merges and never writes entities.
