@@ -65,9 +65,8 @@ export default function LeadsNav() {
   const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
 
   return (
-    <SubNavShell items={railItems}>
+    <SubNavShell items={railItems} title="Leads">
       <div className="flex flex-col h-full">
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1.5">Leads</div>
         <div className="space-y-0.5">
           {ITEMS.map(item => {
             const active = location.pathname === item.path;

@@ -34,7 +34,7 @@ export default function ReportSidebar({ active, onSelect, customReports = [], on
   }));
 
   return (
-    <SubNavShell items={railItems}>
+    <SubNavShell items={railItems} title="Reports">
       <div className="space-y-0.5 mb-5">
         {STANDARD.map(s => <Item key={s.key} id={`std:${s.key}`} label={s.label} icon={s.icon} />)}
       </div>

@@ -34,8 +34,7 @@ export default function FinancesNav() {
     .map(item => ({ label: item.label, icon: item.icon, to: `/finances?tab=${item.tab}`, active: active === item.tab }));
 
   return (
-    <SubNavShell items={railItems}>
-      <div className="text-[9.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground/70 px-3 pb-2">Finances</div>
+    <SubNavShell items={railItems} title="Finances">
       <div className="space-y-0.5">
         {ITEMS.filter(item => !item.perm || can(item.perm)).map(item => {
           const isActive = active === item.tab;

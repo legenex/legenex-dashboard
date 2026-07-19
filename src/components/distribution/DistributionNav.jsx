@@ -34,7 +34,7 @@ export default function DistributionNav() {
   }));
 
   return (
-    <SubNavShell items={railItems}>
+    <SubNavShell items={railItems} title="Lead Distribution">
       <div className="space-y-0.5">
         {ITEMS.map(item => {
           const Icon = item.icon;

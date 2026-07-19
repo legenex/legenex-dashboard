@@ -4,6 +4,7 @@ import { GitCompareArrows } from 'lucide-react';
 import RefreshButton from '@/components/shared/RefreshButton';
 import { PulseDot } from '@/components/finances/financeUi';
 import { money } from '@/lib/reportMetrics';
+import { SectionHeaderSlot } from '@/components/layout/SectionShell';
 
 // Per-page shell for every Finances tab: header ("Finances / <TabName>" with LIVE pill,
 // Compare + Refresh), a subtitle, the content, and a FINANCE TELEMETRY footer bar with
@@ -17,6 +18,7 @@ export default function FinanceShell({ tabName, subtitle, telemetry = {}, onRefr
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
+      <SectionHeaderSlot>
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -42,6 +44,7 @@ export default function FinanceShell({ tabName, subtitle, telemetry = {}, onRefr
           <RefreshButton onClick={onRefresh} />
         </div>
       </div>
+      </SectionHeaderSlot>
 
       {/* Content */}
       <div>{children}</div>

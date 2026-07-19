@@ -30,8 +30,7 @@ export default function AdManagerNav() {
   const railItems = ITEMS.map(item => ({ label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path }));
 
   return (
-    <SubNavShell items={railItems}>
-      <div className="text-[9.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground/70 px-3 pb-2">Ad Manager</div>
+    <SubNavShell items={railItems} title="Ad Manager">
       <div className="space-y-0.5">
         {ITEMS.map((item) => {
           const isActive = location.pathname === item.path;
