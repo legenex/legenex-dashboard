@@ -11,7 +11,7 @@ import BuyerTable from '@/components/operations/buyers/BuyerTable';
 import BuyersEmptyState from '@/components/operations/buyers/BuyersEmptyState';
 import BuyerActionDialog from '@/components/operations/buyers/BuyerActionDialog';
 import BuyerDeleteDialog from '@/components/operations/buyers/BuyerDeleteDialog';
-import BuyerDetailDrawer from '@/components/operations/buyers/BuyerDetailDrawer';
+import BuyerDetailPage from '@/components/operations/buyers/BuyerDetailPage';
 import BuyerCreateModal from '@/components/operations/buyers/BuyerCreateModal';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
@@ -49,7 +49,6 @@ export default function OperationsBuyers() {
   const [actionState, setActionState] = useState(null); // { action, buyer, closesStates }
   const [deleteState, setDeleteState] = useState(null); // { buyer }
   const [drawerBuyerId, setDrawerBuyerId] = useState(null);
-  const [drawerTab, setDrawerTab] = useState('profile');
   const [createOpen, setCreateOpen] = useState(false);
   const [manualRecomputing, setManualRecomputing] = useState(false);
   const { recomputing, scheduleRecompute } = useRecomputeCoverage();
@@ -168,8 +167,7 @@ export default function OperationsBuyers() {
     scheduleRecompute(buyer);
   };
 
-  const openBuyer = (buyer, atTab = 'profile') => {
-    setDrawerTab(atTab);
+  const openBuyer = (buyer) => {
     setDrawerBuyerId(buyer.id);
   };
 
@@ -195,8 +193,20 @@ export default function OperationsBuyers() {
   // buyer with no state coverage receives no leads.
   const onCreated = async (created) => {
     await qc.invalidateQueries({ queryKey: ['op-buyers'] });
-    openBuyer(created, 'coverage');
+    openBuyer(created);
   };
+
+  // Full-page detail swap: when a buyer is selected, render its detail in place
+  // of the list. The list state (tab, filters, columns) is preserved behind it.
+  if (drawerBuyer) {
+    return (
+      <BuyerDetailPage
+        buyer={drawerBuyer}
+        verticals={verticals}
+        onBack={() => setDrawerBuyerId(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -249,7 +259,7 @@ export default function OperationsBuyers() {
             onPause={openPause}
             onTerminate={openTerminate}
             onDelete={(buyer) => setDeleteState({ buyer })}
-            onRowClick={(buyer) => openBuyer(buyer, 'profile')}
+            onRowClick={(buyer) => openBuyer(buyer)}
           />
         </>
       )}
@@ -268,14 +278,6 @@ export default function OperationsBuyers() {
         onOpenChange={(v) => { if (!v) setDeleteState(null); }}
         buyer={deleteState?.buyer}
         onConfirm={confirmDelete}
-      />
-
-      <BuyerDetailDrawer
-        open={!!drawerBuyer}
-        onOpenChange={(v) => { if (!v) setDrawerBuyerId(null); }}
-        buyer={drawerBuyer}
-        verticals={verticals}
-        initialTab={drawerTab}
       />
 
       <BuyerCreateModal

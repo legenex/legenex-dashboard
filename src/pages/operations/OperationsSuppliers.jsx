@@ -15,7 +15,7 @@ import SupplierCreateModal from '@/components/operations/suppliers/SupplierCreat
 import SupplierActionDialog from '@/components/operations/suppliers/SupplierActionDialog';
 import SupplierDeleteDialog from '@/components/operations/suppliers/SupplierDeleteDialog';
 import NoChannelBanner from '@/components/operations/suppliers/NoChannelBanner';
-import SupplierDetailDrawer from '@/components/operations/suppliers/SupplierDetailDrawer';
+import SupplierDetailPage from '@/components/operations/suppliers/SupplierDetailPage';
 import { suppliersWithNoChannel } from '@/components/operations/suppliers/supplierListModel';
 import {
   SUPPLIER_AVAILABLE_COLUMNS, loadSupplierColumnConfig, saveSupplierColumnConfig, getSupplierColumnDef,
@@ -131,16 +131,26 @@ export default function OperationsSuppliers() {
   // since a supplier with no source falls back to its supplier level payout.
   const onCreated = async (created) => {
     await refresh();
-    setDrawer({ supplierId: created.id, tab: 'sources' });
+    setDrawer({ supplierId: created.id });
   };
 
-  // Open the detail drawer. Row click lands on Payout; the Channels Fix link
-  // lands on Notifications.
-  const openSupplier = (supplier) => setDrawer({ supplierId: supplier.id, tab: 'payout' });
-  const fixChannel = (supplier) => setDrawer({ supplierId: supplier.id, tab: 'notifications' });
+  // Open the detail page for a supplier.
+  const openSupplier = (supplier) => setDrawer({ supplierId: supplier.id });
+  const fixChannel = (supplier) => setDrawer({ supplierId: supplier.id });
 
-  // Resolve the live record so the drawer reflects list refreshes after saves.
+  // Resolve the live record so the detail reflects list refreshes after saves.
   const drawerSupplier = drawer ? suppliers.find((s) => s.id === drawer.supplierId) : null;
+
+  // Full-page detail swap: when a supplier is selected, render its detail in
+  // place of the list. The list state is preserved behind it.
+  if (drawerSupplier) {
+    return (
+      <SupplierDetailPage
+        supplier={drawerSupplier}
+        onBack={() => setDrawer(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -210,13 +220,6 @@ export default function OperationsSuppliers() {
         onOpenChange={(v) => { if (!v) setDeleteState(null); }}
         supplier={deleteState?.supplier}
         onConfirm={confirmDelete}
-      />
-
-      <SupplierDetailDrawer
-        open={!!drawer}
-        onOpenChange={(v) => { if (!v) setDrawer(null); }}
-        supplier={drawerSupplier}
-        initialTab={drawer?.tab || 'payout'}
       />
 
       <SupplierCreateModal
