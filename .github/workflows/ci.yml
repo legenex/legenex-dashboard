@@ -28,6 +28,9 @@ jobs:
       - name: Canonical engine parity + anti-mirror
         run: npm run engine:check
 
+      - name: Design tokens (no raw hex or raw palette utilities; zero new over baseline)
+        run: npm run design:check
+
       - name: Prohibited em-dash check (code, docs, workflows we own)
         run: |
           if grep -RnP "\x{2014}|\x{2013}" \
