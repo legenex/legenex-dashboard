@@ -60,6 +60,7 @@ export default function BuyerTable({
                   onPause={onPause}
                   onTerminate={onTerminate}
                   onDelete={onDelete}
+                  onEdit={onRowClick}
                 />
               </td>
             </tr>

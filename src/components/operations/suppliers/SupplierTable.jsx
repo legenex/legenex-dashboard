@@ -67,6 +67,7 @@ export default function SupplierTable({
                   onPause={onPause}
                   onTerminate={onTerminate}
                   onDelete={onDelete}
+                  onEdit={onRowClick}
                 />
               </td>
             </tr>
