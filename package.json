@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "engine:generate": "node scripts/generate-backend-engine.mjs",
-    "engine:check": "node scripts/check-engine-parity.mjs"
+    "engine:check": "node scripts/check-engine-parity.mjs",
+    "design:check": "node scripts/check-design-tokens.mjs",
+    "design:baseline": "node scripts/check-design-tokens.mjs --update-baseline"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.39",

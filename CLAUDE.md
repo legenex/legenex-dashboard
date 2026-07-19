@@ -43,3 +43,7 @@ Base44 app). Base44 deploys the `main` branch; feature branches do not deploy.
 8. **Build and maintenance modes.** Multi-phase builds run under `/goal` with
    deterministic done-criteria and a hard stop. Open-PR maintenance runs under
    `/loop`, which never merges and never writes entities.
+9. **Design system is enforced.** Every page, panel, list, dialog, and control
+   matches `DESIGN-SYSTEM.md` using semantic tokens only, never raw hex or raw
+   palette utilities. `design:check` is a blocking gate. Any PR adding or
+   restructuring a page names the reference page it mirrors in its body.

@@ -28,11 +28,8 @@ const STATUSES = ['draft', 'active', 'paused', 'archived'];
 const SAMPLE_LEAD = { first_name: 'Jane', last_name: 'Doe', email: 'jane@example.com', mobile: '5551234567', state: 'TX', zip: '75001', vertical: 'legal' };
 
 function parseArr(raw) { try { const v = JSON.parse(raw); return Array.isArray(v) ? v : []; } catch { return []; } }
-function statusColor(s) {
-  return s === 'active' ? 'bg-emerald-500/15 text-emerald-600'
-    : s === 'paused' ? 'bg-amber-500/15 text-amber-600'
-    : s === 'archived' ? 'bg-muted text-muted-foreground' : 'bg-blue-500/15 text-blue-600';
-}
+// Token-only status text per DESIGN-SYSTEM.md: active is primary, the rest muted.
+function statusText(s) { return s === 'active' ? 'text-primary' : 'text-muted-foreground'; }
 
 export default function BuyerDeliveriesPanel({ buyerId }) {
   const qc = useQueryClient();
@@ -90,7 +87,10 @@ export default function BuyerDeliveriesPanel({ buyerId }) {
               }`}
             >
               <span className="truncate">{d.name || '(unnamed delivery)'}</span>
-              <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${statusColor(d.status)}`}>{d.status || 'draft'}</span>
+              <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-[11px] font-medium ${statusText(d.status)}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'active' ? 'bg-primary' : 'bg-muted-foreground'}`} />
+                {d.status || 'draft'}
+              </span>
             </button>
           ))}
         </div>
@@ -403,7 +403,7 @@ function AlertConfirmOff({ open, onOpenChange, count, onConfirm }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" />Deactivate an in-use endpoint?</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-destructive" />Deactivate an in-use endpoint?</DialogTitle>
           <DialogDescription>{count} route member{count > 1 ? 's' : ''} currently point at this sub-delivery. Deactivating it makes those members ineligible (they will not route) until you point them elsewhere.</DialogDescription>
         </DialogHeader>
         <DialogFooter>

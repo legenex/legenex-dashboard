@@ -4,7 +4,6 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Plus, Megaphone, Loader2 } from 'lucide-react';
 import SectionHeader from '@/components/shared/SectionHeader';
 import SettingsVerticals from '@/components/settings/SettingsVerticals';
@@ -45,31 +44,35 @@ export default function Campaigns() {
         {/* Campaigns list + detail (routing order across buyers, publish flow). */}
         <TabsContent value="campaigns" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,320px)_1fr] gap-5 items-start">
-            <div className="border border-border rounded-[10px] overflow-hidden">
-              {isLoading && <div className="p-4 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Loading</div>}
-              {!isLoading && campaigns.length === 0 && <div className="p-4 text-sm text-muted-foreground">No campaigns yet. Create one to configure routing.</div>}
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              {isLoading && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />Loading campaigns...</div>}
+              {!isLoading && campaigns.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground"><Megaphone className="w-7 h-7 text-muted-foreground mx-auto mb-2" />No campaigns yet. Create one to configure routing.</div>}
               <div className="divide-y divide-border">
-                {campaigns.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedId(c.id)}
-                    className={`w-full text-left px-3 py-2.5 flex items-center justify-between gap-2 text-[13px] ${selectedId === c.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent/40'}`}
-                  >
-                    <span className="truncate">{c.name || c.id}</span>
-                    {c.active === false
-                      ? <Badge variant="outline" className="text-[10px]">off</Badge>
-                      : <Badge className="bg-emerald-500/15 text-emerald-600 text-[10px]">on</Badge>}
-                  </button>
-                ))}
+                {campaigns.map((c) => {
+                  const active = c.active !== false;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedId(c.id)}
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between gap-2 text-[13px] transition-colors ${selectedId === c.id ? 'bg-accent text-foreground' : 'text-foreground hover:bg-accent'}`}
+                    >
+                      <span className="truncate">{c.name || c.id}</span>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-primary' : 'bg-muted-foreground'}`} />
+                        {active ? 'on' : 'off'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div>
               {selected
                 ? <CampaignDetail key={selected.id} campaign={selected} />
                 : (
-                  <div className="rounded-[10px] border border-border bg-card p-12 text-center">
-                    <Megaphone className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-                    <div className="text-[13px] font-medium">Select a campaign</div>
+                  <div className="rounded-lg border border-border bg-card p-12 text-center">
+                    <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <div className="text-[13px] font-medium text-foreground">Select a campaign</div>
                     <div className="text-[12px] text-muted-foreground mt-1">Pick a campaign to configure its vertical, suppliers, and routing order.</div>
                   </div>
                 )}
