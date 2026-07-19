@@ -42,7 +42,7 @@ describe('shadow hook is inert on legacy_only (static regression)', () => {
 
   it('the engine is loaded lazily (dynamic import) so legacy_only never loads it', () => {
     const block = hookBlock(entry);
-    expect(block).toContain("await import('../_shared/routingEngine.generated.js')");
+    expect(block).toContain("await import('./routingEngine.generated.js')");
     // no top-level static import of the generated engine (would run even on legacy_only)
     expect(entry).not.toMatch(/^import .*routingEngine\.generated/m);
   });
