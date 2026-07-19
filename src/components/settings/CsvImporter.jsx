@@ -12,6 +12,7 @@ import Papa from 'papaparse';
 import { toZonedTime } from 'date-fns-tz';
 import { APP_TZ } from '@/lib/periodRange';
 import { invalidateLeadCaches } from '@/lib/leadCaches';
+import { materializeRecord, finalizePendingImports } from '@/lib/importFinalize';
 
 // Core target fields per entity. Custom fields (for leads) are appended at runtime.
 const LEAD_FIELDS = ['first_name', 'last_name', 'email', 'mobile', 'supplier_name', 'revenue', 'conv_value', 'final_status', 'email_valid'];
@@ -27,9 +28,11 @@ const STATUS_LOOKUP = {
   error: 'Error', err: 'Error',
   queued: 'Queued', queue: 'Queued',
   returned: 'Returned', return: 'Returned',
-  processing: 'Processing', new: 'Processing',
+  // Processing is a live-pipeline transit state, never an imported outcome:
+  // anything unknown or transit-like lands on Qualified.
+  processing: 'Qualified', new: 'Qualified',
 };
-const normalizeStatus = (raw) => STATUS_LOOKUP[String(raw ?? '').trim().toLowerCase()] || 'Processing';
+const normalizeStatus = (raw) => STATUS_LOOKUP[String(raw ?? '').trim().toLowerCase()] || 'Qualified';
 const normEmail = (v) => String(v ?? '').trim().toLowerCase();
 const normMobile = (v) => String(v ?? '').replace(/\D/g, '');
 
@@ -553,6 +556,10 @@ export default function CsvImporter() {
             if (norm != null) mapped.timestamp = norm;
             else delete mapped.timestamp;
           }
+          // Promote mapped values onto top-level Lead columns (buyer, vertical,
+          // payout, revenue, email_valid) and derive lead_type, so imported
+          // leads are complete at creation and never sit in Processing.
+          materializeRecord(out, mapped);
           if (Object.keys(mapped).length) out.mapped_fields = JSON.stringify(mapped);
         }
         return out;
