@@ -207,15 +207,8 @@ export default function Sidebar() {
     : 'https://media.base44.com/images/public/6a4957e7b03e9b10c170d29e/9eecce577_Logo-Wide-Dark-Clear.png';
   const groups = filterNav(navGroups, can);
   const { width, startResize } = useSidebarWidth();
-  const { collapsed, toggle, setCollapsed } = useCollapsible({ storageKey: 'legenex_sidebar_collapsed' });
+  const { collapsed, toggle } = useCollapsible({ storageKey: 'legenex_sidebar_collapsed' });
   const [openGroups, setOpenGroups] = useState(() => loadOpenGroups());
-
-  // Always start collapsed on every page load / refresh. The sidebar only
-  // expands when the user manually toggles it during the session; a refresh
-  // resets it back to collapsed regardless of the previously stored preference.
-  useEffect(() => {
-    setCollapsed(true);
-  }, [setCollapsed]);
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(openGroups)); } catch {}
