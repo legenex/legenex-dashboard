@@ -17,7 +17,7 @@ import TieredPricingEditor from './TieredPricingEditor';
 const PRICING_MODELS = [
   { value: 'none', label: 'None' },
   { value: 'flat_cpl', label: 'Flat CPL' },
-  { value: 'profit_pct', label: 'Profit % (Revenue - Cost)' },
+  { value: 'profit_pct', label: 'Profit %' },
   { value: 'revenue_pct', label: 'Revenue %' },
   { value: 'tiered', label: 'Tiered (Rule/filter based)' },
 ];
@@ -145,7 +145,7 @@ export default function SourceEditor({ supplier, source, existingCodes, onBack, 
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Pricing model">
+        <Field label="Payout model">
           <Select value={model} onValueChange={(v) => set('pricing_model', v)}>
             <SelectTrigger className="bg-background"><SelectValue placeholder="Select model" /></SelectTrigger>
             <SelectContent>
