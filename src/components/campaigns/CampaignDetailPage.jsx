@@ -36,7 +36,14 @@ export default function CampaignDetailPage({ campaign, onBack }) {
 
   const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list('-created_date', 500) });
+  const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order', 200) });
   const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => base44.entities.Lead.list('-created_date', 1000) });
+
+  const verticalLabel = useMemo(() => {
+    const code = String(campaign.vertical || '').toLowerCase();
+    const v = verticals.find((x) => String(x.code || '').toLowerCase() === code);
+    return v?.name || campaign.vertical || '--';
+  }, [verticals, campaign.vertical]);
 
   const campaignGroups = useMemo(
     () => groups.filter((g) => String(g.campaign_id) === String(campaign.id)).sort((a, b) => (a.order_index || 0) - (b.order_index || 0)),
@@ -176,7 +183,7 @@ export default function CampaignDetailPage({ campaign, onBack }) {
                 {active ? 'Active' : 'Disabled'}
               </span>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">{campaign.vertical || '--'}</div>
+            <div className="text-xs text-muted-foreground">{verticalLabel}</div>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

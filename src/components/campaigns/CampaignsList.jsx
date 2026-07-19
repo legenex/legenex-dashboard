@@ -47,9 +47,17 @@ export default function CampaignsList({ onCreate, onOpen }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data: campaigns = [], isLoading } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list('-created_date', 500) });
+  const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order', 200) });
   const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => base44.entities.Lead.list('-created_date', 1000) });
   const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
   const { data: members = [] } = useQuery({ queryKey: ['allRouteMembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 2000) });
+
+  // Map a vertical code to its full display name (e.g. "MVA" -> "Motor Vehicle Accidents").
+  const verticalName = useMemo(() => {
+    const map = {};
+    for (const v of verticals) { if (v.code) map[String(v.code).toLowerCase()] = v.name; }
+    return (code) => map[String(code || '').toLowerCase()] || code || '--';
+  }, [verticals]);
 
   const membersByGroup = useMemo(() => {
     const map = {};
@@ -162,7 +170,7 @@ export default function CampaignsList({ onCreate, onOpen }) {
                 <tr key={c.id} onClick={() => onOpen(c)} className="hover:bg-accent/30 cursor-pointer">
                   <td className="px-3 py-2.5">
                     <div className="font-medium truncate">{c.name || c.id}</div>
-                    <div className="text-[11px] text-muted-foreground font-mono truncate">{c.vertical || '--'}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{verticalName(c.vertical)}</div>
                   </td>
                   <td className="px-3 py-2.5">
                     <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`}>
