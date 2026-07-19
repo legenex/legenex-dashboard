@@ -4,9 +4,28 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
-// Shared 3-dot row actions menu for Campaigns tables (Buyers, Suppliers).
-// Pass any of onEdit / onClone / onDelete to show that action.
-export default function RowActionsMenu({ onEdit, onClone, onDelete }) {
+// Shared 3-dot row actions menu used across every table with row actions
+// (Campaigns, Operations Buyers/Suppliers, Deliveries, and any row with
+// steps/options). One component so the pattern stays congruent everywhere.
+//
+// Two ways to use it:
+//   1. Convenience props (kept for existing callers):
+//        onEdit / onClone / onDelete
+//   2. A full `actions` array for arbitrary, status-aware menus:
+//        [{ label, icon, onClick, danger, separatorBefore, disabled }]
+//      When `actions` is provided it fully defines the menu and the convenience
+//      props are ignored.
+export default function RowActionsMenu({ actions, onEdit, onClone, onDelete, align = 'end' }) {
+  let items = actions;
+  if (!items) {
+    items = [];
+    if (onEdit) items.push({ label: 'Edit', icon: Pencil, onClick: onEdit });
+    if (onClone) items.push({ label: 'Clone', icon: Files, onClick: onClone });
+    if (onDelete) items.push({ label: 'Delete', icon: Trash2, onClick: onDelete, danger: true, separatorBefore: !!(onEdit || onClone) });
+  }
+
+  if (!items || items.length === 0) return null;
+
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <DropdownMenu>
@@ -19,23 +38,22 @@ export default function RowActionsMenu({ onEdit, onClone, onDelete }) {
             <MoreVertical className="w-4 h-4" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          {onEdit && (
-            <DropdownMenuItem onClick={(e) => onEdit(e)} className="text-[12px] cursor-pointer gap-2">
-              <Pencil className="w-3.5 h-3.5" /> Edit
-            </DropdownMenuItem>
-          )}
-          {onClone && (
-            <DropdownMenuItem onClick={(e) => onClone(e)} className="text-[12px] cursor-pointer gap-2">
-              <Files className="w-3.5 h-3.5" /> Clone
-            </DropdownMenuItem>
-          )}
-          {onDelete && (onEdit || onClone) && <DropdownMenuSeparator />}
-          {onDelete && (
-            <DropdownMenuItem onClick={(e) => onDelete(e)} className="text-[12px] cursor-pointer gap-2 text-destructive focus:text-destructive">
-              <Trash2 className="w-3.5 h-3.5" /> Delete
-            </DropdownMenuItem>
-          )}
+        <DropdownMenuContent align={align} className="w-40">
+          {items.map((it, i) => {
+            const Icon = it.icon;
+            return (
+              <React.Fragment key={it.label || i}>
+                {it.separatorBefore && i > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  onClick={(e) => { e.stopPropagation(); it.onClick?.(e); }}
+                  disabled={it.disabled}
+                  className={`text-[12px] cursor-pointer gap-2 ${it.danger ? 'text-destructive focus:text-destructive' : ''}`}
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5" />} {it.label}
+                </DropdownMenuItem>
+              </React.Fragment>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

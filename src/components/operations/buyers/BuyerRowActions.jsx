@@ -1,40 +1,30 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Rocket, Play, Undo2, Pause, Ban, Trash2 } from 'lucide-react';
+import RowActionsMenu from '@/components/campaigns/RowActionsMenu';
 
-// Per status row actions. Instant transitions (Launch, Activate, Cancel) call
-// onTransition directly. Pause, Terminate and Delete are routed through their
-// confirm dialogs by the parent via onPause / onTerminate / onDelete.
+// Per status row actions, presented as a shared 3-dot overflow menu. Instant
+// transitions (Launch, Activate, Cancel) call onTransition directly. Pause,
+// Terminate and Delete are routed through their confirm dialogs by the parent
+// via onPause / onTerminate / onDelete. Status logic is unchanged; only the
+// presentation moved from inline buttons to the dropdown.
 export default function BuyerRowActions({ buyer, onTransition, onPause, onTerminate, onDelete }) {
   const status = String(buyer.status || 'draft').toLowerCase();
+  const actions = [];
 
-  const btn = (label, handler, variant = 'ghost') => (
-    <Button key={label} size="sm" variant={variant} onClick={handler} className="h-7 px-2 text-[11px]">
-      {label}
-    </Button>
-  );
+  if (status === 'draft') {
+    actions.push({ label: 'Launch', icon: Rocket, onClick: () => onTransition(buyer, 'launching') });
+  } else if (status === 'launching') {
+    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(buyer, 'active') });
+    actions.push({ label: 'Cancel', icon: Undo2, onClick: () => onTransition(buyer, 'draft') });
+  } else if (status === 'active') {
+    actions.push({ label: 'Pause', icon: Pause, onClick: () => onPause(buyer) });
+    actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(buyer), danger: true, separatorBefore: true });
+  } else if (status === 'paused') {
+    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(buyer, 'active') });
+    actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(buyer), danger: true, separatorBefore: true });
+  } else if (status === 'terminated') {
+    actions.push({ label: 'Delete', icon: Trash2, onClick: () => onDelete(buyer), danger: true });
+  }
 
-  return (
-    <div className="flex items-center justify-end gap-1">
-      {status === 'draft' && btn('Launch', () => onTransition(buyer, 'launching'))}
-      {status === 'launching' && (
-        <>
-          {btn('Activate', () => onTransition(buyer, 'active'))}
-          {btn('Cancel', () => onTransition(buyer, 'draft'))}
-        </>
-      )}
-      {status === 'active' && (
-        <>
-          {btn('Pause', () => onPause(buyer))}
-          {btn('Terminate', () => onTerminate(buyer))}
-        </>
-      )}
-      {status === 'paused' && (
-        <>
-          {btn('Activate', () => onTransition(buyer, 'active'))}
-          {btn('Terminate', () => onTerminate(buyer))}
-        </>
-      )}
-      {status === 'terminated' && btn('Delete', () => onDelete(buyer))}
-    </div>
-  );
+  return <RowActionsMenu actions={actions} />;
 }

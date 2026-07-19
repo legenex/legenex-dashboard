@@ -1,34 +1,27 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Play, Pause, Ban, Trash2 } from 'lucide-react';
+import RowActionsMenu from '@/components/campaigns/RowActionsMenu';
 
-// Per status row actions. Instant transitions (Activate) call onTransition
-// directly. Pause, Terminate and Delete are routed through their confirm
-// dialogs by the parent via onPause / onTerminate / onDelete.
+// Per status row actions, presented as a shared 3-dot overflow menu. Instant
+// transitions (Activate) call onTransition directly. Pause, Terminate and
+// Delete are routed through their confirm dialogs by the parent via
+// onPause / onTerminate / onDelete. Status logic is unchanged; only the
+// presentation moved from inline buttons to the dropdown.
 export default function SupplierRowActions({ supplier, onTransition, onPause, onTerminate, onDelete }) {
   const status = String(supplier.status || 'new').toLowerCase();
+  const actions = [];
 
-  const btn = (label, handler, variant = 'ghost') => (
-    <Button key={label} size="sm" variant={variant} onClick={handler} className="h-7 px-2 text-[11px]">
-      {label}
-    </Button>
-  );
+  if (status === 'new') {
+    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(supplier, 'active') });
+  } else if (status === 'active') {
+    actions.push({ label: 'Pause', icon: Pause, onClick: () => onPause(supplier) });
+    actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(supplier), danger: true, separatorBefore: true });
+  } else if (status === 'paused') {
+    actions.push({ label: 'Activate', icon: Play, onClick: () => onTransition(supplier, 'active') });
+    actions.push({ label: 'Terminate', icon: Ban, onClick: () => onTerminate(supplier), danger: true, separatorBefore: true });
+  } else if (status === 'terminated') {
+    actions.push({ label: 'Delete', icon: Trash2, onClick: () => onDelete(supplier), danger: true });
+  }
 
-  return (
-    <div className="flex items-center justify-end gap-1">
-      {status === 'new' && btn('Activate', () => onTransition(supplier, 'active'))}
-      {status === 'active' && (
-        <>
-          {btn('Pause', () => onPause(supplier))}
-          {btn('Terminate', () => onTerminate(supplier))}
-        </>
-      )}
-      {status === 'paused' && (
-        <>
-          {btn('Activate', () => onTransition(supplier, 'active'))}
-          {btn('Terminate', () => onTerminate(supplier))}
-        </>
-      )}
-      {status === 'terminated' && btn('Delete', () => onDelete(supplier))}
-    </div>
-  );
+  return <RowActionsMenu actions={actions} />;
 }
