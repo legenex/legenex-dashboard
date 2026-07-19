@@ -130,12 +130,9 @@ function ChildRow({ child, location, navigate, openGroups, toggleGroup }) {
         <div className="flex items-center">
           <button
             onClick={() => {
-              if (child.path) {
-                navigate(child.tab ? `${child.path}?tab=${child.tab}` : child.path);
-                if (!isOpen) toggleGroup(child.label);
-              } else {
-                toggleGroup(child.label);
-              }
+              // Label only navigates; the chevron toggles the dropdown.
+              if (child.path) navigate(child.tab ? `${child.path}?tab=${child.tab}` : child.path);
+              else toggleGroup(child.label);
             }}
             className={`flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all duration-150
               ${highlight ? 'text-primary' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
@@ -311,20 +308,10 @@ export default function Sidebar() {
               <div className="flex items-center">
                 <button
                   onClick={() => {
-                    // Labels of nested child dropdowns to auto-expand when this group opens
-                    const nestedDropdowns = (group.children || []).filter(c => c.children && c.children.length > 0).map(c => c.label);
-                    if (group.path) {
-                      navigate(group.path);
-                      if (!isOpen) {
-                        setOpenGroups(prev => Array.from(new Set([...prev, group.label, ...nestedDropdowns])));
-                      }
-                    } else {
-                      if (!isOpen) {
-                        setOpenGroups(prev => Array.from(new Set([...prev, group.label, ...nestedDropdowns])));
-                      } else {
-                        toggleGroup(group.label);
-                      }
-                    }
+                    // Group label only navigates — never auto-expands. The dropdown
+                    // opens exclusively via the chevron button beside it.
+                    if (group.path) navigate(group.path);
+                    else toggleGroup(group.label);
                   }}
                   className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 relative
                     ${highlight ? 'text-foreground' : 'text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent'}`}
