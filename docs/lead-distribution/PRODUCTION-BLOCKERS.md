@@ -329,9 +329,14 @@ UI recomposition only. No engine, entity schema, backend function, or test-logic
   filtered to the buyer via `BuyerDeliveriesPanel`), and a read-only commercial Summary (lifecycle,
   wallet, state-coverage counts) with a Manage-in-Operations link. The old `/campaigns/deliveries`
   route redirects to `/distribution/buyers`.
-- Campaigns page groups Verticals + Brands under a Setup tab (CRUD preserved), keeps campaign Buyers
-  and Suppliers assignment, and exposes Simulator + Advanced (Route Groups) buttons. Dashboard also
-  gains Simulator + Route Groups buttons. Route Groups and Simulator pages stay at their routes.
+- Campaigns page is a list + detail. Campaign detail edits the campaign vertical and suppliers-in
+  assignment, sets the selection method, and shows ONE ordered member list across buyers with
+  native drag-to-reorder priority; each row links to that buyer's Routing tab. On first configure it
+  auto-creates the campaign's default RouteGroup (lifecycle draft) via the existing distributionConfig
+  function, and Publish reuses the existing flow unchanged (validate, one simulation, diff confirm,
+  change reason, immutable version) via RouteGroupPublishDialog. Verticals + Brands live under a Setup
+  tab (CRUD preserved). An Advanced link opens the multi-group Route Groups editor (route unchanged,
+  out of nav). Simulator is a button on the Dashboard and campaign detail; both pages keep their routes.
 - Single source of truth: pricing/lifecycle/coverage edit only in Operations; routing + endpoints edit
   only in the buyer tabs; the Operations buyer detail gains Routing and Deliveries cross-links.
 
