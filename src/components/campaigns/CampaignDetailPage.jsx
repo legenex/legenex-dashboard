@@ -155,11 +155,11 @@ export default function CampaignDetailPage({ campaign, onBack }) {
   }
 
   const TABS = [
-    { key: 'overview', label: 'OVERVIEW' },
-    { key: 'buyers', label: 'BUYERS', count: order.length },
-    { key: 'suppliers', label: 'SUPPLIERS' },
-    { key: 'brands', label: 'BRANDS' },
-    { key: 'settings', label: 'SETTINGS' },
+    { key: 'overview', label: 'Overview' },
+    { key: 'buyers', label: 'Buyers', count: order.length },
+    { key: 'suppliers', label: 'Suppliers' },
+    { key: 'brands', label: 'Brands' },
+    { key: 'settings', label: 'Settings' },
   ];
 
   return (
@@ -192,13 +192,13 @@ export default function CampaignDetailPage({ campaign, onBack }) {
       <CampaignStatsStrip campaign={campaign} leads={leads} />
 
       {/* Tabs */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <div className="flex items-center gap-1 border-b border-border px-4 overflow-x-auto no-scrollbar">
+      <div>
+        <div className="flex items-center gap-1 border-b border-border overflow-x-auto no-scrollbar">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-3.5 py-2.5 text-[13px] font-semibold tracking-wide border-b-2 -mb-px inline-flex items-center gap-1.5 whitespace-nowrap ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+              className={`px-3.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px inline-flex items-center gap-1.5 whitespace-nowrap ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
             >
               {t.label}
               {t.count != null && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-mono tabular-nums ${tab === t.key ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>{t.count}</span>}
@@ -206,7 +206,7 @@ export default function CampaignDetailPage({ campaign, onBack }) {
           ))}
         </div>
 
-        <div className="p-4">
+        <div className="pt-4">
           {tab === 'overview' && (
             <CampaignOverviewTab campaign={campaign} leads={leads} members={order} buyerName={buyerName} supplierCount={supplierCount} />
           )}
