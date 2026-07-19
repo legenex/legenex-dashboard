@@ -232,6 +232,24 @@ export default function CsvImporter() {
   const [step, setStep] = useState('upload'); // upload | review
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // { done, total } while lead import runs
+  const [finalizing, setFinalizing] = useState(null); // { done, total } while the repair pass runs
+
+  // Repair pass for already-imported leads: promotes mapped_fields values onto
+  // top-level columns, fills lead_type, and clears Processing statuses.
+  const runFinalizePending = async () => {
+    setFinalizing({ done: 0, total: 0 });
+    try {
+      const res = await finalizePendingImports(base44, {
+        onProgress: (done, total) => setFinalizing({ done, total }),
+      });
+      toast.success(`Finalized ${res.updated} of ${res.scanned} imported leads`);
+      invalidateLeadCaches(qc);
+    } catch (err) {
+      toast.error('Finalize failed partway. Run it again to continue where it stopped.');
+    } finally {
+      setFinalizing(null);
+    }
+  };
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [mapping, setMapping] = useState({});
@@ -686,6 +704,17 @@ export default function CsvImporter() {
             {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
             <span className="text-[13px]">{busy ? 'Reading & auto-mapping…' : 'Click to upload a CSV / Excel file'}</span>
           </button>
+          {target === 'lead' && (
+            <div className="rounded-lg border border-border bg-card p-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[13px] text-foreground font-medium">Finalize pending imports</div>
+                <div className="text-[12px] text-muted-foreground mt-0.5">Repairs previously imported leads: fills lead type and buyer fields from the mapped data and resolves Processing statuses.</div>
+              </div>
+              <Button size="sm" variant="outline" onClick={runFinalizePending} disabled={!!finalizing} className="shrink-0">
+                {finalizing ? `${finalizing.done}/${finalizing.total || '…'}` : 'Run repair'}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
