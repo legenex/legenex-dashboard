@@ -34,7 +34,7 @@ export default function CampaignDetailPage({ campaign, onBack }) {
   const [tab, setTab] = useState('overview');
   const [savingHeader, setSavingHeader] = useState(false);
 
-  const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
+  const { data: groups = [], isLoading: groupsLoading } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list('-created_date', 500) });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order', 200) });
   const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => base44.entities.Lead.list('-created_date', 1000) });
@@ -51,18 +51,21 @@ export default function CampaignDetailPage({ campaign, onBack }) {
   );
   const defaultGroup = campaignGroups[0] || null;
 
-  // Buyers linked to this campaign's vertical (Operations Buyer.vertical field).
+  // Active buyers linked to this campaign's vertical (Operations Buyer.vertical field).
   const linkedBuyers = useMemo(() => {
     const code = String(campaign.vertical || '').toLowerCase();
     if (!code) return [];
-    return buyers.filter((b) => String(b.vertical || '').toLowerCase() === code);
+    return buyers.filter((b) => b.active === true && String(b.vertical || '').toLowerCase() === code);
   }, [buyers, campaign.vertical]);
 
-  const { data: members = [], isLoading: membersLoading } = useQuery({
+  const { data: members = [], isLoading: membersQueryLoading, fetchStatus: membersFetchStatus } = useQuery({
     queryKey: ['routeMembers', defaultGroup?.id],
     queryFn: () => (defaultGroup ? base44.entities.RouteMember.filter({ route_group_id: defaultGroup.id }) : []),
     enabled: !!defaultGroup,
   });
+  // A disabled query stays in the "pending" (isLoading) state forever in React
+  // Query v5. Only treat it as loading when it is actually fetching.
+  const membersLoading = membersQueryLoading && membersFetchStatus === 'fetching';
 
   const buyerName = useMemo(() => Object.fromEntries(buyers.map((b) => [b.id, b.company_name || b.name || b.id])), [buyers]);
   const supplierCount = useMemo(() => parseIds(campaign.supplier_ids).length, [campaign.supplier_ids]);
@@ -222,7 +225,7 @@ export default function CampaignDetailPage({ campaign, onBack }) {
               <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
                 Set a vertical for this campaign in Settings so linked buyers appear here.
               </div>
-            ) : (membersLoading || (syncing && order.length === 0)) ? (
+            ) : (groupsLoading || membersLoading || (syncing && order.length === 0)) ? (
               <div className="px-4 py-10 text-center text-[13px] text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />Loading buyers...</div>
             ) : (
               <BuyersRoutingTable
