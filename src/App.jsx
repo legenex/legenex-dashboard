@@ -47,6 +47,7 @@ import CustomCalculations from '@/pages/CustomCalculations';
 import OperationsBuyers from '@/pages/operations/OperationsBuyers';
 import OperationsSuppliers from '@/pages/operations/OperationsSuppliers';
 import OperationsActiveStates from '@/pages/operations/OperationsActiveStates';
+import OperationsVerticals from '@/pages/operations/OperationsVerticals';
 import OperationsBillingReports from '@/pages/operations/OperationsBillingReports';
 import OperationsBuyerOnboarding from '@/pages/operations/OperationsBuyerOnboarding';
 import OperationsDashboard from '@/pages/operations/OperationsDashboard';
@@ -213,6 +214,7 @@ const AuthenticatedApp = () => {
             <Route path="/operations" element={<OperationsDashboard />} />
             <Route path="/operations/buyers" element={<OperationsBuyers />} />
             <Route path="/operations/suppliers" element={<OperationsSuppliers />} />
+            <Route path="/operations/verticals" element={<OperationsVerticals />} />
             <Route path="/operations/active-states" element={<OperationsActiveStates />} />
             <Route path="/operations/billing-reports" element={<OperationsBillingReports />} />
             <Route path="/operations/buyer-onboarding" element={<OperationsBuyerOnboarding />} />

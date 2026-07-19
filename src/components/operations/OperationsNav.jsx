@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Factory, MapPin, ReceiptText, UserPlus, LayoutDashboard } from 'lucide-react';
+import { Users, Factory, MapPin, ReceiptText, UserPlus, LayoutDashboard, Layers } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
 const ITEMS = [
   { label: 'Dashboard', path: '/operations', icon: LayoutDashboard },
   { label: 'Buyers', path: '/operations/buyers', icon: Users },
   { label: 'Suppliers', path: '/operations/suppliers', icon: Factory },
+  { label: 'Verticals', path: '/operations/verticals', icon: Layers },
   { label: 'Active States', path: '/operations/active-states', icon: MapPin },
   { label: 'Billing Reports', path: '/operations/billing-reports', icon: ReceiptText },
   { label: 'Buyer Onboarding', path: '/operations/buyer-onboarding', icon: UserPlus },
