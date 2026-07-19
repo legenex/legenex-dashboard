@@ -177,7 +177,25 @@ export default function LeadsTable({ view }) {
   const [supplierFilter, setSupplierFilter] = useState([]);
   const [sourceFilter, setSourceFilter] = useState([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  // Rows per page. 50 unless the operator saved a different default with the
+  // tick box next to the selector (persisted per browser).
+  const PAGE_SIZE_KEY = 'legenex_leads_page_size_default';
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const v = parseInt(localStorage.getItem(PAGE_SIZE_KEY), 10);
+      return [20, 50, 100, 200].includes(v) ? v : 50;
+    } catch { return 50; }
+  });
+  const [savedPageSize, setSavedPageSize] = useState(() => {
+    try {
+      const v = parseInt(localStorage.getItem(PAGE_SIZE_KEY), 10);
+      return [20, 50, 100, 200].includes(v) ? v : 50;
+    } catch { return 50; }
+  });
+  const saveDefaultPageSize = (n) => {
+    try { localStorage.setItem(PAGE_SIZE_KEY, String(n)); } catch { /* private mode */ }
+    setSavedPageSize(n);
+  };
 
   useEffect(() => {
     setSearch('');
@@ -695,6 +713,15 @@ export default function LeadsTable({ view }) {
             >
               {[20, 50, 100, 200].map(n => <option key={n} value={n}>{n} / page</option>)}
             </select>
+            <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground cursor-pointer select-none" title="Use the selected page length as the default">
+              <input
+                type="checkbox"
+                checked={savedPageSize === pageSize}
+                onChange={(e) => { if (e.target.checked) saveDefaultPageSize(pageSize); }}
+                className="h-3.5 w-3.5 rounded border-border bg-card accent-[hsl(var(--primary))]"
+              />
+              Default
+            </label>
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={safePage <= 1}
