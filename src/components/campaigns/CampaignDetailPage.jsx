@@ -90,14 +90,17 @@ export default function CampaignDetailPage({ campaign, onBack }) {
       if (!group) {
         setSyncing(true);
         try {
-          const res = await base44.functions.invoke('distributionConfig', {
+          await base44.functions.invoke('distributionConfig', {
             action: 'create_draft',
             group: { campaign_id: campaign.id, name: 'Default', method: 'priority', order_index: 0 },
           });
-          const created = res?.data?.group || res?.data || {};
+          // create_draft returns { ok, route_group_id }; the group is now in the
+          // DB. Refetch routeGroups so defaultGroup resolves and this effect
+          // re-runs to create the members.
           await qc.invalidateQueries({ queryKey: ['routeGroups'] });
-          group = created.id ? created : null;
-        } catch { /* surfaced elsewhere */ } finally { if (!cancelled) setSyncing(false); }
+        } catch (e) {
+          toast.error('Could not set up routing: ' + (e?.message || 'error'));
+        } finally { if (!cancelled) setSyncing(false); }
         return; // let the refetched group re-run this effect
       }
       const existing = new Set(members.map((m) => String(m.buyer_id)));

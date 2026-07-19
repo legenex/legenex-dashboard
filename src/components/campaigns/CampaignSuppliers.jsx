@@ -14,7 +14,6 @@ import { Plus, Copy, ArrowDownUp, Pencil, Files, Trash2, ChevronRight, ChevronDo
 import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
 import { Panel, Tag } from '@/components/campaigns/campaignTable';
-import LeadsPeriodFilter from '@/components/shared/LeadsPeriodFilter';
 import { resolvePeriod } from '@/lib/periodRange';
 import { money } from '@/lib/partnerMetrics';
 import { supplierCostMetrics, payoutSummary } from '@/lib/supplierCost';
@@ -52,8 +51,9 @@ export default function CampaignSuppliers() {
   const [ioOpen, setIoOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
-  const [period, setPeriod] = useState('this_month');
-  const [customPeriod, setCustomPeriod] = useState({ from: '', to: '' });
+  // Metrics are all-time here; the campaign stats strip carries period context.
+  const period = 'all';
+  const customPeriod = { from: '', to: '' };
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
@@ -190,8 +190,7 @@ export default function CampaignSuppliers() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <LeadsPeriodFilter period={period} custom={customPeriod} onPeriodChange={setPeriod} onCustomChange={setCustomPeriod} />
+      <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setIoOpen(true)} className="gap-1.5"><ArrowDownUp className="w-4 h-4" /> Import / Export Fields</Button>
           <Button size="sm" onClick={openCreate} className="gap-1.5"><Plus className="w-4 h-4" /> Create Supplier</Button>
