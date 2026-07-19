@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     if (!(await assertOperator(base44, user))) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const svc = base44.asServiceRole;
-    const engine = await import('../_shared/routingEngine.generated.js');
+    const engine = await import('./routingEngine.generated.js');
 
     const body = await req.json().catch(() => ({}));
     const limit = Math.min(Number(body.limit) || 500, 2000);

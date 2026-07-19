@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     const leadData = body.lead || {};
     if (!campaignId) return Response.json({ error: 'campaign_id is required' }, { status: 400 });
 
-    const engine = await import('../_shared/routingEngine.generated.js');
+    const engine = await import('./routingEngine.generated.js');
     const svc = base44.asServiceRole;
     // The snapshot loader pre-loads real cap counts internally (read-only).
     const result = await engine.runSimulation(svc, { campaignId, leadData, nowMs: Date.now() });

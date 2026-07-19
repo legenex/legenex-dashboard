@@ -1313,7 +1313,7 @@ Deno.serve(async (req) => {
     // the generated bundle to the function runtime is verified in staging (CAP-2).
     if (distributionMode !== 'legacy_only') {
       try {
-        const leadDist = await import('../_shared/routingEngine.generated.js');
+        const leadDist = await import('./routingEngine.generated.js');
         await leadDist.runShadow(db, {
           distributionMode,
           leadId,

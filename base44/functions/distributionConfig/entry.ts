@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const svc = base44.asServiceRole;
-    const engine = await import('../_shared/routingEngine.generated.js');
+    const engine = await import('./routingEngine.generated.js');
     const record = await svc.entities.User.get(user.id).catch(() => null);
     if (!engine.isOperator(record || user)) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
