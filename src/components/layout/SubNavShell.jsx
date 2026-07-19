@@ -74,7 +74,7 @@ export default function SubNavShell({ children, items, title }) {
           <div className="flex-1 min-h-0 w-full flex flex-col items-center gap-0.5 overflow-y-auto no-scrollbar">
             {items && items.length > 0 && items.map((item, i) => <CollapsedIcon key={item.to || item.label || i} item={item} />)}
           </div>
-          <div className="shrink-0 w-full flex justify-center pt-2 pb-1 mt-1 border-t border-border">
+          <div className="shrink-0 w-full flex justify-center py-3 border-t border-border">
             <button
               onClick={toggle}
               aria-label="Expand menu"
@@ -108,12 +108,12 @@ export default function SubNavShell({ children, items, title }) {
 
           {/* Collapse control pinned at the bottom, in line with the main
               sidebar collapse control. */}
-          <div className="shrink-0 flex justify-end pr-1 pt-2 pb-1 mt-1 border-t border-border">
+          <div className="shrink-0 flex justify-end py-3 border-t border-border">
             <button
               onClick={toggle}
               aria-label="Collapse menu"
               title="Collapse menu"
-              className="w-7 h-7 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <PanelLeftClose className="w-4 h-4" />
             </button>

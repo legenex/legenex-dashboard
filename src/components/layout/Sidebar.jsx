@@ -196,6 +196,11 @@ export default function Sidebar() {
   const logoSrc = isDark
     ? 'https://media.base44.com/images/public/6a363ed8bf1b77641238d41d/f9cc21785_LogoWideLightClear.png'
     : 'https://media.base44.com/images/public/6a4957e7b03e9b10c170d29e/9eecce577_Logo-Wide-Dark-Clear.png';
+  // Collapsed rail uses the square favicon mark: FaviconLight (red arrow) on the
+  // dark theme, FaviconDark (navy bubble) on the light theme.
+  const faviconSrc = isDark
+    ? 'https://media.base44.com/images/public/6a4957e7b03e9b10c170d29e/b1c1f3a2d_FaviconLight.png'
+    : 'https://media.base44.com/images/public/6a4957e7b03e9b10c170d29e/1ba6269e4_FaviconDark.png';
   const groups = filterNav(navGroups, can);
   const { width, startResize } = useSidebarWidth();
   const { collapsed, toggle } = useCollapsible({ storageKey: 'legenex_sidebar_collapsed' });
@@ -219,7 +224,7 @@ export default function Sidebar() {
       <aside className="fixed left-0 top-0 bottom-0 bg-sidebar flex flex-col items-center border-r border-sidebar-border z-50"
         style={{ width: `${COLLAPSED_WIDTH}px`, borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}>
         <Link to="/" className="flex items-center justify-center py-6">
-          <img src={logoSrc} alt="Legenex" className="h-7 w-7 object-contain" />
+          <img src={faviconSrc} alt="Legenex" className="h-8 w-8 object-contain" />
         </Link>
         <nav className="flex-1 px-2 space-y-1 mt-2 overflow-y-auto no-scrollbar w-full flex flex-col items-center">
           {groups.map(group => {
