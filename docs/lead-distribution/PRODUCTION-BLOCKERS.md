@@ -316,6 +316,25 @@ from the Campaigns > Deliveries page header ("Route Groups" and "Simulator" quic
 not orphaned. They live off the Deliveries surface because both are routing-config tools: Route Groups
 builds the routing that consumes deliveries, and Simulator dry-runs that routing.
 
+## IA change (2026-07-19): buyer-centric Lead Distribution information architecture
+UI recomposition only. No engine, entity schema, backend function, or test-logic change (verified:
+`git diff --name-only` shows no `base44/functions` or `base44/entities` edits). Summary:
+- Nav reduced to exactly five sections: Dashboard, Campaigns, Buyers, Webhooks, Conversion Events
+  (each with an icon, shown in the collapsed rail). Verticals, Brands, Suppliers, Deliveries, Route
+  Groups, and Simulator are removed FROM THE NAV but keep their routes and permission keys.
+  `DistributionNav.test.jsx` pins the new structure (present + absent + collapsed rail).
+- New Buyers page at `/distribution/buyers` (key `dist_buyers`) with per-buyer tabs: Routing (existing
+  typed RouteMember editor; a new member auto-attaches to the campaign's default RouteGroup, created
+  lazily in `draft`), Deliveries (the former standalone CampaignDeliveries content, unchanged, now
+  filtered to the buyer via `BuyerDeliveriesPanel`), and a read-only commercial Summary (lifecycle,
+  wallet, state-coverage counts) with a Manage-in-Operations link. The old `/campaigns/deliveries`
+  route redirects to `/distribution/buyers`.
+- Campaigns page groups Verticals + Brands under a Setup tab (CRUD preserved), keeps campaign Buyers
+  and Suppliers assignment, and exposes Simulator + Advanced (Route Groups) buttons. Dashboard also
+  gains Simulator + Route Groups buttons. Route Groups and Simulator pages stay at their routes.
+- Single source of truth: pricing/lifecycle/coverage edit only in Operations; routing + endpoints edit
+  only in the buyer tabs; the Operations buyer detail gains Routing and Deliveries cross-links.
+
 ## Notes
 - No blocker below is closed. Phase 0 established ground truth only.
 - PB-008/010 external-datastore escape hatch requires Nick approval AND Morne infra sign-off; do not

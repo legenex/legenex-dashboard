@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import {
   Copy, Link2, Workflow, Users, CheckCircle2, Ban, Clock, RotateCcw, XCircle, AlertTriangle,
-  Target, Phone, Mail, MessageSquare, Brain, Sparkles, ArrowUpRight, RefreshCw,
+  Target, Phone, Mail, MessageSquare, Brain, Sparkles, ArrowUpRight, RefreshCw, Route as RouteIcon, GitBranch,
 } from 'lucide-react';
 
 const rise = {
@@ -185,6 +185,21 @@ export default function DistributionDashboard() {
     <div>
       <SectionHeader title="Distribution Dashboard" subtitle="Operational pipeline health, volume, status mix, verification and source performance">
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Routing tools live off the Dashboard now that they are out of the nav. */}
+          <button
+            type="button"
+            onClick={() => navigate('/distribution/simulator')}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+          >
+            <RouteIcon className="w-4 h-4" />Simulator
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/distribution/routes')}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+          >
+            <GitBranch className="w-4 h-4" />Route Groups
+          </button>
           <PeriodTabs value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
           <RefreshButton onClick={() => qc.invalidateQueries()} />
         </div>

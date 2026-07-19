@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, Send, Zap, ChevronRight, Webhook, Layers, Users, Truck, Tag } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Users, Webhook, Zap } from 'lucide-react';
 import SubNavShell from '@/components/layout/SubNavShell';
 
+// Buyer-centric IA. Exactly five top-level sections, each with an icon (also
+// shown in the collapsed rail). Verticals, Brands, Suppliers, Deliveries, Route
+// Groups, and Simulator are intentionally NOT in the nav: Verticals/Brands live
+// on the Campaigns Setup tab, Suppliers in Operations, Deliveries/routing inside
+// the Buyers tabs, and Route Groups/Simulator remain routable tools reached from
+// Campaigns/Dashboard. Their routes still exist and keep their permission keys.
 const ITEMS = [
   { label: 'Dashboard', path: '/distribution', icon: LayoutDashboard },
-  { label: 'Campaigns', path: '/campaigns', icon: Megaphone, children: [
-    { label: 'Verticals', tab: 'verticals', icon: Layers },
-    { label: 'Buyers', tab: 'buyers', icon: Users },
-    { label: 'Suppliers', tab: 'suppliers', icon: Truck },
-    { label: 'Deliveries', to: '/campaigns/deliveries', icon: Send },
-    { label: 'Brands', tab: 'brands', icon: Tag },
-  ] },
+  { label: 'Campaigns', path: '/campaigns', icon: Megaphone },
+  { label: 'Buyers', path: '/distribution/buyers', icon: Users },
   // Webhooks is Nick's live rename of the former Deliveries page; it stays at
   // /deliveries (the live route) and is NOT moved to a new path.
   { label: 'Webhooks', path: '/deliveries', icon: Webhook },
@@ -23,32 +24,14 @@ const linkClass = (active) =>
     active ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
   }`;
 
-// Left sub-sidebar for the Lead Distribution section.
+// Left sub-sidebar for the Lead Distribution section. Flat, buyer-centric: five
+// top-level links, each with an icon that also appears in the collapsed rail.
 export default function DistributionNav() {
   const location = useLocation();
-  const onCampaigns = location.pathname === '/campaigns';
-  const activeTab = new URLSearchParams(location.search).get('tab') || 'verticals';
 
-  // Campaigns dropdown starts expanded; auto-open again whenever on the Campaigns page.
-  const [campaignsOpen, setCampaignsOpen] = useState(true);
-  useEffect(() => { if (onCampaigns) setCampaignsOpen(true); }, [onCampaigns]);
-
-  // Collapsed/mobile rail: include Campaigns sub-items (each with its icon and
-  // route) so every sub-item, including Deliveries, stays reachable when the
-  // submenu is collapsed to the icon rail.
-  const railItems = ITEMS.flatMap(item => {
-    const self = { label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path };
-    if (!item.children) return [self];
-    const kids = item.children
-      .filter(c => !c.comingSoon)
-      .map(c => ({
-        label: c.label,
-        icon: c.icon,
-        to: c.to || `${item.path}?tab=${c.tab}`,
-        active: c.to ? location.pathname === c.to : false,
-      }));
-    return [self, ...kids];
-  });
+  const railItems = ITEMS.map(item => ({
+    label: item.label, icon: item.icon, to: item.path, active: location.pathname === item.path,
+  }));
 
   return (
     <SubNavShell items={railItems}>
@@ -56,65 +39,6 @@ export default function DistributionNav() {
         {ITEMS.map(item => {
           const Icon = item.icon;
           const active = location.pathname === item.path;
-
-          if (item.children) {
-            return (
-              <div key={item.path}>
-                <div className={`${linkClass(active)} pr-2`}>
-                  <Link to={item.path} className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {item.label}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setCampaignsOpen(o => !o); }}
-                    className="shrink-0 p-0.5 -mr-1 rounded hover:bg-accent/60"
-                    aria-label={campaignsOpen ? 'Collapse' : 'Expand'}
-                  >
-                    <ChevronRight className={`w-3.5 h-3.5 transition-transform ${campaignsOpen ? 'rotate-90' : ''}`} />
-                  </button>
-                </div>
-                {campaignsOpen && (
-                  <div className="mt-0.5 ml-4 pl-2.5 border-l border-border space-y-0.5">
-                    {item.children.map(child => {
-                      const ChildIcon = child.icon;
-                      if (child.comingSoon) {
-                        return (
-                          <div
-                            key={child.label}
-                            title="Coming soon"
-                            className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-muted-foreground/60 cursor-not-allowed"
-                          >
-                            {ChildIcon && <ChildIcon className="w-4 h-4 shrink-0" />}
-                            <span className="flex-1">{child.label}</span>
-                            <span className="shrink-0 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">Soon</span>
-                          </div>
-                        );
-                      }
-                      // A child may be its own page (child.to) or a tab on the parent.
-                      const childActive = child.to
-                        ? location.pathname === child.to
-                        : (onCampaigns && activeTab === child.tab);
-                      const childTo = child.to || `${item.path}?tab=${child.tab}`;
-                      return (
-                        <Link
-                          key={child.to || child.tab}
-                          to={childTo}
-                          className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
-                            childActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
-                          }`}
-                        >
-                          {ChildIcon && <ChildIcon className="w-4 h-4 shrink-0" />}
-                          {child.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
           return (
             <Link key={item.path} to={item.path} className={linkClass(active)}>
               <Icon className="w-4 h-4 shrink-0" />

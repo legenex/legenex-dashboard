@@ -36,7 +36,7 @@ import Reports from '@/pages/Reports';
 import Finances from '@/pages/Finances';
 
 import Deliveries from '@/pages/Deliveries';
-import CampaignDeliveries from '@/pages/CampaignDeliveries';
+import DistributionBuyers from '@/pages/distribution/DistributionBuyers';
 import ConversionEvents from '@/pages/ConversionEvents';
 import RouteSimulator from '@/pages/RouteSimulator';
 import RouteGroups from '@/pages/RouteGroups';
@@ -189,10 +189,15 @@ const AuthenticatedApp = () => {
           <Route element={<DistributionLayout />}>
             <Route path="/distribution" element={<DistributionDashboard />} />
             <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/campaigns/deliveries" element={<CampaignDeliveries />} />
+            {/* Buyer-centric IA: buyers list + per-buyer detail (Routing / Deliveries / Summary tabs). */}
+            <Route path="/distribution/buyers" element={<DistributionBuyers />} />
+            <Route path="/distribution/buyers/:id" element={<DistributionBuyers />} />
+            {/* Deliveries are now a per-buyer tab; the old standalone page redirects there. */}
+            <Route path="/campaigns/deliveries" element={<Navigate to="/distribution/buyers" replace />} />
             {/* Nick's live rename: /deliveries stays and renders the Webhooks page. */}
             <Route path="/deliveries" element={<Deliveries />} />
             <Route path="/conversion-events" element={<ConversionEvents />} />
+            {/* Route Groups (Advanced) + Simulator stay routable, out of nav. */}
             <Route path="/distribution/routes" element={<RouteGroups />} />
             <Route path="/distribution/simulator" element={<RouteSimulator />} />
           </Route>
