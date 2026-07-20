@@ -65,13 +65,19 @@ const DETAIL_FIELDS = [
   { key: 'trustedform_url', label: 'TrustedForm URL', value: (lead, m, extra) => ci(m, 'trustedform_url') || extra.reportedTrustedFormUrl },
 ];
 
-// Mapped keys consumed by Lead Details above; everything else renders under
-// Lead Data. Lowercase for case-insensitive exclusion.
+// Mapped keys already surfaced in Lead Details above (case-insensitive). These
+// must never reappear under Lead Data, which shows only the leftover raw
+// fields. Includes the base identity keys (rendered from top-level columns)
+// and every mapped key any Lead Details field reads.
 const CONSUMED_MAPPED_KEYS = new Set([
-  'timestamp', 'vertical', 'zip', 'accident_state', 'ip_address', 'lead_type',
-  'lead_status', 'buyer', 'buyer_name', 'buyer_id', 'buyer_feedback',
-  'returned', 'returned_reason', 'ssid', 'supplier source', 'supplier_brand',
-  'optin_url', 'trustedform_url',
+  // identity shown at the top from top-level lead columns
+  'first_name', 'last_name', 'name', 'email', 'mobile',
+  // everything a DETAIL_FIELDS entry pulls from mapped_fields
+  'timestamp', 'vertical', 'zip', 'geoip_zip', 'accident_state', 'geoip_state',
+  'state', 'ip_address', 'lead_type', 'lead_status', 'buyer', 'buyer_name',
+  'buyer_id', 'buyer_feedback', 'returned', 'returned_reason', 'ssid',
+  'supplier source', 'source', 'utm_source', 'supplier_brand', 'optin_url',
+  'trustedform_url', 'revenue',
 ]);
 
 const loadDetailOrder = () => {
