@@ -233,6 +233,30 @@ export default function CsvImporter() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // { done, total } while lead import runs
   const [finalizing, setFinalizing] = useState(null); // { done, total } while the repair pass runs
+  const [backfilling, setBackfilling] = useState(false); // lead_type backfill in flight
+
+  // One-tap lead_type backfill. Calls the deployed backfillLeadType function
+  // which runs server-side against the live DB: sid LEADFLOW/LGNX -> Quiz, every
+  // other supplier -> Affiliate. Idempotent, so it is safe to press again.
+  const runLeadTypeBackfill = async () => {
+    setBackfilling(true);
+    try {
+      const res = await base44.functions.invoke('backfillLeadType', {
+        mode: 'apply',
+        confirm: 'YES_BACKFILL_LEAD_TYPE',
+      });
+      const data = res?.data ?? res;
+      const updated = data?.updated ?? 0;
+      const q = data?.set_breakdown?.Quiz ?? 0;
+      const a = data?.set_breakdown?.Affiliate ?? 0;
+      toast.success(`Lead type set on ${updated} leads (${q} Quiz, ${a} Affiliate)`);
+      invalidateLeadCaches(qc);
+    } catch (err) {
+      toast.error('Lead type backfill failed. It is safe to try again.');
+    } finally {
+      setBackfilling(false);
+    }
+  };
 
   // Repair pass for already-imported leads: promotes mapped_fields values onto
   // top-level columns, fills lead_type, and clears Processing statuses.
@@ -712,6 +736,17 @@ export default function CsvImporter() {
               </div>
               <Button size="sm" variant="outline" onClick={runFinalizePending} disabled={!!finalizing} className="shrink-0">
                 {finalizing ? `${finalizing.done}/${finalizing.total || '…'}` : 'Run repair'}
+              </Button>
+            </div>
+          )}
+          {target === 'lead' && (
+            <div className="rounded-lg border border-border bg-card p-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[13px] text-foreground font-medium">Backfill lead type</div>
+                <div className="text-[12px] text-muted-foreground mt-0.5">Sets lead type on every lead missing one: LEADFLOW and LGNX suppliers become Quiz, all others Affiliate. Safe to run more than once.</div>
+              </div>
+              <Button size="sm" variant="outline" onClick={runLeadTypeBackfill} disabled={backfilling} className="shrink-0">
+                {backfilling ? 'Working…' : 'Backfill lead type'}
               </Button>
             </div>
           )}
