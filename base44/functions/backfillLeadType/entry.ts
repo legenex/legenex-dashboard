@@ -67,9 +67,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Params come from the query string (manual GET) or the POST body (SDK
+    // functions.invoke). Body wins when present.
     const url = new URL(req.url);
-    const rawMode = (url.searchParams.get('mode') || '').toLowerCase();
+    let body = {};
+    try { body = await req.json(); } catch { body = {}; }
+    const rawMode = String(body.mode ?? url.searchParams.get('mode') ?? '').toLowerCase();
     const mode = ['count', 'apply'].includes(rawMode) ? rawMode : 'count';
+    const confirmValue = String(body.confirm ?? url.searchParams.get('confirm') ?? '');
 
     const leads = await loadAllLeads(base44);
     const totalScanned = leads.length;
@@ -98,6 +103,12 @@ Deno.serve(async (req) => {
     }
 
     // ── mode=apply ──────────────────────────────────────────────────────
+    if (confirmValue !== 'YES_BACKFILL_LEAD_TYPE') {
+      return Response.json({
+        error: 'Apply not confirmed. Pass confirm=YES_BACKFILL_LEAD_TYPE to proceed. Nothing was written.',
+        missing_lead_type: work.length,
+      }, { status: 400 });
+    }
     let updated = 0;
     let failed = 0;
     const errors = [];
