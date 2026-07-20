@@ -7,17 +7,18 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 // patched, and written back. This function does that server-side against live
 // data, paging the whole table.
 //
-// Per Nick's decision on 20 July 2026, every lead missing a lead_type is filled
-// with "Quiz".
-//
-// Modes (query param ?mode=):
-//   count   (default) - report how many leads are missing lead_type, no writes
-//   apply             - parse mapped_fields, add lead_type where absent, update
+// Per Nick's rule on 20 July 2026, lead_type derives from the supplier sid:
+//   sid LEADFLOW or LGNX -> "Quiz"     (our own quiz funnels)
+//   anything else        -> "Affiliate" (INBNDS and any future affiliate)
 //
 // The operation is idempotent: a lead that already has a non-empty lead_type is
 // never touched, so re-running is safe.
 
-const DEFAULT_LEAD_TYPE = 'Quiz';
+function deriveLeadType(mapped) {
+  const sid = String(mapped.sid || '').trim().toUpperCase();
+  if (sid === 'LEADFLOW' || sid === 'LGNX') return 'Quiz';
+  return 'Affiliate';
+}
 
 // A lead needs backfill when mapped_fields has no non-empty lead_type key.
 function neededPatch(lead) {
@@ -29,8 +30,9 @@ function neededPatch(lead) {
       return null; // already set, leave it
     }
   }
-  mapped.lead_type = DEFAULT_LEAD_TYPE;
-  return { mapped_fields: JSON.stringify(mapped) };
+  const leadType = deriveLeadType(mapped);
+  mapped.lead_type = leadType;
+  return { patch: { mapped_fields: JSON.stringify(mapped) }, leadType };
 }
 
 async function loadAllLeads(base44) {
@@ -74,10 +76,14 @@ Deno.serve(async (req) => {
 
     // Build the work list: id + computed patch for every lead that needs one.
     const work = [];
+    const byType = { Quiz: 0, Affiliate: 0 };
     for (const l of leads) {
       if (!l || !l.id) continue;
-      const patch = neededPatch(l);
-      if (patch) work.push({ id: l.id, patch });
+      const res = neededPatch(l);
+      if (res) {
+        work.push({ id: l.id, patch: res.patch });
+        byType[res.leadType] = (byType[res.leadType] || 0) + 1;
+      }
     }
 
     if (mode === 'count') {
@@ -86,7 +92,7 @@ Deno.serve(async (req) => {
         total_leads_scanned: totalScanned,
         missing_lead_type: work.length,
         already_set: totalScanned - work.length,
-        default_lead_type: DEFAULT_LEAD_TYPE,
+        would_set: byType,
         note: 'No changes made. Call again with ?mode=apply to backfill.',
       }, { status: 200 });
     }
@@ -115,7 +121,7 @@ Deno.serve(async (req) => {
       attempted: work.length,
       updated,
       failed,
-      default_lead_type: DEFAULT_LEAD_TYPE,
+      set_breakdown: byType,
       errors,
     }, { status: 200 });
   } catch (err) {
