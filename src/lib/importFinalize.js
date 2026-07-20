@@ -40,12 +40,15 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Derive lead_type when the payload did not carry one. Per Nick's decision on
-// 20 Jul 2026, every lead missing a lead_type is filled with 'Quiz'.
+// Derive lead_type when the payload did not carry one. Per Nick's rule on
+// 20 Jul 2026: our own quiz funnels (sid LEADFLOW or LGNX) are 'Quiz'; every
+// other supplier (INBNDS and any future affiliate) is 'Affiliate'.
 export function deriveLeadType(mapped) {
   const existing = clean(mapped.lead_type);
   if (existing) return existing;
-  return 'Quiz';
+  const sid = String(mapped.sid || '').trim().toUpperCase();
+  if (sid === 'LEADFLOW' || sid === 'LGNX') return 'Quiz';
+  return 'Affiliate';
 }
 
 // Build the top-level patch for one lead from its mapped fields. Only fills
