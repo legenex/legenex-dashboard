@@ -32,7 +32,7 @@ const CATEGORIES = [
   { key: 'validation', label: 'Lead Validation' },
 ];
 
-// category-tagged integration catalog. `meta` renders the live MetaAdSpend flow.
+// category-tagged integration catalog. `meta` opens the Meta connect/manage dialogs.
 const CATALOG = [
   { type: 'meta', category: 'ads', name: 'Meta (Facebook) Ads', icon: Facebook, desc: 'Sync ad spend & map to campaigns for true CPL', live: 'meta' },
 
@@ -171,7 +171,6 @@ export default function SettingsIntegrations() {
   };
 
   const visible = CATALOG.filter(it => cat === 'all' || it.category === cat);
-  const showMeta = cat === 'all' || cat === 'ads';
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
   const [metaManageOpen, setMetaManageOpen] = useState(false);
   const { data: metaStatus } = useQuery({ queryKey: ['meta-connection-status'], queryFn: async () => (await metaConnectionStatus({})).data });
