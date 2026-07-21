@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
               platform: 'meta',
               supplier_id: cm?.supplier_id || '',
               supplier_ad_account_id: assoc.id,
-              date: row.date,
+              date: row.date_start,
               ad_account_id: node,
               level: 'campaign',
               spend: Number(row.spend) || 0,
@@ -316,8 +316,8 @@ Deno.serve(async (req) => {
           for (const row of campInsights) {
             const cm = acctCampMaps[row.campaign_id || ''];
             if (!cm || !cm.supplier_id) continue;
-            const key = `${cm.supplier_id}|${row.date}`;
-            const agg = bySupDay[key] || (bySupDay[key] = { cm, date: row.date, spend: 0, impressions: 0, clicks: 0, leads: 0 });
+            const key = `${cm.supplier_id}|${row.date_start}`;
+            const agg = bySupDay[key] || (bySupDay[key] = { cm, date: row.date_start, spend: 0, impressions: 0, clicks: 0, leads: 0 });
             agg.spend += Number(row.spend) || 0;
             agg.impressions += Number(row.impressions) || 0;
             agg.clicks += Number(row.clicks) || 0;
