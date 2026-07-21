@@ -15,13 +15,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Map Meta campaigns in one ad account to a supplier (cost attribution), plus an
-// optional vertical/brand. Mirrors the LeadDistro "Map to Campaign" flow.
+// Map to Campaign: map Meta campaigns in one ad account to a Legenex Campaign
+// (which carries the vertical and brand) and a Source (Supplier, cost
+// attribution). Mirrors the LeadDistro "Map to Campaign" flow. Writes campaign
+// level AdSpendMapping rows via mapMetaCampaigns; the chosen Campaign supplies
+// vertical and brand, the Source supplies supplier attribution.
 export default function MetaMapCampaignsDialog({ open, onOpenChange, account, onSaved }) {
   const qc = useQueryClient();
+  const [campaignId, setCampaignId] = useState('');
   const [supplierId, setSupplierId] = useState('');
-  const [vertical, setVertical] = useState('');
-  const [brand, setBrand] = useState('');
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
@@ -30,9 +32,12 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
   const acctId = account?.ad_account_id;
   const connId = account?.connection_id;
 
+  const { data: legenexCampaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list(), enabled: open });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list(), enabled: open });
-  const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list(), enabled: open });
-  const { data: brands = [] } = useQuery({ queryKey: ['brands'], queryFn: () => base44.entities.Brand.list(), enabled: open });
+
+  const selCampaign = legenexCampaigns.find(c => c.id === campaignId) || null;
+  const vertical = selCampaign?.vertical || '';
+  const brand = selCampaign?.brand || '';
 
   const { data: campData, isLoading: loadingCamps, error: campError } = useQuery({
     queryKey: ['meta-account-campaigns', acctId],
@@ -59,13 +64,14 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
   const toggle = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const selectAllVisible = () => setSelected(prev => {
     const n = new Set(prev);
-    const allOn = visible.every(c => n.has(c.id));
+    const allOn = visible.length > 0 && visible.every(c => n.has(c.id));
     visible.forEach(c => allOn ? n.delete(c.id) : n.add(c.id));
     return n;
   });
 
   const create = async () => {
-    if (!supplierId) { toast.error('Choose a supplier'); return; }
+    if (!campaignId) { toast.error('Choose a campaign'); return; }
+    if (!supplierId) { toast.error('Choose a source'); return; }
     if (selected.size === 0) { toast.error('Select at least one campaign'); return; }
     setSaving(true);
     try {
@@ -82,6 +88,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
       setSelected(new Set());
       refetchMaps();
       qc.invalidateQueries({ queryKey: ['meta-ad-accounts'] });
+      qc.invalidateQueries({ queryKey: ['meta-adaccounts-overview'] });
       qc.invalidateQueries({ queryKey: ['adspend'] });
       onSaved?.();
     } catch (e) { toast.error(e?.response?.data?.error || 'Failed to map campaigns'); }
@@ -89,8 +96,13 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
   };
 
   const removeMapping = async (id) => {
-    try { await metaCampaignMappings({ action: 'delete', id }); refetchMaps(); qc.invalidateQueries({ queryKey: ['meta-ad-accounts'] }); onSaved?.(); }
-    catch { toast.error('Failed to remove'); }
+    try {
+      await metaCampaignMappings({ action: 'delete', id });
+      refetchMaps();
+      qc.invalidateQueries({ queryKey: ['meta-ad-accounts'] });
+      qc.invalidateQueries({ queryKey: ['meta-adaccounts-overview'] });
+      onSaved?.();
+    } catch { toast.error('Failed to remove'); }
   };
 
   const supplierName = (id) => suppliers.find(s => s.id === id)?.name || '';
@@ -99,32 +111,31 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover border-border max-w-[720px]">
         <DialogHeader>
-          <DialogTitle>Map to Supplier</DialogTitle>
+          <DialogTitle>Map to Campaign</DialogTitle>
         </DialogHeader>
         <p className="text-[12px] text-muted-foreground -mt-2">
-          Map Meta campaigns from <span className="text-foreground font-medium">{account?.ad_account_name}</span> to a supplier for automatic spend syncing.
+          Map Meta ad campaigns from <span className="text-foreground font-medium">{account?.ad_account_name}</span> to a campaign and source for automatic spend syncing.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <Label className="text-[11px] text-muted-foreground">Supplier (cost attribution)</Label>
+            <Label className="text-[11px] text-muted-foreground">Campaign</Label>
+            <Select value={campaignId} onValueChange={setCampaignId}>
+              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Select a campaign" /></SelectTrigger>
+              <SelectContent>
+                {legenexCampaigns.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="inline-flex items-center gap-2">{c.name}{c.vertical ? <span className="text-muted-foreground">({c.vertical})</span> : null}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Source (cost attribution)</Label>
             <Select value={supplierId} onValueChange={setSupplierId}>
-              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Select supplier" /></SelectTrigger>
+              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Select a source" /></SelectTrigger>
               <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Vertical</Label>
-            <Select value={vertical} onValueChange={setVertical}>
-              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
-              <SelectContent>{verticals.map(v => <SelectItem key={v.id} value={v.code}>{v.code}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[11px] text-muted-foreground">Brand</Label>
-            <Select value={brand} onValueChange={setBrand}>
-              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
-              <SelectContent>{brands.map(b => <SelectItem key={b.id} value={b.brand_code}>{b.brand_code}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
@@ -149,7 +160,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
             {campError ? (
               <p className="text-[12px] status-error p-3">{campData?.error || 'Could not load campaigns. Check the connection permissions.'}</p>
             ) : loadingCamps ? (
-              <p className="text-[12px] text-muted-foreground p-3 inline-flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading campaigns…</p>
+              <p className="text-[12px] text-muted-foreground p-3 inline-flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading campaigns\u2026</p>
             ) : visible.length === 0 ? (
               <p className="text-[12px] text-muted-foreground p-3">No campaigns match.</p>
             ) : visible.map(c => (
@@ -165,7 +176,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={create} disabled={saving || selected.size === 0 || !supplierId}>{saving ? 'Mapping…' : `Create ${selected.size} Mapping${selected.size === 1 ? '' : 's'}`}</Button>
+          <Button onClick={create} disabled={saving || selected.size === 0 || !supplierId || !campaignId}>{saving ? 'Mapping\u2026' : `Create ${selected.size} Mapping${selected.size === 1 ? '' : 's'}`}</Button>
         </div>
 
         {existing.length > 0 && (
@@ -178,7 +189,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
                     <div className="text-[12px] text-foreground truncate">{m.meta_campaign_name}</div>
                     <div className="flex items-center gap-1 mt-0.5">
                       <Badge variant="outline" className="text-[9px]">Campaign</Badge>
-                      <span className="text-[11px] text-muted-foreground truncate">{m.supplier_name || supplierName(m.supplier_id)}{m.vertical ? ` · ${m.vertical}` : ''}{m.brand ? ` · ${m.brand}` : ''}</span>
+                      <span className="text-[11px] text-muted-foreground truncate">{m.supplier_name || supplierName(m.supplier_id)}{m.vertical ? ` \u00b7 ${m.vertical}` : ''}{m.brand ? ` \u00b7 ${m.brand}` : ''}</span>
                     </div>
                   </div>
                   <button onClick={() => removeMapping(m.id)} className="text-muted-foreground hover:text-destructive p-1 shrink-0"><Trash2 className="w-4 h-4" /></button>
