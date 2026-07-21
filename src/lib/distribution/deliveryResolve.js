@@ -24,6 +24,9 @@ function toResponseMapping(rm) {
     queueRe: rm.queued || rm.queueRe || null,
     revenuePath: rm.revenue || rm.revenuePath || null,
     leadIdPath: rm.buyer_lead_id || rm.leadIdPath || null,
+    // When true, acceptance is authoritative: a 2xx that does not match acceptRe
+    // is treated as a rejection rather than a false Sold.
+    requireAccept: rm.require_accept === true || rm.requireAccept === true,
   };
 }
 

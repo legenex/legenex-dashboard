@@ -1,7 +1,7 @@
 // GENERATED FILE - DO NOT EDIT BY HAND.
 // Source of truth: src/lib/distribution/backend-entry.js and its imports.
 // Regenerate: node scripts/generate-backend-engine.mjs
-// canonical-engine-sha256: 08ff10195cf87b8199c44e1c464d4c6303575ecae4ef39ef291047c21bc0353d
+// canonical-engine-sha256: eb76495564c186e4ae3848f3ec468f03a071ec0b413ace0c7aca292f8e1b9aa6
 // src/lib/distribution/engine.js
 var REASON = {
   ELIGIBLE: "ELIGIBLE",
@@ -15,6 +15,9 @@ var REASON = {
   FILTER_BRAND: "FILTER_BRAND",
   FILTER_SUPPLIER: "FILTER_SUPPLIER",
   FILTER_SOURCE: "FILTER_SOURCE",
+  FILTER_LEAD_TYPE: "FILTER_LEAD_TYPE",
+  FILTER_ACCIDENT_DATE: "FILTER_ACCIDENT_DATE",
+  MISSING_REQUIRED_FIELDS: "MISSING_REQUIRED_FIELDS",
   QUALIFICATION_FAILED: "QUALIFICATION_FAILED",
   SUPPRESSED: "SUPPRESSED",
   CAP_TOTAL: "CAP_TOTAL",
@@ -44,6 +47,12 @@ function passesListFilter(filterList, value) {
   const v = String(value ?? "").trim().toLowerCase();
   return filterList.some((f) => String(f).trim().toLowerCase() === v);
 }
+function withinTrailingMonths(dateVal, months, nowMs) {
+  const t = Date.parse(String(dateVal ?? "").trim());
+  if (Number.isNaN(t)) return false;
+  const cutoff = nowMs - Number(months) * 30 * 864e5;
+  return t >= cutoff && t <= nowMs;
+}
 var CAP_WINDOWS = [
   ["total", REASON.CAP_TOTAL],
   ["hourly", REASON.CAP_HOURLY],
@@ -72,12 +81,19 @@ function evaluateMember(member, lead, opts = {}) {
   if (m.withinSchedule === false) return fail(REASON.OUTSIDE_SCHEDULE);
   const f = m.filters || {};
   if (!passesListFilter(f.states, l.state)) return fail(REASON.FILTER_STATE);
+  if (!passesListFilter(f.lead_types, l.lead_type)) return fail(REASON.FILTER_LEAD_TYPE);
+  if (f.accident_within_months != null && opts.nowMs != null && !withinTrailingMonths(l.accident_date, f.accident_within_months, opts.nowMs)) {
+    return fail(REASON.FILTER_ACCIDENT_DATE);
+  }
   if (!passesListFilter(f.zips, l.zip)) return fail(REASON.FILTER_ZIP);
   if (!passesListFilter(f.counties, l.county)) return fail(REASON.FILTER_COUNTY);
   if (!passesListFilter(f.verticals, l.vertical)) return fail(REASON.FILTER_VERTICAL);
   if (!passesListFilter(f.brands, l.brand)) return fail(REASON.FILTER_BRAND);
   if (!passesListFilter(f.suppliers, l.supplier)) return fail(REASON.FILTER_SUPPLIER);
   if (!passesListFilter(f.sources, l.source)) return fail(REASON.FILTER_SOURCE);
+  if (Array.isArray(f.required_fields) && f.required_fields.length > 0 && missingRequiredFields(l, f.required_fields).length > 0) {
+    return fail(REASON.MISSING_REQUIRED_FIELDS);
+  }
   if (m.conditions && typeof opts.evalConditions === "function") {
     if (!opts.evalConditions(m.conditions, l)) return fail(REASON.QUALIFICATION_FAILED);
   }
@@ -181,7 +197,8 @@ function routeWaterfall(groups, lead, ctx = {}) {
     const evaluated = (group.members || []).map((m) => {
       const res = evaluateMember(m, lead, {
         enforceReserve: group.method === "auction",
-        evalConditions: ctx.evalConditions
+        evalConditions: ctx.evalConditions,
+        nowMs: ctx.nowMs
       });
       return { memberId: m.id, eligible: res.eligible, reason: res.reason, price: resolvePrice(m) };
     });
@@ -446,7 +463,10 @@ function toResponseMapping(rm) {
     duplicateRe: rm.duplicate || rm.duplicateRe || null,
     queueRe: rm.queued || rm.queueRe || null,
     revenuePath: rm.revenue || rm.revenuePath || null,
-    leadIdPath: rm.buyer_lead_id || rm.leadIdPath || null
+    leadIdPath: rm.buyer_lead_id || rm.leadIdPath || null,
+    // When true, acceptance is authoritative: a 2xx that does not match acceptRe
+    // is treated as a rejection rather than a false Sold.
+    requireAccept: rm.require_accept === true || rm.requireAccept === true
   };
 }
 function toFieldMap(fm) {
@@ -1224,7 +1244,10 @@ function classifyResponse({ httpStatus, body, error, mapping = {} } = {}) {
   if (mapping.queue && test(mapping.queue)) return ATTEMPT_STATUS.QUEUED;
   if (mapping.accept && test(mapping.accept)) return ATTEMPT_STATUS.ACCEPTED;
   if (httpStatus == null) return ATTEMPT_STATUS.ERROR;
-  if (httpStatus >= 200 && httpStatus < 300) return ATTEMPT_STATUS.ACCEPTED;
+  if (httpStatus >= 200 && httpStatus < 300) {
+    if (mapping.requireAccept && mapping.accept) return ATTEMPT_STATUS.REJECTED;
+    return ATTEMPT_STATUS.ACCEPTED;
+  }
   if (httpStatus === 409) return ATTEMPT_STATUS.DUPLICATE;
   if (httpStatus === 408 || httpStatus === 429 || httpStatus >= 500) return ATTEMPT_STATUS.ERROR;
   if (httpStatus >= 400) return ATTEMPT_STATUS.REJECTED;
@@ -1387,7 +1410,8 @@ async function deliverDirectPost(cfg, ctx) {
     accept: mapping.acceptRe,
     reject: mapping.rejectRe,
     duplicate: mapping.duplicateRe,
-    queue: mapping.queueRe
+    queue: mapping.queueRe,
+    requireAccept: mapping.requireAccept
   } });
   let parsed = null;
   try {
@@ -1546,6 +1570,137 @@ async function runPingPost(cfg, ctx) {
     trace.fallthrough.push({ member_id: cand.bidder.memberId, status: postRes.status });
   }
   return { won: false, reason: "ALL_WINNERS_FAILED", winner: null, postResult: null, trace };
+}
+
+// src/lib/distribution/distribute.js
+var groupOrder = (g) => g.orderIndex ?? g.order_index ?? 0;
+function weightedPermutation(members, seedKey) {
+  const remaining = [...members];
+  const out = [];
+  let i = 0;
+  while (remaining.length) {
+    const pick = selectWeighted(remaining, `${seedKey}:${i++}`) || remaining[0];
+    out.push(pick);
+    remaining.splice(remaining.indexOf(pick), 1);
+  }
+  return out;
+}
+function orderEligible(group, members, seed = {}) {
+  const list = [...members];
+  const byId = (a, b) => String(a.id).localeCompare(String(b.id));
+  switch (group.method) {
+    case "auction":
+      return list.sort((a, b) => resolvePrice(b) - resolvePrice(a) || (a.priority ?? Infinity) - (b.priority ?? Infinity) || byId(a, b));
+    case "hybrid": {
+      const priceW = group.price_weight ?? group.weights?.price ?? 0.5;
+      const prioW = group.priority_weight ?? group.weights?.priority ?? 0.5;
+      const prices = list.map(resolvePrice);
+      const maxPrice = Math.max(1, ...prices);
+      const maxPrio = Math.max(1, ...list.map((m) => m.priority ?? 1));
+      return list.map((m, i) => ({ m, s: priceW * (prices[i] / maxPrice) + prioW * (1 - ((m.priority ?? 1) - 1) / maxPrio) })).sort((a, b) => b.s - a.s || byId(a.m, b.m)).map((x) => x.m);
+    }
+    case "round_robin": {
+      const ordered = [...list].sort(byId);
+      if (!ordered.length) return ordered;
+      const cur = ((Number(seed.rrCursor) || 0) % ordered.length + ordered.length) % ordered.length;
+      return ordered.slice(cur).concat(ordered.slice(0, cur));
+    }
+    case "weighted":
+      return weightedPermutation(list, String(seed.key || ""));
+    case "priority":
+    default:
+      return list.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || byId(a, b));
+  }
+}
+async function distributeLead(input) {
+  const {
+    campaign,
+    groups = [],
+    lead = {},
+    seed = {},
+    nowMs = 0,
+    evalConditions,
+    deliver,
+    maxAttemptsPerDest = 1,
+    terminalOnDuplicate = true
+  } = input;
+  const result = {
+    campaign_eligible: true,
+    candidates: [],
+    // every member evaluated, with eligibility + reason
+    ordered: [],
+    // eligible member ids in submit order
+    attempts: [],
+    // one row per delivery attempt
+    winner: null,
+    price: 0,
+    revenue: 0,
+    finalStatus: "NoEligibleDestination",
+    reason: null
+  };
+  if (campaign && (campaign.active === false || campaign.status && campaign.status !== "active")) {
+    result.campaign_eligible = false;
+    result.finalStatus = "CampaignInactive";
+    result.reason = "CAMPAIGN_INACTIVE";
+    return result;
+  }
+  const orderedGroups = groups.filter((g) => g.active !== false).sort((a, b) => groupOrder(a) - groupOrder(b));
+  const ordered = [];
+  for (const g of orderedGroups) {
+    const evals = (g.members || []).map((m) => ({
+      m,
+      res: evaluateMember(m, lead, { enforceReserve: g.method === "auction", evalConditions, nowMs })
+    }));
+    for (const e of evals) {
+      result.candidates.push({ group_id: g.id, member_id: e.m.id, eligible: e.res.eligible, reason: e.res.reason, price: resolvePrice(e.m) });
+    }
+    const eligible = evals.filter((e) => e.res.eligible).map((e) => e.m);
+    for (const m of orderEligible(g, eligible, seed)) ordered.push({ group: g, member: m });
+  }
+  result.ordered = ordered.map((o) => o.member.id);
+  if (!ordered.length) {
+    result.finalStatus = "NoEligibleDestination";
+    result.reason = REASON.NO_ELIGIBLE_MEMBER;
+    return result;
+  }
+  for (const cand of ordered) {
+    let attempt = 1;
+    while (true) {
+      const out = await deliver(cand.member, { attemptNumber: attempt, group: cand.group, lead, nowMs, seed });
+      result.attempts.push({
+        member_id: cand.member.id,
+        attempt,
+        status: out.status,
+        http_status: out.httpStatus ?? null,
+        error_class: out.errorClass ?? null,
+        revenue: out.revenue ?? 0,
+        payload: out.payload ?? null,
+        response: out.response ?? null
+      });
+      if (out.status === ATTEMPT_STATUS.ACCEPTED) {
+        result.winner = cand.member.id;
+        result.price = resolvePrice(cand.member);
+        result.revenue = out.revenue ?? 0;
+        result.finalStatus = "Sold";
+        result.reason = "ACCEPTED";
+        return result;
+      }
+      if (out.status === ATTEMPT_STATUS.DUPLICATE && terminalOnDuplicate) {
+        result.winner = cand.member.id;
+        result.finalStatus = "Duplicate";
+        result.reason = "DUPLICATE";
+        return result;
+      }
+      if (out.status === ATTEMPT_STATUS.ERROR && out.retryable && attempt < maxAttemptsPerDest) {
+        attempt += 1;
+        continue;
+      }
+      break;
+    }
+  }
+  result.finalStatus = "Exhausted";
+  result.reason = "ALL_DESTINATIONS_EXHAUSTED";
+  return result;
 }
 
 // src/lib/distribution/deliveryStore.js
@@ -2056,6 +2211,7 @@ export {
   computeConfigHash,
   deliverDirectPost,
   diffConfig,
+  distributeLead,
   evalConditionTree,
   evalLeaf,
   evaluateMember,
@@ -2080,6 +2236,7 @@ export {
   missingRequiredFields,
   nextHealth,
   nextRetryAtIso,
+  orderEligible,
   planExecution,
   projectSubDeliveryForClient,
   rankBids,

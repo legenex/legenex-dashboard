@@ -21,6 +21,9 @@ export const REASON = {
   FILTER_BRAND: 'FILTER_BRAND',
   FILTER_SUPPLIER: 'FILTER_SUPPLIER',
   FILTER_SOURCE: 'FILTER_SOURCE',
+  FILTER_LEAD_TYPE: 'FILTER_LEAD_TYPE',
+  FILTER_ACCIDENT_DATE: 'FILTER_ACCIDENT_DATE',
+  MISSING_REQUIRED_FIELDS: 'MISSING_REQUIRED_FIELDS',
   QUALIFICATION_FAILED: 'QUALIFICATION_FAILED',
   SUPPRESSED: 'SUPPRESSED',
   CAP_TOTAL: 'CAP_TOTAL',
@@ -55,6 +58,18 @@ function passesListFilter(filterList, value) {
   if (!Array.isArray(filterList) || filterList.length === 0) return true;
   const v = String(value ?? '').trim().toLowerCase();
   return filterList.some((f) => String(f).trim().toLowerCase() === v);
+}
+
+// True when `dateVal` parses to a time within the trailing `months` window ending
+// at nowMs. A configured window with an absent/unparseable date fails closed (an
+// unknown accident date must not qualify for a date-gated destination). Uses the
+// same ~30-day month approximation as conditions.js so filters and qualification
+// rules agree.
+function withinTrailingMonths(dateVal, months, nowMs) {
+  const t = Date.parse(String(dateVal ?? '').trim());
+  if (Number.isNaN(t)) return false;
+  const cutoff = nowMs - Number(months) * 30 * 86400000;
+  return t >= cutoff && t <= nowMs;
 }
 
 // Which cap window, if any, is exhausted. caps = { daily:{limit,count}, ... }.
@@ -98,15 +113,29 @@ export function evaluateMember(member, lead, opts = {}) {
   // 2. schedule (caller passes a resolved boolean for the member's tz window).
   if (m.withinSchedule === false) return fail(REASON.OUTSIDE_SCHEDULE);
 
-  // 3. attribute filters.
+  // 3. attribute filters. State, lead type, and accident-date recency are
+  // promoted to first-class filters here (fast fail with a clear reason code)
+  // rather than living in the free-form condition tree.
   const f = m.filters || {};
   if (!passesListFilter(f.states, l.state)) return fail(REASON.FILTER_STATE);
+  if (!passesListFilter(f.lead_types, l.lead_type)) return fail(REASON.FILTER_LEAD_TYPE);
+  if (f.accident_within_months != null && opts.nowMs != null
+    && !withinTrailingMonths(l.accident_date, f.accident_within_months, opts.nowMs)) {
+    return fail(REASON.FILTER_ACCIDENT_DATE);
+  }
   if (!passesListFilter(f.zips, l.zip)) return fail(REASON.FILTER_ZIP);
   if (!passesListFilter(f.counties, l.county)) return fail(REASON.FILTER_COUNTY);
   if (!passesListFilter(f.verticals, l.vertical)) return fail(REASON.FILTER_VERTICAL);
   if (!passesListFilter(f.brands, l.brand)) return fail(REASON.FILTER_BRAND);
   if (!passesListFilter(f.suppliers, l.supplier)) return fail(REASON.FILTER_SUPPLIER);
   if (!passesListFilter(f.sources, l.source)) return fail(REASON.FILTER_SOURCE);
+
+  // Per-destination required fields: the buyer will not accept a lead missing
+  // any of these, so gate before spending an attempt on it.
+  if (Array.isArray(f.required_fields) && f.required_fields.length > 0
+    && missingRequiredFields(l, f.required_fields).length > 0) {
+    return fail(REASON.MISSING_REQUIRED_FIELDS);
+  }
 
   // 4. buyer-specific qualification rules (condition tree). Optional injected
   // evaluator keeps this module free of a hard import cycle; when a member
@@ -245,6 +274,7 @@ export function routeWaterfall(groups, lead, ctx = {}) {
       const res = evaluateMember(m, lead, {
         enforceReserve: group.method === 'auction',
         evalConditions: ctx.evalConditions,
+        nowMs: ctx.nowMs,
       });
       return { memberId: m.id, eligible: res.eligible, reason: res.reason, price: resolvePrice(m) };
     });

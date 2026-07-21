@@ -49,7 +49,13 @@ export function classifyResponse({ httpStatus, body, error, mapping = {} } = {})
   if (mapping.accept && test(mapping.accept)) return ATTEMPT_STATUS.ACCEPTED;
 
   if (httpStatus == null) return ATTEMPT_STATUS.ERROR;
-  if (httpStatus >= 200 && httpStatus < 300) return ATTEMPT_STATUS.ACCEPTED;
+  if (httpStatus >= 200 && httpStatus < 300) {
+    // When acceptance is authoritative (requireAccept) and the accept pattern did
+    // not match above, a 2xx is NOT a sale: the buyer echoed OK but did not
+    // confirm acceptance, so treat it as a rejection rather than a false Sold.
+    if (mapping.requireAccept && mapping.accept) return ATTEMPT_STATUS.REJECTED;
+    return ATTEMPT_STATUS.ACCEPTED;
+  }
   if (httpStatus === 409) return ATTEMPT_STATUS.DUPLICATE;
   if (httpStatus === 408 || httpStatus === 429 || httpStatus >= 500) return ATTEMPT_STATUS.ERROR;
   if (httpStatus >= 400) return ATTEMPT_STATUS.REJECTED;

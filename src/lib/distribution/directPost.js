@@ -105,6 +105,7 @@ export async function deliverDirectPost(cfg, ctx) {
     ? ATTEMPT_STATUS.ERROR
     : classifyResponse({ httpStatus, body: bodyText, mapping: {
         accept: mapping.acceptRe, reject: mapping.rejectRe, duplicate: mapping.duplicateRe, queue: mapping.queueRe,
+        requireAccept: mapping.requireAccept,
       } });
 
   let parsed = null;
