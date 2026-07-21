@@ -9,9 +9,10 @@ import MetaMapCampaignsDialog from '@/components/settings/MetaMapCampaignsDialog
 import MetaSyncHistoryDialog from '@/components/settings/MetaSyncHistoryDialog';
 import MetaConnectDialog from '@/components/settings/MetaConnectDialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Facebook, RefreshCw, Plus, Link2, MoreVertical, AlertTriangle, Clock, Loader2, History, Plug } from 'lucide-react';
+import { Facebook, RefreshCw, Plus, Link2, MoreVertical, AlertTriangle, Clock, Loader2, History, Plug, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmtWhen = (iso) => {
@@ -38,6 +39,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
   const [mapForAccount, setMapForAccount] = useState(null);
   const [historyFor, setHistoryFor] = useState(null);
   const [busyId, setBusyId] = useState('');
+  const [acctSearch, setAcctSearch] = useState('');
 
   const { data: overview, isLoading: loadingAccts } = useQuery({
     queryKey: ['meta-adaccounts-overview'],
@@ -59,6 +61,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
     return m;
   }, [status]);
   const unmapped = accounts.filter(a => !(a.map_count > 0)).length;
+  const filteredAccounts = accounts.filter(a => !acctSearch || `${a.ad_account_name || ''} ${a.ad_account_id || ''}`.toLowerCase().includes(acctSearch.toLowerCase()));
 
   const runSyncAll = async () => {
     setSyncing(true);
@@ -158,12 +161,18 @@ export default function MetaManageDialog({ open, onOpenChange }) {
                 </div>
               )}
 
+              <div className="relative">
+                <Search className="w-4 h-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input value={acctSearch} onChange={e => setAcctSearch(e.target.value)} placeholder="Search ad accounts" className="pl-8 bg-background h-9" />
+              </div>
               <div className="rounded-lg border border-border bg-card overflow-hidden">
                 {loadingAccts ? (
                   <div className="p-6 text-center text-[13px] text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-1.5" /> Loading ad accounts…</div>
                 ) : !accounts.length ? (
                   <div className="p-8 text-center text-[13px] text-muted-foreground">No ad accounts connected yet. Use Add Ad Account to connect some.</div>
-                ) : accounts.map((a) => {
+                ) : !filteredAccounts.length ? (
+                  <div className="p-6 text-center text-[13px] text-muted-foreground">No ad accounts match your search.</div>
+                ) : filteredAccounts.map((a) => {
                   const mapped = a.map_count > 0;
                   const suppliers = Array.isArray(a.map_suppliers) ? a.map_suppliers.filter(Boolean) : [];
                   return (
@@ -174,7 +183,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
                           <div className="text-[13px] font-medium text-foreground truncate">{a.ad_account_name}</div>
                           <div className="text-[11px] text-muted-foreground">Synced {fmtWhen(a.last_synced_at)}{a.currency ? ` · ${a.currency}` : ''}</div>
                         </div>
-                        <button onClick={() => setMapForAccount(a)} className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground shrink-0">
+                        <button onClick={() => setMapForAccount({ ...a, registry_id: regIdByAccount[a.ad_account_id] })} className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground shrink-0">
                           <Link2 className="w-3.5 h-3.5" /> {a.map_count || 0} Map
                         </button>
                         <DropdownMenu>
@@ -185,7 +194,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border-border">
                             <DropdownMenuItem onClick={() => setConnectOpen(true)}>Reconnect</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setMapForAccount(a)}>Map campaigns</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setMapForAccount({ ...a, registry_id: regIdByAccount[a.ad_account_id] })}>Map campaigns</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setHistoryFor(a)}>Sync history</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive" onClick={() => disconnectAccount(a)}>Disconnect account</DropdownMenuItem>
                           </DropdownMenuContent>
