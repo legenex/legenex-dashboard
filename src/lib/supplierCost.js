@@ -112,6 +112,9 @@ export function internalSupplierSpend(supplierName, adSpendRows) {
   const key = norm(supplierName);
   let spend = 0;
   for (const r of adSpendRows || []) {
+    // Only account-level rows drive cost. Campaign and ad rows are detail views
+    // and also carry a supplier now, so counting them would multiply the spend.
+    if (r.level && r.level !== 'account') continue;
     const rk = r.supplier_key != null ? norm(r.supplier_key) : norm(r.supplier_name);
     if (rk === key) spend += num(r.spend);
   }

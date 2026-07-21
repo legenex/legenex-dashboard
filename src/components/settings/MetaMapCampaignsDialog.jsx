@@ -1,0 +1,193 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import { metaAccountCampaigns } from '@/functions/metaAccountCampaigns';
+import { metaCampaignMappings } from '@/functions/metaCampaignMappings';
+import { mapMetaCampaigns } from '@/functions/mapMetaCampaigns';
+import { syncMetaSpend } from '@/functions/syncMetaSpend';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, Trash2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+// Map Meta campaigns in one ad account to a supplier (cost attribution), plus an
+// optional vertical/brand. Mirrors the LeadDistro "Map to Campaign" flow.
+export default function MetaMapCampaignsDialog({ open, onOpenChange, account, onSaved }) {
+  const qc = useQueryClient();
+  const [supplierId, setSupplierId] = useState('');
+  const [vertical, setVertical] = useState('');
+  const [brand, setBrand] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
+  const [saving, setSaving] = useState(false);
+
+  const acctId = account?.ad_account_id;
+  const connId = account?.connection_id;
+
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list(), enabled: open });
+  const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list(), enabled: open });
+  const { data: brands = [] } = useQuery({ queryKey: ['brands'], queryFn: () => base44.entities.Brand.list(), enabled: open });
+
+  const { data: campData, isLoading: loadingCamps, error: campError } = useQuery({
+    queryKey: ['meta-account-campaigns', acctId],
+    queryFn: async () => (await metaAccountCampaigns({ ad_account_id: acctId, connection_id: connId })).data,
+    enabled: open && !!acctId && !!connId,
+  });
+  const campaigns = campData?.campaigns || [];
+
+  const { data: mapData, refetch: refetchMaps } = useQuery({
+    queryKey: ['meta-account-mappings', acctId],
+    queryFn: async () => (await metaCampaignMappings({ action: 'list', ad_account_id: acctId })).data,
+    enabled: open && !!acctId,
+  });
+  const existing = mapData?.mappings || [];
+  const mappedIds = useMemo(() => new Set(existing.map(m => m.meta_campaign_id)), [existing]);
+
+  useEffect(() => { if (open) { setSelected(new Set()); setSearch(''); setFilter('all'); } }, [open, acctId]);
+
+  const visible = campaigns.filter(c =>
+    (filter === 'all' || c.status === filter) &&
+    (!search || c.name.toLowerCase().includes(search.toLowerCase())),
+  );
+
+  const toggle = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const selectAllVisible = () => setSelected(prev => {
+    const n = new Set(prev);
+    const allOn = visible.every(c => n.has(c.id));
+    visible.forEach(c => allOn ? n.delete(c.id) : n.add(c.id));
+    return n;
+  });
+
+  const create = async () => {
+    if (!supplierId) { toast.error('Choose a supplier'); return; }
+    if (selected.size === 0) { toast.error('Select at least one campaign'); return; }
+    setSaving(true);
+    try {
+      const chosen = campaigns.filter(c => selected.has(c.id)).map(c => ({ id: c.id, name: c.name }));
+      const d = (await mapMetaCampaigns({
+        ad_account_id: acctId, connection_id: connId,
+        ad_account_name: account.ad_account_name, currency: account.currency,
+        business_id: account.business_id, business_name: account.business_name, timezone_name: account.timezone_name,
+        supplier_id: supplierId, vertical, brand, campaigns: chosen,
+      })).data || {};
+      if (d.error) { toast.error(d.error); setSaving(false); return; }
+      toast.success(`Mapped ${d.mapped_total} campaign${d.mapped_total === 1 ? '' : 's'}. Syncing spend.`);
+      syncMetaSpend({ ad_account_ids: [acctId], trigger: 'manual' }).catch(() => {});
+      setSelected(new Set());
+      refetchMaps();
+      qc.invalidateQueries({ queryKey: ['meta-ad-accounts'] });
+      qc.invalidateQueries({ queryKey: ['adspend'] });
+      onSaved?.();
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to map campaigns'); }
+    setSaving(false);
+  };
+
+  const removeMapping = async (id) => {
+    try { await metaCampaignMappings({ action: 'delete', id }); refetchMaps(); qc.invalidateQueries({ queryKey: ['meta-ad-accounts'] }); onSaved?.(); }
+    catch { toast.error('Failed to remove'); }
+  };
+
+  const supplierName = (id) => suppliers.find(s => s.id === id)?.name || '';
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-popover border-border max-w-[720px]">
+        <DialogHeader>
+          <DialogTitle>Map to Supplier</DialogTitle>
+        </DialogHeader>
+        <p className="text-[12px] text-muted-foreground -mt-2">
+          Map Meta campaigns from <span className="text-foreground font-medium">{account?.ad_account_name}</span> to a supplier for automatic spend syncing.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Supplier (cost attribution)</Label>
+            <Select value={supplierId} onValueChange={setSupplierId}>
+              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Select supplier" /></SelectTrigger>
+              <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Vertical</Label>
+            <Select value={vertical} onValueChange={setVertical}>
+              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
+              <SelectContent>{verticals.map(v => <SelectItem key={v.id} value={v.code}>{v.code}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Brand</Label>
+            <Select value={brand} onValueChange={setBrand}>
+              <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Any" /></SelectTrigger>
+              <SelectContent>{brands.map(b => <SelectItem key={b.id} value={b.brand_code}>{b.brand_code}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="mt-1">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <Label className="text-[12px] font-semibold">Meta Campaigns</Label>
+            <div className="flex items-center gap-1.5">
+              {['all', 'active', 'paused'].map(f => (
+                <button key={f} onClick={() => setFilter(f)} className={`text-[11px] px-2 py-0.5 rounded capitalize ${filter === f ? 'bg-primary/15 text-primary font-medium' : 'text-muted-foreground'}`}>
+                  {f}{f !== 'all' && campData?.counts ? ` ${campData.counts[f]}` : ''}
+                </button>
+              ))}
+              <button onClick={selectAllVisible} className="text-[11px] text-primary font-medium ml-1">Select all</button>
+            </div>
+          </div>
+          <div className="relative mb-1.5">
+            <Search className="w-3.5 h-3.5 absolute left-2 top-2.5 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search campaigns" className="pl-7 h-8 bg-background text-[12px]" />
+          </div>
+          <div className="max-h-[34vh] overflow-y-auto border border-border rounded-lg divide-y divide-border">
+            {campError ? (
+              <p className="text-[12px] status-error p-3">{campData?.error || 'Could not load campaigns. Check the connection permissions.'}</p>
+            ) : loadingCamps ? (
+              <p className="text-[12px] text-muted-foreground p-3 inline-flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading campaigns…</p>
+            ) : visible.length === 0 ? (
+              <p className="text-[12px] text-muted-foreground p-3">No campaigns match.</p>
+            ) : visible.map(c => (
+              <label key={c.id} className="flex items-center gap-2.5 p-2.5 hover:bg-background/60 cursor-pointer">
+                <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} />
+                <span className="text-[13px] text-foreground flex-1 truncate">{c.name}</span>
+                {mappedIds.has(c.id) && <Badge variant="outline" className="text-[9px]">mapped</Badge>}
+                <Badge variant="outline" className={`text-[9px] uppercase ${c.status === 'active' ? 'status-sold' : 'text-muted-foreground'}`}>{c.status}</Badge>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={create} disabled={saving || selected.size === 0 || !supplierId}>{saving ? 'Mapping…' : `Create ${selected.size} Mapping${selected.size === 1 ? '' : 's'}`}</Button>
+        </div>
+
+        {existing.length > 0 && (
+          <div className="mt-1 pt-3 border-t border-border">
+            <Label className="text-[12px] font-semibold">Existing mappings ({existing.length})</Label>
+            <div className="mt-1.5 space-y-1.5 max-h-[20vh] overflow-y-auto">
+              {existing.map(m => (
+                <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded border border-border bg-background">
+                  <div className="min-w-0">
+                    <div className="text-[12px] text-foreground truncate">{m.meta_campaign_name}</div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Badge variant="outline" className="text-[9px]">Campaign</Badge>
+                      <span className="text-[11px] text-muted-foreground truncate">{m.supplier_name || supplierName(m.supplier_id)}{m.vertical ? ` · ${m.vertical}` : ''}{m.brand ? ` · ${m.brand}` : ''}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => removeMapping(m.id)} className="text-muted-foreground hover:text-destructive p-1 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

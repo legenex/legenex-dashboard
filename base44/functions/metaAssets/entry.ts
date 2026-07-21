@@ -1,36 +1,67 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+const OPERATOR_PERMISSION_KEYS = ['leads', 'reports', 'overview', 'finances', 'distribution', 'operations'];
+// Operator authorization, mirroring src/lib/distribution/operatorAuth.js: admins
+// and operators holding a management permission are allowed; portal (buyer or
+// supplier) accounts are rejected.
+function isOperator(caller: any): boolean {
+  if (!caller) return false;
+  if (caller.base_role === 'supplier' || caller.base_role === 'buyer') return false;
+  if (caller.linked_buyer_id || caller.linked_supplier_id) return false;
+  let permissions: Record<string, any> = {};
+  try { permissions = typeof caller.permissions === 'string' ? JSON.parse(caller.permissions || '{}') : (caller.permissions || {}); } catch { permissions = {}; }
+  return caller.role === 'admin' || OPERATOR_PERMISSION_KEYS.some((k) => permissions[k] === true);
+}
+
 // Lists Meta (Facebook) Marketing assets across every configured token.
-// Tokens are saved in IntegrationConfig(name="meta") as config.tokens =
-// [{ id, label, token }]. For backward compatibility a lone config.access_token
-// (or system_user_token / master_token) is treated as one unlabeled token.
-// A system-user token only reaches a single Business Manager, so multiple
-// tokens let one account cover accounts spread across several Businesses.
-// Returns combined accounts, pages and lead forms plus a per-token summary.
+// Tokens now come from MetaConnection rows (the connector's source of truth);
+// for backward compatibility, legacy tokens stored in
+// IntegrationConfig(name="meta") as config.tokens or a lone
+// config.access_token / system_user_token are appended when no connection has
+// migrated them yet. Returns combined accounts, pages and lead forms plus a
+// per-token summary.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user || user.role !== 'admin') return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isOperator(user)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const cfgList = await base44.asServiceRole.entities.IntegrationConfig.filter({ name: 'meta' });
-    const cfg = cfgList[0];
-    if (!cfg) return Response.json({ connected: false });
+    const svc = base44.asServiceRole;
 
-    // Resolve the list of tokens to iterate. Prefer config.tokens; otherwise
-    // fall back to a single legacy token so existing setups keep working.
+    // Primary: MetaConnection rows that are not marked invalid.
     let tokens: { id: string; label: string; token: string }[] = [];
-    try {
-      const parsed = JSON.parse(cfg.config || '{}');
-      if (Array.isArray(parsed.tokens) && parsed.tokens.length) {
-        tokens = parsed.tokens
-          .filter((t: any) => t && t.token)
-          .map((t: any, i: number) => ({ id: t.id || `token_${i}`, label: t.label || `Token ${i + 1}`, token: t.token }));
-      } else {
-        const legacy = parsed.system_user_token || parsed.master_token || parsed.access_token || '';
-        if (legacy) tokens = [{ id: 'default', label: 'Default', token: legacy }];
-      }
-    } catch { tokens = []; }
+    const conns = await svc.entities.MetaConnection.filter({ platform: 'meta' }).catch(() => []);
+    for (const c of conns) {
+      if (!c.token || c.status === 'invalid') continue;
+      if (c.token_expires_at && new Date(c.token_expires_at).getTime() < Date.now()) continue;
+      tokens.push({ id: c.id, label: c.name || 'Connection', token: c.token });
+    }
+
+    // Legacy fallback: the old IntegrationConfig blob, skipping tokens that a
+    // migrated connection already carries.
+    const cfgList = await svc.entities.IntegrationConfig.filter({ name: 'meta' });
+    const cfg = cfgList[0];
+    if (cfg) {
+      try {
+        const parsed = JSON.parse(cfg.config || '{}');
+        const known = new Set(tokens.map(t => t.token));
+        const legacyList: any[] = Array.isArray(parsed.tokens) && parsed.tokens.length
+          ? parsed.tokens
+          : [];
+        for (let i = 0; i < legacyList.length; i++) {
+          const t = legacyList[i];
+          if (t && t.token && !known.has(t.token)) {
+            tokens.push({ id: t.id || `legacy_${i}`, label: t.label || `Legacy token ${i + 1}`, token: t.token });
+            known.add(t.token);
+          }
+        }
+        if (!legacyList.length) {
+          const legacy = parsed.system_user_token || parsed.master_token || parsed.access_token || '';
+          if (legacy && !known.has(legacy)) tokens.push({ id: 'legacy_default', label: 'Legacy token', token: legacy });
+        }
+      } catch { /* ignore malformed legacy config */ }
+    }
+
     if (!tokens.length) return Response.json({ connected: false });
 
     const ver = 'v21.0';
@@ -55,7 +86,7 @@ Deno.serve(async (req) => {
         summary.valid = true;
         if (!firstAccount) firstAccount = me;
 
-        const adAccounts = await g(t.token, 'me/adaccounts', 'fields=id,name,account_id,currency&limit=200').catch(() => []);
+        const adAccounts = await g(t.token, 'me/adaccounts', 'fields=id,name,account_id,currency,timezone_name&limit=200').catch(() => []);
         let reached = 0;
         for (const a of adAccounts || []) {
           reached++;
