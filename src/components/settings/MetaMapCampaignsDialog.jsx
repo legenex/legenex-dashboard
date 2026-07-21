@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { metaAccountCampaigns } from '@/functions/metaAccountCampaigns';
 import { metaCampaignMappings } from '@/functions/metaCampaignMappings';
 import { mapMetaCampaigns } from '@/functions/mapMetaCampaigns';
+import { manageSupplierAdAccount } from '@/functions/manageSupplierAdAccount';
 import { syncMetaSpend } from '@/functions/syncMetaSpend';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,9 @@ import { toast } from 'sonner';
 // (which carries the vertical and brand) and a Source (Supplier, cost
 // attribution). Mirrors the LeadDistro "Map to Campaign" flow. Writes campaign
 // level AdSpendMapping rows via mapMetaCampaigns; the chosen Campaign supplies
-// vertical and brand, the Source supplies supplier attribution.
+// vertical and brand, the Source supplies supplier attribution. The "map all
+// future" option sets the account default source so every campaign, including
+// ones created later, attributes to that source.
 export default function MetaMapCampaignsDialog({ open, onOpenChange, account, onSaved }) {
   const qc = useQueryClient();
   const [campaignId, setCampaignId] = useState('');
@@ -27,10 +30,12 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
+  const [mapFuture, setMapFuture] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const acctId = account?.ad_account_id;
   const connId = account?.connection_id;
+  const registryId = account?.registry_id;
 
   const { data: legenexCampaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list(), enabled: open });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list(), enabled: open });
@@ -54,7 +59,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
   const existing = mapData?.mappings || [];
   const mappedIds = useMemo(() => new Set(existing.map(m => m.meta_campaign_id)), [existing]);
 
-  useEffect(() => { if (open) { setSelected(new Set()); setSearch(''); setFilter('all'); } }, [open, acctId]);
+  useEffect(() => { if (open) { setSelected(new Set()); setSearch(''); setFilter('all'); setMapFuture(false); } }, [open, acctId]);
 
   const visible = campaigns.filter(c =>
     (filter === 'all' || c.status === filter) &&
@@ -69,21 +74,29 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
     return n;
   });
 
-  const create = async () => {
+  const canApply = !!campaignId && !!supplierId && (selected.size > 0 || mapFuture);
+
+  const apply = async () => {
     if (!campaignId) { toast.error('Choose a campaign'); return; }
     if (!supplierId) { toast.error('Choose a source'); return; }
-    if (selected.size === 0) { toast.error('Select at least one campaign'); return; }
+    if (selected.size === 0 && !mapFuture) { toast.error('Select at least one campaign, or turn on map all future'); return; }
     setSaving(true);
     try {
-      const chosen = campaigns.filter(c => selected.has(c.id)).map(c => ({ id: c.id, name: c.name }));
-      const d = (await mapMetaCampaigns({
-        ad_account_id: acctId, connection_id: connId,
-        ad_account_name: account.ad_account_name, currency: account.currency,
-        business_id: account.business_id, business_name: account.business_name, timezone_name: account.timezone_name,
-        supplier_id: supplierId, vertical, brand, campaigns: chosen,
-      })).data || {};
-      if (d.error) { toast.error(d.error); setSaving(false); return; }
-      toast.success(`Mapped ${d.mapped_total} campaign${d.mapped_total === 1 ? '' : 's'}. Syncing spend.`);
+      if (selected.size > 0) {
+        const chosen = campaigns.filter(c => selected.has(c.id)).map(c => ({ id: c.id, name: c.name }));
+        const d = (await mapMetaCampaigns({
+          ad_account_id: acctId, connection_id: connId,
+          ad_account_name: account.ad_account_name, currency: account.currency,
+          business_id: account.business_id, business_name: account.business_name, timezone_name: account.timezone_name,
+          supplier_id: supplierId, vertical, brand, campaigns: chosen,
+        })).data || {};
+        if (d.error) { toast.error(d.error); setSaving(false); return; }
+        toast.success(`Mapped ${d.mapped_total} campaign${d.mapped_total === 1 ? '' : 's'}. Syncing spend.`);
+      }
+      if (mapFuture && registryId) {
+        await manageSupplierAdAccount({ id: registryId, action: 'reassign', supplier_id: supplierId }).catch(() => {});
+        toast.success('All current and future campaigns in this account will attribute to this source.');
+      }
       syncMetaSpend({ ad_account_ids: [acctId], trigger: 'manual' }).catch(() => {});
       setSelected(new Set());
       refetchMaps();
@@ -140,6 +153,14 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
           </div>
         </div>
 
+        <label className="flex items-start gap-2 rounded-md border border-border bg-card p-2.5 cursor-pointer">
+          <Checkbox checked={mapFuture} onCheckedChange={(v) => setMapFuture(!!v)} className="mt-0.5" />
+          <span className="text-[12px] text-foreground">
+            Map all current and future campaigns in this account to this source
+            <span className="block text-[11px] text-muted-foreground">New campaigns added later attribute to this source automatically. Per campaign mappings above still take priority.</span>
+          </span>
+        </label>
+
         <div className="mt-1">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <Label className="text-[12px] font-semibold">Meta Campaigns</Label>
@@ -175,8 +196,10 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
         </div>
 
         <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={create} disabled={saving || selected.size === 0 || !supplierId || !campaignId}>{saving ? 'Mapping\u2026' : `Create ${selected.size} Mapping${selected.size === 1 ? '' : 's'}`}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Done</Button>
+          <Button onClick={apply} disabled={saving || !canApply}>
+            {saving ? 'Applying\u2026' : selected.size > 0 ? `Create ${selected.size} Mapping${selected.size === 1 ? '' : 's'}` : 'Set account source'}
+          </Button>
         </div>
 
         {existing.length > 0 && (
