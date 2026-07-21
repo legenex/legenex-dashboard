@@ -211,6 +211,9 @@ export default function MetaManageDialog({ open, onOpenChange }) {
                       ) : (
                         <div className="mt-1 ml-11 text-[11px] text-primary">Not mapped. Spend won't show in Reports until campaigns are mapped.</div>
                       )}
+                      {a.last_sync_error ? (
+                        <div className="mt-1 ml-11 text-[11px] text-destructive">Sync error: {a.last_sync_error}</div>
+                      ) : null}
                     </div>
                   );
                 })}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { metaAccountCampaigns } from '@/functions/metaAccountCampaigns';
@@ -59,7 +59,25 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
   const existing = mapData?.mappings || [];
   const mappedIds = useMemo(() => new Set(existing.map(m => m.meta_campaign_id)), [existing]);
 
-  useEffect(() => { if (open) { setSelected(new Set()); setSearch(''); setFilter('all'); setMapFuture(false); } }, [open, acctId]);
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!open) { prefilledRef.current = false; return; }
+    setSelected(new Set()); setSearch(''); setFilter('all'); setMapFuture(false);
+    setCampaignId(''); setSupplierId(''); prefilledRef.current = false;
+  }, [open, acctId]);
+  // Prefill Campaign + Source from the account's existing mapping so reopening
+  // shows the current attribution instead of blank fields.
+  useEffect(() => {
+    if (!open || prefilledRef.current) return;
+    if (!existing.length && !legenexCampaigns.length) return;
+    if (!existing.length) { prefilledRef.current = true; return; }
+    const m = existing.find((x) => x.supplier_id) || existing[0];
+    if (m?.supplier_id) setSupplierId(m.supplier_id);
+    const c = legenexCampaigns.find((lc) => (m.vertical ? lc.vertical === m.vertical : true) && (m.brand ? lc.brand === m.brand : true));
+    if (c) setCampaignId(c.id);
+    prefilledRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing, legenexCampaigns]);
 
   const visible = campaigns.filter(c =>
     (filter === 'all' || c.status === filter) &&
