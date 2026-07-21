@@ -19,8 +19,9 @@ import {
   CreditCard, Receipt, Webhook, Settings2, Landmark, Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import MetaAdSpend from '@/components/settings/MetaAdSpend';
 import MetaConnectDialog from '@/components/settings/MetaConnectDialog';
+import MetaManageDialog from '@/components/settings/MetaManageDialog';
+import { metaConnectionStatus } from '@/functions/metaConnectionStatus';
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -172,6 +173,9 @@ export default function SettingsIntegrations() {
   const visible = CATALOG.filter(it => cat === 'all' || it.category === cat);
   const showMeta = cat === 'all' || cat === 'ads';
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
+  const [metaManageOpen, setMetaManageOpen] = useState(false);
+  const { data: metaStatus } = useQuery({ queryKey: ['meta-connection-status'], queryFn: async () => (await metaConnectionStatus({})).data });
+  const metaConnected = (metaStatus?.connections?.length || 0) > 0;
 
   return (
     <div>
@@ -194,9 +198,8 @@ export default function SettingsIntegrations() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {visible.map((it) => {
-          if (it.live === 'meta') return null; // Meta rendered as its own full block below
           const Icon = it.icon;
-          const connected = it.supported ? !!statusMap[it.type] : false;
+          const connected = it.live === 'meta' ? metaConnected : (it.supported ? !!statusMap[it.type] : false);
           return (
             <div key={it.type} className={`bg-card border border-border rounded-[12px] p-4 flex flex-col ${it.comingSoon ? 'opacity-80' : ''}`}>
               <div className="flex items-start gap-3">
@@ -226,7 +229,7 @@ export default function SettingsIntegrations() {
                 {it.comingSoon ? (
                   <Button size="sm" variant="outline" disabled className="gap-1.5 opacity-60"><Plug className="w-3.5 h-3.5" /> Connect</Button>
                 ) : (
-                  <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={() => handleConnect(it)}>
+                  <Button size="sm" variant={connected ? 'outline' : 'default'} className="gap-1.5" onClick={() => it.live === 'meta' ? (metaConnected ? setMetaManageOpen(true) : setMetaConnectOpen(true)) : handleConnect(it)}>
                     {it.action || (connected ? 'Manage' : <><Plug className="w-3.5 h-3.5" /> Connect</>)}
                   </Button>
                 )}
@@ -236,22 +239,9 @@ export default function SettingsIntegrations() {
         })}
       </div>
 
-      {/* Meta ad-spend live flow (Ad Platforms) */}
-      {showMeta && (
-        <div className="mt-8">
-          <div className="flex items-start justify-between gap-3 mb-1">
-            <div className="text-[15px] font-semibold text-foreground">Meta Ad Spend & True CPL</div>
-            <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setMetaConnectOpen(true)}>
-              <Plug className="w-3.5 h-3.5" /> Connect account
-            </Button>
-          </div>
-          <div className="text-[13px] text-muted-foreground mb-4 max-w-2xl">
-            Connect Meta to sync spend and map ad accounts/campaigns to a vertical, brand and supplier. Synced spend feeds Reports and Finances.
-          </div>
-          <MetaAdSpend />
-          <MetaConnectDialog open={metaConnectOpen} onOpenChange={setMetaConnectOpen} />
-        </div>
-      )}
+      {/* Meta connector dialogs */}
+      <MetaConnectDialog open={metaConnectOpen} onOpenChange={setMetaConnectOpen} onConnected={() => qc.invalidateQueries({ queryKey: ['meta-connection-status'] })} />
+      <MetaManageDialog open={metaManageOpen} onOpenChange={setMetaManageOpen} />
 
       {/* API-key connectors (Mercury, Stripe, Xero) */}
       {apiKeyType && (

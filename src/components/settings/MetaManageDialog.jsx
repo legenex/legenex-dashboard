@@ -200,7 +200,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
                           </div>
                         )
                       ) : (
-                        <div className="mt-1 ml-11 text-[11px] text-primary">Not mapped — spend won't show in Reports until campaigns are mapped.</div>
+                        <div className="mt-1 ml-11 text-[11px] text-primary">Not mapped. Spend won't show in Reports until campaigns are mapped.</div>
                       )}
                     </div>
                   );
@@ -246,7 +246,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
 
         <MetaConnectDialog open={connectOpen} onOpenChange={setConnectOpen} onConnected={() => { qc.invalidateQueries({ queryKey: ['meta-adaccounts-overview'] }); }} />
         <MetaMapCampaignsDialog open={!!mapForAccount} onOpenChange={(o) => !o && setMapForAccount(null)} account={mapForAccount} onSaved={() => qc.invalidateQueries({ queryKey: ['meta-adaccounts-overview'] })} />
-        <MetaSyncHistoryDialog open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)} account={historyFor} />
+        <MetaSyncHistoryDialog open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)} supplierAdAccountId={historyFor ? regIdByAccount[historyFor.ad_account_id] : null} title={historyFor ? `Sync history: ${historyFor.ad_account_name}` : 'Sync history'} />
       </DialogContent>
     </Dialog>
   );
