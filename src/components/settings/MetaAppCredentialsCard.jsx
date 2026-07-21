@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metaConnectionStatus } from '@/functions/metaConnectionStatus';
 import { saveMetaAppCredentials } from '@/functions/saveMetaAppCredentials';
+import { appParams } from '@/lib/app-params';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,20 @@ import { toast } from 'sonner';
 // Meta Ads connector OAuth login. Lives under Settings > Data Sources so the
 // secret is not exposed on the connector card. The secret is stored server-side
 // in IntegrationConfig(meta_app); only the last 4 is ever read back.
-const REDIRECT_URI = 'https://api.legenex.com/functions/metaOauthCallback';
+const FALLBACK_REDIRECT_URI = 'https://api.legenex.com/functions/metaOauthCallback';
+
+function RedirectRow({ uri }) {
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(uri); toast.success('Redirect URI copied'); }
+    catch { toast.error('Copy failed'); }
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <code className="flex-1 min-w-0 truncate rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] font-mono text-foreground">{uri}</code>
+      <Button variant="outline" size="sm" onClick={copy} className="shrink-0"><Copy className="w-3.5 h-3.5" /></Button>
+    </div>
+  );
+}
 
 export default function MetaAppCredentialsCard() {
   const qc = useQueryClient();
@@ -25,6 +39,9 @@ export default function MetaAppCredentialsCard() {
     queryFn: async () => (await metaConnectionStatus({})).data,
   });
   const meta = data?.meta_app || { configured: false, app_id: '', secret_last4: '' };
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const hostedRedirectUri = `${origin}/api/apps/${appParams.appId}/functions/metaOauthCallback`;
 
   const save = async () => {
     if (!appId.trim() && !meta.configured) { toast.error('App ID is required'); return; }
@@ -44,15 +61,6 @@ export default function MetaAppCredentialsCard() {
       toast.error(e?.message || 'Could not save credentials');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const copyRedirect = async () => {
-    try {
-      await navigator.clipboard.writeText(REDIRECT_URI);
-      toast.success('Redirect URI copied');
-    } catch {
-      toast.error('Copy failed');
     }
   };
 
@@ -110,16 +118,14 @@ export default function MetaAppCredentialsCard() {
 
           <div className="mt-4 rounded-md border border-border bg-background p-3">
             <div className="flex items-center gap-1.5 text-[12px] font-medium text-foreground">
-              <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" /> Valid OAuth Redirect URI
+              <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" /> Valid OAuth Redirect URIs
             </div>
             <p className="text-[12px] text-muted-foreground mt-1">
-              Add this exactly in your Meta app under Facebook Login, then Settings, then Valid OAuth Redirect URIs.
+              Add both of these in your Meta app under Facebook Login, then Settings, then Valid OAuth Redirect URIs. The connector uses the first; the second is a fallback.
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="flex-1 min-w-0 truncate rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] font-mono text-foreground">{REDIRECT_URI}</code>
-              <Button variant="outline" size="sm" onClick={copyRedirect} className="shrink-0">
-                <Copy className="w-3.5 h-3.5" />
-              </Button>
+            <div className="mt-2 space-y-2">
+              <RedirectRow uri={hostedRedirectUri} />
+              <RedirectRow uri={FALLBACK_REDIRECT_URI} />
             </div>
           </div>
 
