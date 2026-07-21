@@ -581,7 +581,7 @@ export default function LeadsTable({ view }) {
       </div>
 
       {/* Mobile card list: below lg only */}
-      <div className="lg:hidden flex-1 min-h-0 overflow-y-auto space-y-2">
+      <div className="lg:hidden flex-1 min-h-0 overflow-y-auto space-y-1.5">
         {isLoading && (
           <div className="px-4 py-8 text-center text-muted-foreground">Loading...</div>
         )}
