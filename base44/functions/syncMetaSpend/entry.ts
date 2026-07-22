@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
 
     // Bulk upsert: load existing rows for this account and level once, then
     // delete the ones being replaced and insert fresh rows.
+    let skippedNoDate = 0;
     const upsertLevel = async (node: string, level: string, keyOf: (r: any) => string, rows: any[], build: (r: any) => any): Promise<number> => {
       const existing = await svc.entities.AdSpend.filter({ ad_account_id: node, level }, '-date', 10000);
       const existingByKey: Record<string, any[]> = {};
@@ -151,13 +152,22 @@ Deno.serve(async (req) => {
         (existingByKey[k] = existingByKey[k] || []).push(e);
       }
       let inserted = 0;
+      let skipped = 0;
       for (const row of rows) {
-        const k = keyOf({ date: row.date_start, meta_campaign_id: row.campaign_id || '', ad_id: row.ad_id || '' });
+        // Build first, then derive the dedup key from the built row. The built
+        // row uses AdSpend field names, which is how existing rows are keyed, so
+        // this stays correct for raw Meta insight rows and for aggregated
+        // attribution rows alike. Keying off raw Meta field names broke dedup on
+        // the aggregated path and let duplicates accumulate on every sync.
+        const doc = build(row);
+        if (!doc || !doc.date) { skipped++; continue; }
+        const k = keyOf(doc);
         for (const e of existingByKey[k] || []) await svc.entities.AdSpend.delete(e.id);
         delete existingByKey[k];
-        await svc.entities.AdSpend.create(build(row));
+        await svc.entities.AdSpend.create(doc);
         inserted++;
       }
+      if (skipped) skippedNoDate += skipped;
       return inserted;
     };
 
