@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 // search and select-all. Accounts are registered without a supplier via
 // registerMetaAdAccounts; campaigns are mapped to a Campaign + Source later.
 // Reuses the OAuth popup and asset loading proven in MetaConnectWizard.
-export default function MetaConnectDialog({ open, onOpenChange, onConnected }) {
+export default function MetaConnectDialog({ open, onOpenChange, onConnected, includeLeadForms = false }) {
   const qc = useQueryClient();
   const [step, setStep] = useState('connect');
   const [connectionId, setConnectionId] = useState('');
@@ -48,7 +48,7 @@ export default function MetaConnectDialog({ open, onOpenChange, onConnected }) {
     try {
       const origin = window.location.origin;
       const redirectUri = `${origin}/api/apps/${appParams.appId}/functions/metaOauthCallback`;
-      const res = await metaOauthStart({ origin, redirect_uri: redirectUri });
+      const res = await metaOauthStart({ origin, redirect_uri: redirectUri, include_lead_forms: includeLeadForms });
       const url = res?.data?.url;
       if (!url) { setError('Could not start Facebook Login. Set the Meta App credentials in Settings > Data Sources.'); setOauthPending(false); return; }
       const w = 600, h = 760;
