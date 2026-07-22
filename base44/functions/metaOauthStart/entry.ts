@@ -77,10 +77,16 @@ Deno.serve(async (req) => {
     if (record) await svc.entities.IntegrationConfig.update(record.id, { config: payload });
     else await svc.entities.IntegrationConfig.create({ name: 'meta_oauth_state', config: payload });
 
+    // Lead form access needs extra scopes. Kept opt-in so the default connect
+    // flow keeps the smallest scope set and is not made harder to approve.
+    const baseScope = 'ads_read,business_management';
+    const leadFormScope = 'pages_show_list,leads_retrieval,pages_read_engagement';
+    const scope = body.include_lead_forms ? `${baseScope},${leadFormScope}` : baseScope;
+
     const params = new URLSearchParams({
       client_id: appId,
       redirect_uri: redirectUri,
-      scope: 'ads_read,business_management',
+      scope,
       response_type: 'code',
       state,
     });
