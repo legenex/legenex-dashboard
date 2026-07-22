@@ -151,7 +151,7 @@ export default function MetaConnectDialog({ open, onOpenChange, onConnected, inc
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="bg-popover border-border max-w-[560px]">
+      <DialogContent className="bg-popover border-border max-w-[560px] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{step === 'accounts' ? 'Select ad accounts' : 'Connect Meta'}</DialogTitle>
           <DialogDescription className="text-muted-foreground">

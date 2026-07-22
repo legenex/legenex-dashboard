@@ -140,7 +140,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-popover border-border max-w-[720px]">
+      <DialogContent className="bg-popover border-border max-w-[720px] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Map to Campaign</DialogTitle>
         </DialogHeader>
@@ -195,7 +195,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
             <Search className="w-3.5 h-3.5 absolute left-2 top-2.5 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search campaigns" className="pl-7 h-8 bg-background text-[12px]" />
           </div>
-          <div className="max-h-[34vh] overflow-y-auto border border-border rounded-lg divide-y divide-border">
+          <div className="max-h-[30vh] overflow-y-auto border border-border rounded-lg divide-y divide-border">
             {campError ? (
               <p className="text-[12px] status-error p-3">{campData?.error || 'Could not load campaigns. Check the connection permissions.'}</p>
             ) : loadingCamps ? (
@@ -223,7 +223,7 @@ export default function MetaMapCampaignsDialog({ open, onOpenChange, account, on
         {existing.length > 0 && (
           <div className="mt-1 pt-3 border-t border-border">
             <Label className="text-[12px] font-semibold">Existing mappings ({existing.length})</Label>
-            <div className="mt-1.5 space-y-1.5 max-h-[20vh] overflow-y-auto">
+            <div className="mt-1.5 space-y-1.5 max-h-[18vh] overflow-y-auto">
               {existing.map(m => (
                 <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded border border-border bg-background">
                   <div className="min-w-0">

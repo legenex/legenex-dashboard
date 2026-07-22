@@ -65,7 +65,7 @@ function MapFormDialog({ open, onOpenChange, form, page, connectionId, existing,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-popover border-border max-w-[560px]">
+      <DialogContent className="bg-popover border-border max-w-[560px] max-h-[88vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Map lead form</DialogTitle></DialogHeader>
         <p className="text-[12px] text-muted-foreground -mt-2">
           Map <span className="text-foreground font-medium">{form?.name}</span> to a campaign and source, and match its questions to lead fields.
