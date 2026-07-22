@@ -8,6 +8,7 @@ import { manageSupplierAdAccount } from '@/functions/manageSupplierAdAccount';
 import MetaMapCampaignsDialog from '@/components/settings/MetaMapCampaignsDialog';
 import MetaSyncHistoryDialog from '@/components/settings/MetaSyncHistoryDialog';
 import MetaConnectDialog from '@/components/settings/MetaConnectDialog';
+import MetaLeadFormsTab from '@/components/settings/MetaLeadFormsTab';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -133,9 +134,7 @@ export default function MetaManageDialog({ open, onOpenChange }) {
 
         <div className="px-6 py-4 max-h-[62vh] overflow-y-auto space-y-4">
           {tab === 'leadforms' && (
-            <div className="rounded-lg border border-border bg-card p-8 text-center text-[13px] text-muted-foreground">
-              Facebook Lead Forms sync is coming soon.
-            </div>
+            <MetaLeadFormsTab connections={connections} onReconnect={() => setConnectOpen(true)} />
           )}
 
           {tab === 'accounts' && (
