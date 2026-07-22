@@ -445,6 +445,7 @@ Deno.serve(async (req) => {
       rows_synced: accountRows,
       campaign_rows_inserted: campaignRows,
       ad_rows_inserted: adRows,
+      skipped_no_date: skippedNoDate,
       account_errors: accountErrors,
     });
   } catch (error) {
