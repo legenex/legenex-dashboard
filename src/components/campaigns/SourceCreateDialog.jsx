@@ -16,8 +16,7 @@ export default function SourceCreateDialog({ open, onOpenChange, supplier, sourc
   const qc = useQueryClient();
 
   async function afterSave() {
-    await qc.invalidateQueries({ queryKey: ['supplierSources'] });
-    await qc.invalidateQueries({ queryKey: ['sources'] });
+    await qc.invalidateQueries({ queryKey: ['op-supplier-sources'] });
     await qc.invalidateQueries({ queryKey: ['suppliers'] });
     onOpenChange(false);
   }
