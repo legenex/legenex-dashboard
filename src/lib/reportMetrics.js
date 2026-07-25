@@ -77,6 +77,15 @@ export function leadCost(lead) { return num(leadField(lead, 'cost')); }
 
 const S = (l) => String(l.final_status || '');
 
+// Only account-level AdSpend rows are cost. Campaign and ad rows are detail
+// views of the same money and now carry a supplier too, so summing them
+// alongside account rows multiplies spend two or three times over. Rows written
+// before levels existed carry no level at all and count as account.
+// Every cost total in reporting goes through here.
+export function spendRows(rows = []) {
+  return rows.filter((r) => !r.level || r.level === 'account');
+}
+
 // The lead's real event time. mapped_fields.timestamp is a naive local string
 // like "2026-06-01 22:18:03" already in APP_TZ; interpret it as APP_TZ. If it
 // is missing, fall back to the Base44 created_date (import time).
@@ -142,7 +151,7 @@ export function computeMetrics(leads, adSpendRows = []) {
     if (pv != null && !/^(no|none|false|no match|not verified)$/i.test(String(pv).trim())) phoneVerified++;
   }
 
-  const adSpend = adSpendRows.reduce((a, r) => a + num(r.spend), 0);
+  const adSpend = spendRows(adSpendRows).reduce((a, r) => a + num(r.spend), 0);
   const profit = revenue - cost;
   const netRevenue = revenue - returns * (total ? revenue / Math.max(total, 1) : 0);
   const netProfit = netRevenue - cost - adSpend;
@@ -260,7 +269,7 @@ export function dailySeries(leads, adSpendRows = [], days = 14, window = null) {
     map[key].leads += 1;
     if (S(l) === 'Sold') map[key].sold += 1;
   }
-  for (const r of adSpendRows) {
+  for (const r of spendRows(adSpendRows)) {
     const key = (r.date || '').slice(0, 10);
     if (map[key]) map[key].spend += num(r.spend);
   }
@@ -281,7 +290,7 @@ export function groupBy(leads, field, adSpendRows = []) {
   }
   // fold matching ad spend into cost for supplier grouping (true CPL)
   if (field === 'supplier_name') {
-    for (const r of adSpendRows) {
+    for (const r of spendRows(adSpendRows)) {
       const key = r.supplier_name || '(none)';
       if (map[key]) map[key].cost += num(r.spend);
     }
