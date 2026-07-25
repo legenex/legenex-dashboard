@@ -3,7 +3,6 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Megaphone } from 'lucide-react';
 import SupplierStatusPill from './SupplierStatusPill';
-import SupplierChannelsCell from './SupplierChannelsCell';
 import SupplierPayoutTab from './SupplierPayoutTab';
 import SupplierNotificationsTab from './SupplierNotificationsTab';
 import SupplierSourcesTab from './SupplierSourcesTab';
