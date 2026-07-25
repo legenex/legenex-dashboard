@@ -95,6 +95,18 @@ Deno.serve(async (req) => {
     const daysAgoStr = (n: number) => dateStr(new Date(today.getTime() - n * dayMs));
     const MAX_HISTORY_DAYS = 1100; // Meta insights history limit is about 37 months.
 
+    // Meta restates spend for days after the fact, so every pass re-pulls a
+    // trailing tail. A deep pass additionally re-pulls the whole current month,
+    // which is what makes month to date converge on the Ads Manager total
+    // instead of freezing at whatever Meta reported on the first pull.
+    // Manual syncs are deep. Scheduled syncs are shallow by default so an
+    // hourly cadence across every ad account stays cheap; schedule a second
+    // daily job with { "mode": "month" } for the deep pass.
+    const RESTATEMENT_DAYS = 3;
+    const mode = String(body.mode || (user ? 'month' : 'incremental'));
+    const deepPass = mode === 'month';
+    const monthStart = `${todayStr.slice(0, 7)}-01`;
+
     const LEAD_ACTION_PRIORITY = ['offsite_conversion.fb_pixel_lead', 'lead', 'onsite_conversion.lead_grouped'];
     const extractLeads = (actions: any): number => {
       if (!Array.isArray(actions)) return 0;
@@ -144,6 +156,7 @@ Deno.serve(async (req) => {
     // Bulk upsert: load existing rows for this account and level once, then
     // delete the ones being replaced and insert fresh rows.
     let skippedNoDate = 0;
+    let unchangedRows = 0;
     const upsertLevel = async (node: string, level: string, keyOf: (r: any) => string, rows: any[], build: (r: any) => any): Promise<number> => {
       const existing = await svc.entities.AdSpend.filter({ ad_account_id: node, level }, '-date', 10000);
       const existingByKey: Record<string, any[]> = {};
@@ -152,7 +165,9 @@ Deno.serve(async (req) => {
         (existingByKey[k] = existingByKey[k] || []).push(e);
       }
       let inserted = 0;
+      let unchanged = 0;
       let skipped = 0;
+      const sameNum = (a: any, b: any) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
       for (const row of rows) {
         // Build first, then derive the dedup key from the built row. The built
         // row uses AdSpend field names, which is how existing rows are keyed, so
@@ -162,12 +177,27 @@ Deno.serve(async (req) => {
         const doc = build(row);
         if (!doc || !doc.date) { skipped++; continue; }
         const k = keyOf(doc);
-        for (const e of existingByKey[k] || []) await svc.entities.AdSpend.delete(e.id);
+        const prior = existingByKey[k] || [];
+        // Settled days come back identical on every pass. Rewriting an unchanged
+        // row costs a delete plus a create, and that write volume is the whole
+        // reason an hourly cadence across every ad account would be expensive.
+        if (prior.length === 1
+          && sameNum(prior[0].spend, doc.spend)
+          && sameNum(prior[0].impressions, doc.impressions)
+          && sameNum(prior[0].clicks, doc.clicks)
+          && sameNum(prior[0].leads, doc.leads)
+          && String(prior[0].supplier_id || '') === String(doc.supplier_id || '')) {
+          delete existingByKey[k];
+          unchanged++;
+          continue;
+        }
+        for (const e of prior) await svc.entities.AdSpend.delete(e.id);
         delete existingByKey[k];
         await svc.entities.AdSpend.create(doc);
         inserted++;
       }
       if (skipped) skippedNoDate += skipped;
+      unchangedRows += unchanged;
       return inserted;
     };
 
@@ -250,7 +280,8 @@ Deno.serve(async (req) => {
       } else {
         const lastSuccess = assoc.last_success_at ? assoc.last_success_at.slice(0, 10) : daysAgoStr(30);
         const base = new Date(`${lastSuccess}T00:00:00Z`);
-        since = dateStr(new Date(base.getTime() - 3 * dayMs));
+        since = dateStr(new Date(base.getTime() - RESTATEMENT_DAYS * dayMs));
+        if (deepPass && monthStart < since) since = monthStart;
         if (since < daysAgoStr(MAX_HISTORY_DAYS)) since = daysAgoStr(MAX_HISTORY_DAYS);
       }
       const granularSince = since > daysAgoStr(29) ? since : daysAgoStr(29);
