@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -75,6 +75,21 @@ import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSetting
 
 // Public documentation routes — rendered with no auth. Reused both on the
 // docs subdomain (as the entire app) and under /docs on the main app.
+// The standalone /suppliers/:id page predates Operations owning suppliers, so
+// its tabs duplicated (and drifted from) the Operations ones. Operations now
+// deep-links via ?supplier=<id>&tab=<tab>, so old links land on the maintained
+// surface with the tab they asked for. ?legacy=1 still reaches the old page if
+// something turns out to depend on it.
+function LegacySupplierRedirect() {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  if (params.get('legacy') === '1') return <SupplierDetail />;
+  const tab = params.get('tab');
+  const qs = new URLSearchParams({ supplier: id || '' });
+  if (tab) qs.set('tab', tab);
+  return <Navigate to={`/operations/suppliers?${qs.toString()}`} replace />;
+}
+
 const DocsRoutes = () => (
   <Route path="/docs" element={<DocsLayout />}>
     {DOCS_ROUTES.map((r) => (
