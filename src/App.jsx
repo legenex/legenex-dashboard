@@ -206,7 +206,13 @@ const AuthenticatedApp = () => {
             <Route path="/distribution/routes" element={<RouteGroups />} />
             <Route path="/distribution/simulator" element={<RouteSimulator />} />
           </Route>
-          <Route path="/suppliers/:id" element={<SupplierDetail />} />
+          {/* Suppliers and buyers are managed inside Operations. The old
+              standalone detail pages are kept mounted only behind ?legacy=1 so
+              nothing breaks if a bookmark or an old link is still in use; the
+              default is to hand off to the Operations surface, which now holds
+              the full tab set (Overview, Sources, Ad Spend, Posting Specs,
+              Portal, Leads). */}
+          <Route path="/suppliers/:id" element={<LegacySupplierRedirect />} />
           <Route path="/buyers/:id" element={<BuyerDetail />} />
           <Route path="/buyers" element={<Navigate to="/campaigns?tab=buyers" replace />} />
           <Route path="/suppliers" element={<Navigate to="/campaigns?tab=suppliers" replace />} />
