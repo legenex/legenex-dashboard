@@ -73,8 +73,6 @@ import SupplierPortalReturns from '@/pages/supplierportal/SupplierPortalReturns'
 import SupplierPortalApi from '@/pages/supplierportal/SupplierPortalApi';
 import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSettings';
 
-// Public documentation routes — rendered with no auth. Reused both on the
-// docs subdomain (as the entire app) and under /docs on the main app.
 // The standalone /suppliers/:id page predates Operations owning suppliers, so
 // its tabs duplicated (and drifted from) the Operations ones. Operations now
 // deep-links via ?supplier=<id>&tab=<tab>, so old links land on the maintained
@@ -90,6 +88,8 @@ function LegacySupplierRedirect() {
   return <Navigate to={`/operations/suppliers?${qs.toString()}`} replace />;
 }
 
+// Public documentation routes, rendered with no auth. Reused both on the
+// docs subdomain (as the entire app) and under /docs on the main app.
 const DocsRoutes = () => (
   <Route path="/docs" element={<DocsLayout />}>
     {DOCS_ROUTES.map((r) => (
