@@ -27,7 +27,7 @@ export default function SupplierPayoutsTab({ suppliers = [], leads = [], adSpend
   const inWin = (d) => !win || (d && isWithinInterval(new Date(d), { start: win.start, end: win.end }));
   const payouts = useMemo(() => allPayouts.filter(p => inWin(p.created_date)), [allPayouts, win]);
   const winLeads = useMemo(() => leads.filter(l => inWin(l.created_date)), [leads, win]);
-  const winSpend = useMemo(() => adSpend.filter(a => inWin(a.date)), [adSpend, win]);
+  const winSpend = useMemo(() => spendRows(adSpend).filter(a => inWin(a.date)), [adSpend, win]);
 
   // Per-supplier reconciliation: declared cost (lead cost), ad spend, true cost, payouts issued/paid/owing.
   const rows = useMemo(() => {
