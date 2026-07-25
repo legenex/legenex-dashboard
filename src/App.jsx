@@ -88,6 +88,19 @@ function LegacySupplierRedirect() {
   return <Navigate to={`/operations/suppliers?${qs.toString()}`} replace />;
 }
 
+// Same handoff for buyers. The old /buyers/:id page duplicated the Operations
+// buyer detail; Operations is the surface that is maintained, so old links go
+// there with their tab preserved.
+function LegacyBuyerRedirect() {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  if (params.get('legacy') === '1') return <BuyerDetail />;
+  const tab = params.get('tab');
+  const qs = new URLSearchParams({ buyer: id || '' });
+  if (tab) qs.set('tab', tab);
+  return <Navigate to={`/operations/buyers?${qs.toString()}`} replace />;
+}
+
 // Public documentation routes, rendered with no auth. Reused both on the
 // docs subdomain (as the entire app) and under /docs on the main app.
 const DocsRoutes = () => (
@@ -228,7 +241,7 @@ const AuthenticatedApp = () => {
               the full tab set (Overview, Sources, Ad Spend, Posting Specs,
               Portal, Leads). */}
           <Route path="/suppliers/:id" element={<LegacySupplierRedirect />} />
-          <Route path="/buyers/:id" element={<BuyerDetail />} />
+          <Route path="/buyers/:id" element={<LegacyBuyerRedirect />} />
           <Route path="/buyers" element={<Navigate to="/campaigns?tab=buyers" replace />} />
           <Route path="/suppliers" element={<Navigate to="/campaigns?tab=suppliers" replace />} />
           <Route path="/reports" element={<Reports />} />
