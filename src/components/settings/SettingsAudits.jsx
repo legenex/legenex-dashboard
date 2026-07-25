@@ -308,40 +308,57 @@ export default function SettingsAudits() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Run list */}
         <Panel className="lg:col-span-1 overflow-hidden" i={0}>
-          <div className="border-b border-border px-4 py-3 text-[13px] font-medium text-foreground">Runs</div>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all runs" />
+              <span className="text-[13px] font-medium text-foreground">Runs</span>
+            </label>
+            <span className="text-[11px] text-muted-foreground">
+              {selectedIds.size ? `${selectedIds.size} selected` : `${runs.length} total`}
+            </span>
+          </div>
           <div>
             {runs.map((r) => {
-              const isActive = r.run_id === activeRunId;
+              const isViewing = r.run_id === activeRunId;
+              const isChecked = selectedIds.has(r.run_id);
               const fails = r.checks_fail || 0;
               const warns = r.checks_warn || 0;
               return (
-                <button
+                <div
                   key={r.run_id}
-                  onClick={() => setSelectedRunId(r.run_id)}
-                  className={`block w-full border-b border-border px-4 py-3 text-left last:border-b-0 hover:bg-accent ${isActive ? 'bg-accent' : ''}`}
+                  className={`flex items-start gap-3 border-b border-l-2 border-border px-4 py-3 last:border-b-0 ${isViewing ? 'border-l-primary bg-accent' : 'border-l-transparent'}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-[13px] text-foreground">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {fmtTime(r.started_at)}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      {fails > 0 && <Pill className={verdictTagClass('fail')}>{fails}</Pill>}
-                      {warns > 0 && <Pill className={verdictTagClass('warn')}>{warns}</Pill>}
-                      {fails === 0 && warns === 0 && <Pill className={verdictTagClass('pass')}>clean</Pill>}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
-                    {runLayers(r) && <span className="font-mono">{runLayers(r)}</span>}
-                    <span>{r.checks_total || 0} checks</span>
-                    {(r.new_failures || 0) > 0 && (
-                      <span className="inline-flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{r.new_failures} new</span>
-                    )}
-                    {(r.resolved_since_previous || 0) > 0 && (
-                      <span className="inline-flex items-center gap-0.5"><ArrowDownRight className="h-3 w-3" />{r.resolved_since_previous} fixed</span>
-                    )}
-                  </div>
-                </button>
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => toggleSelected(r.run_id)}
+                    aria-label={`Select run ${fmtTime(r.started_at)}`}
+                    className="mt-0.5"
+                  />
+                  <button onClick={() => setSelectedRunId(r.run_id)} className="min-w-0 flex-1 text-left">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-[13px] text-foreground">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        {fmtTime(r.started_at)}
+                        {isViewing && <span className="text-[10px] font-medium text-primary">viewing</span>}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        {fails > 0 && <Pill className={verdictTagClass('fail')}>{fails}</Pill>}
+                        {warns > 0 && <Pill className={verdictTagClass('warn')}>{warns}</Pill>}
+                        {fails === 0 && warns === 0 && <Pill className={verdictTagClass('pass')}>clean</Pill>}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {runLayers(r) && <span className="font-mono">{runLayers(r)}</span>}
+                      <span>{r.checks_total || 0} checks</span>
+                      {(r.new_failures || 0) > 0 && (
+                        <span className="inline-flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{r.new_failures} new</span>
+                      )}
+                      {(r.resolved_since_previous || 0) > 0 && (
+                        <span className="inline-flex items-center gap-0.5"><ArrowDownRight className="h-3 w-3" />{r.resolved_since_previous} fixed</span>
+                      )}
+                    </div>
+                  </button>
+                </div>
               );
             })}
           </div>
