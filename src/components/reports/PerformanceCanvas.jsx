@@ -4,7 +4,7 @@ import MetricCard from './MetricCard';
 import MetricPicker from './MetricPicker';
 import ReportWidget from './ReportWidget';
 import AddWidgetPicker from './AddWidgetPicker';
-import { computeMetrics, dailySeries, applyFilters, METRIC_CATALOG, leadField, seriesWindow } from '@/lib/reportMetrics';
+import { computeMetrics, dailySeries, applyFilters, METRIC_CATALOG, leadField, seriesWindow, spendInWindow } from '@/lib/reportMetrics';
 import { reorder } from '@/lib/reorder';
 
 let idc = 0;
@@ -39,9 +39,11 @@ export default function PerformanceCanvas({
   const [activeGroup, setActiveGroup] = useState('revenue');
 
   const filtered = applyFilters(leads, filters);
-  const metrics = computeMetrics(filtered, adSpend);
+  // Spend has to be windowed separately: applyFilters only touches leads.
+  const spend = spendInWindow(adSpend, filters);
+  const metrics = computeMetrics(filtered, spend);
   // Sparklines follow the selected date range, not a fixed trailing 14 days.
-  const series = dailySeries(filtered, adSpend, 14, seriesWindow(filters));
+  const series = dailySeries(filtered, spend, 14, seriesWindow(filters));
   const revSeries = series.map(s => s.revenue);
 
   const cardValue = (card) => {
@@ -159,7 +161,7 @@ export default function PerformanceCanvas({
               onMoveRight: () => moveWidget(w.id, 1),
             }}
             leads={filtered}
-            adSpend={adSpend}
+            adSpend={spend}
             filters={filters}
             onChange={(next) => updateWidget(w.id, next)}
           />
