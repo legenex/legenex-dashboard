@@ -203,6 +203,73 @@ export default function SettingsAudits() {
     setRunning(false);
   };
 
+  // ---- exports --------------------------------------------------------------
+  async function loadAllFindings() {
+    const out = []; let skip = 0;
+    while (true) {
+      const batch = arr(await base44.entities.AuditFinding.list('-created_at', 500, skip));
+      out.push(...batch);
+      if (batch.length < 500) break;
+      skip += 500;
+    }
+    return out;
+  }
+
+  const exportRun = (format) => {
+    if (!activeRun) return;
+    const base = `audit-${runLayers(activeRun) || 'run'}-${stamp()}`;
+    if (format === 'json') {
+      downloadBlob(`${base}.json`, JSON.stringify({ run: activeRun, findings }, null, 2), 'application/json');
+    } else if (format === 'csv') {
+      downloadCsv(`${base}.csv`, FINDING_COLUMNS, findings);
+    } else {
+      downloadBlob(`${base}.md`, runsToMarkdown([activeRun], { [activeRun.run_id]: findings }), 'text/markdown');
+    }
+    toast.success(`Exported this run as ${format.toUpperCase()}`);
+  };
+
+  const exportAll = async (format) => {
+    try {
+      const allRuns = runs;
+      const allFindings = await loadAllFindings();
+      const byRun = {};
+      for (const f of allFindings) (byRun[f.run_id] || (byRun[f.run_id] = [])).push(f);
+      const base = `audit-all-${stamp()}`;
+      if (format === 'json') {
+        downloadBlob(`${base}.json`, JSON.stringify({ runs: allRuns, findings: allFindings }, null, 2), 'application/json');
+      } else if (format === 'csv') {
+        downloadCsv(`${base}.csv`, FINDING_COLUMNS, allFindings);
+      } else {
+        downloadBlob(`${base}.md`, runsToMarkdown(allRuns, byRun), 'text/markdown');
+      }
+      toast.success(`Exported ${allRuns.length} run(s) as ${format.toUpperCase()}`);
+    } catch (err) {
+      toast.error(`Export failed: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const ExportMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="gap-2" disabled={runs.length === 0}>
+          <Download className="h-4 w-4" />
+          Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel>This run</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => exportRun('md')}>Markdown (for an LLM)</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportRun('json')}>JSON</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportRun('csv')}>CSV</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>All runs</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => exportAll('md')}>Markdown (for an LLM)</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportAll('json')}>JSON</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportAll('csv')}>CSV</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const RunButton = (
     <Button onClick={runAudit} disabled={running} className="gap-2">
       <Play className="h-4 w-4" />
