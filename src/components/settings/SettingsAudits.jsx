@@ -303,7 +303,7 @@ export default function SettingsAudits() {
           Read-only runtime probes against the live app. Every probe records a verdict, so the row
           set is the log and pass to fail transitions are visible between runs.
         </p>
-        {RunButton}
+        <div className="flex items-center gap-2">{ExportMenu}{RunButton}</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
