@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Bell, BellOff, AlertTriangle, Clock, TrendingDown, Layers, Mail, Slack, Webhook, CheckCircle2 } from 'lucide-react';
+import { Plus, BellOff, AlertTriangle, Clock, TrendingDown, Layers, Mail, Slack, Webhook, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const conditionLabels = {
