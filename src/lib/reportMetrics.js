@@ -86,6 +86,25 @@ export function spendRows(rows = []) {
   return rows.filter((r) => !r.level || r.level === 'account');
 }
 
+// Account-level spend rows inside the report's date window.
+// applyFilters only ever touches leads, and AdSpend rows carry their own date,
+// so without this every report summed the entire spend history no matter which
+// period was selected. That is what made net profit on a This Month view read
+// against months of accumulated spend.
+export function spendInWindow(rows = [], filters = {}) {
+  const from = filters?.date_from || '';
+  const to = filters?.date_to || '';
+  const list = spendRows(rows);
+  if (!from && !to) return list;
+  return list.filter((r) => {
+    const d = String(r.date || '').slice(0, 10);
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+}
+
 // The lead's real event time. mapped_fields.timestamp is a naive local string
 // like "2026-06-01 22:18:03" already in APP_TZ; interpret it as APP_TZ. If it
 // is missing, fall back to the Base44 created_date (import time).
