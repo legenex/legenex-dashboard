@@ -331,7 +331,7 @@ export default function Overview() {
           { key: 'revenue', label: 'Revenue', subLabel: 'Verified', icon: DollarSign, cmp: 'Booked' },
           { key: 'profit', label: 'Profit', subLabel: 'Cash', icon: TrendingUp, cmp: 'Reported' },
           { key: 'cost', label: 'Cost', subLabel: 'Paid', icon: Megaphone, cmp: 'Accrued' },
-          { key: 'cpl', label: 'CPL', subLabel: '', icon: Users, cmp: 'Blended' },
+          { key: 'cpl', label: 'CPL', subLabel: 'Leads', icon: Users, cmp: 'Blended', subFormat: 'number', hideGap: true },
         ].map((c) => (
           <motion.div key={c.key} variants={itemVariants}>
             <GroupedKpiCard
@@ -344,6 +344,8 @@ export default function Overview() {
               delta={kpiDelta[c.key]}
               spark={kpiSpark[c.key]}
               note={KPI_NOTES[c.key]}
+              subFormat={c.subFormat}
+              hideGap={c.hideGap}
             />
             {compare && <div className="text-[11px] text-muted-foreground mt-1 px-1">{c.cmp} {cmpChip(kpis[c.key].headline, priorTruth?.kpis[c.key].headline)}</div>}
           </motion.div>
