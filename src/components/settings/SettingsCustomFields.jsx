@@ -398,7 +398,7 @@ export default function SettingsCustomFields() {
 
   return (
     <div>
-      {/* Sticky toolbar — stays visible while the field table scrolls beneath it. */}
+      {/* Sticky toolbar, stays visible while the field table scrolls beneath it. */}
       <div className="sticky top-0 z-20 bg-background pt-1 pb-3 -mt-1">
         <div className="flex items-center justify-between mb-4">
           <div className="text-[13px] text-muted-foreground">{fields.length} fields defined</div>

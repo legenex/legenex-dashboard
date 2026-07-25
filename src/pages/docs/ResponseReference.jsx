@@ -85,7 +85,7 @@ export default function ResponseReference() {
       </Section>
 
       <Section title="Example: queued">
-        <p>Held for manual handling — for example a missing TrustedForm cert or a required field.</p>
+        <p>Held for manual handling, for example a missing TrustedForm cert or a required field.</p>
         <CodeBlock
           code={`{
   "ok": true,
