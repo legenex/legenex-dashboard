@@ -162,6 +162,11 @@ export default function BuyerDetailPage({ buyer, verticals, onBack, initialTab }
               </div>
             )}
           </div>
+
+          {/* Invoices + Auto Recharge. Ported from the old standalone
+              /buyers/:id page, which now redirects here, so that the redirect
+              does not drop features the operator still uses. */}
+          <BuyerBillingCard buyer={buyer} />
         </div>
       )}
 
