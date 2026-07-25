@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// Runtime layer of the evaluation harness. See Settings > Audits.
 // auditRun. OPERATOR-ONLY, READ-ONLY evaluation harness (runtime layer).
 //
 // Runs a set of runtime probes against the live app and records the result of
