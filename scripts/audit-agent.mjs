@@ -51,6 +51,9 @@ function sh(cmd) {
   catch (e) { return { ok: false, out: `${e.stdout || ''}${e.stderr || ''}` || e.message }; }
 }
 
+// Strip ANSI escape codes so colored tool output parses cleanly.
+const stripAnsi = (s) => s.replace(/\u001b\[[0-9;]*m/g, '');
+
 // Strip // line comments so a .jsonc entity parses as JSON.
 function readJsonc(path) {
   const raw = readFileSync(path, 'utf8');
@@ -85,10 +88,11 @@ function checkParity() {
 // ---- CHECK: unit suite ------------------------------------------------------
 function checkTests() {
   const r = sh('npx vitest run --reporter=dot');
-  const m = r.out.match(/Tests\s+(?:(\d+)\s+failed[^\n]*?\|\s+)?(\d+)\s+passed/);
-  const failed = m && m[1] ? Number(m[1]) : (r.ok ? 0 : null);
+  const out = stripAnsi(r.out);
+  const m = out.match(/Tests\s+(?:(\d+)\s+failed[^\n]*?\|\s+)?(\d+)\s+passed/);
+  const failed = m && m[1] ? Number(m[1]) : (m ? 0 : null);
   const passed = m ? Number(m[2]) : null;
-  const failFiles = [...r.out.matchAll(/FAIL\s+([^\s>]+)/g)].map((x) => x[1]);
+  const failFiles = [...out.matchAll(/FAIL\s+([^\s>]+)/g)].map((x) => x[1]);
   if (failed === 0) {
     add({ check_id: 'tests.suite', verdict: 'pass', surface: 'vitest', expected: 'Full suite green',
       observed: `${passed ?? '?'} passed, 0 failed` });
