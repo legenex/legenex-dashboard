@@ -91,35 +91,54 @@ export default function SupplierDetailPage({ supplier, onBack }) {
       {tab === 'overview' && (
         <div className="space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-            {/* Source Profile — reuses the existing editable payout form */}
+            {/* Source Profile: reuses the existing editable payout form */}
             <div className="rounded-lg border border-border bg-card p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Source Profile</p>
               <SupplierPayoutTab supplier={supplier} />
             </div>
 
-            {/* Source Portal — access + invite, then notifications editor */}
+            {/* Notifications: the alert routing editor for this source */}
             <div className="rounded-lg border border-border bg-card p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Source Portal</p>
-              <PortalEnablementCard
-                record={supplier}
-                entityName="Supplier"
-                contactName={supplier.contact_name}
-                contactEmail={supplier.email}
-                previewPath={`/supplier-portal?supplier_id=${encodeURIComponent(supplier.id)}`}
-                queryKey={['op-suppliers']}
-                label="source portal"
-              />
-              <div className="mt-5 pt-5 border-t border-border">
-                <SupplierNotificationsTab supplier={supplier} />
-              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Notifications</p>
+              <SupplierNotificationsTab supplier={supplier} />
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Campaigns / sources this supplier feeds, full width */}
-          <div className="rounded-lg border border-border bg-card p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Campaigns &amp; Sources</p>
-            <SupplierSourcesTab supplier={supplier} />
-          </div>
+      {tab === 'sources' && (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Supplier Sources</p>
+          <SupplierSourcesTab supplier={supplier} />
+        </div>
+      )}
+
+      {tab === 'adspend' && <SupplierMetaCosts supplier={supplier} />}
+
+      {tab === 'specs' && (
+        <PostingSpecs
+          supplier={supplier}
+          apiKey={apiKey}
+          customFields={customFields}
+          campaigns={campaigns}
+          verticals={verticals}
+          buyers={buyers}
+          baseUrl={baseUrl}
+        />
+      )}
+
+      {tab === 'portal' && (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Source Portal</p>
+          <PortalEnablementCard
+            record={supplier}
+            entityName="Supplier"
+            contactName={supplier.contact_name}
+            contactEmail={supplier.email}
+            previewPath={`/supplier-portal?supplier_id=${encodeURIComponent(supplier.id)}`}
+            queryKey={['op-suppliers']}
+            label="source portal"
+          />
         </div>
       )}
 
