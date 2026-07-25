@@ -28,7 +28,7 @@ const conditionLabels = {
 const SUGGESTIONS = [
   {
     key: 'delivery_failure', name: 'Delivery failure', icon: AlertTriangle,
-    description: 'Any destination POST returns a non-200 response.',
+    description: 'Any delivery POST returns a non-200 response.',
     channel: 'Slack', channelKey: 'slack',
     rule: { name: 'Delivery failure', condition_type: 'leadbyte_non_success', threshold_count: 1, window_minutes: 5, channels: '["slack"]', recipients: '[]' },
   },
