@@ -8,9 +8,18 @@ import SupplierPayoutTab from './SupplierPayoutTab';
 import SupplierNotificationsTab from './SupplierNotificationsTab';
 import SupplierSourcesTab from './SupplierSourcesTab';
 import PortalEnablementCard from '@/components/shared/PortalEnablementCard';
+import PostingSpecs from '@/components/suppliers/PostingSpecs';
+import SupplierMetaCosts from '@/components/suppliers/SupplierMetaCosts';
 
+// Operations owns the supplier surface. These are the tabs that previously only
+// existed on the standalone /suppliers/:id page, brought here so a supplier is
+// managed in one place rather than two.
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'sources', label: 'Sources' },
+  { key: 'adspend', label: 'Ad Spend' },
+  { key: 'specs', label: 'Posting Specs' },
+  { key: 'portal', label: 'Portal' },
   { key: 'leads', label: 'Leads' },
 ];
 
@@ -27,6 +36,18 @@ export default function SupplierDetailPage({ supplier, onBack }) {
     queryKey: ['supplier-sources', supplier.id],
     queryFn: () => base44.entities.SupplierSource.filter({ supplier_id: supplier.id }, 'source_code', 500),
   });
+
+  // Data the Posting Specs tab needs. Same query keys as elsewhere so these are
+  // served from cache when the operator has already loaded them.
+  const { data: apiKeys = [] } = useQuery({ queryKey: ['api-keys'], queryFn: () => base44.entities.ApiKey.list() });
+  const { data: campaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list() });
+  const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('sort_order', 500) });
+  const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list() });
+  const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
+  const { data: appSettingsArr = [] } = useQuery({ queryKey: ['app-settings'], queryFn: () => base44.entities.AppSettings.list() });
+
+  const apiKey = apiKeys.find((k) => k.supplier_id === supplier.id || k.supplier_name === supplier.name);
+  const baseUrl = appSettingsArr[0]?.public_base_url || 'https://api.legenex.com';
 
   return (
     <div className="flex flex-col gap-4">
