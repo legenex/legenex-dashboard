@@ -28,17 +28,9 @@ function safeParse(raw, fallback) {
 // A single Base44 page is capped at 500 rows regardless of the limit asked for,
 // so anything that requests more silently truncates. Reports used to ask for
 // 2000 leads and quietly analysed only the newest 500, which is why the numbers
-// here disagreed with the Leads tab. Page until a short page comes back.
-// list() also returns null rather than [] for an empty entity, so coalesce.
-const PAGE = 500;
-async function fetchAll(fn) {
-  const all = [];
-  for (let page = 0; ; page += 1) {
-    const batch = (await fn(PAGE, page * PAGE)) || [];
-    all.push(...batch);
-    if (batch.length < PAGE) return all;
-  }
-}
+// here disagreed with the Leads tab. Paging now lives in @/lib/fetchAll so the
+// AdSpend call sites (Overview, Finances, Ad Manager, Ad Spend tab, Campaign
+// Suppliers) share one implementation instead of each re-truncating at 500.
 
 export default function Reports() {
   const qc = useQueryClient();
