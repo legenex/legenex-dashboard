@@ -18,6 +18,7 @@ import { resolvePeriod } from '@/lib/periodRange';
 import { money } from '@/lib/partnerMetrics';
 import { supplierCostMetrics, payoutSummary } from '@/lib/supplierCost';
 import SupplierSourceRows from '@/components/campaigns/SupplierSourceRows';
+import SourceCreateDialog from '@/components/campaigns/SourceCreateDialog';
 import RowActionsMenu from '@/components/campaigns/RowActionsMenu';
 
 function generateKey(supplierType = '') {
@@ -50,6 +51,7 @@ export default function CampaignSuppliers() {
   const [newKey, setNewKey] = useState(null);
   const [ioOpen, setIoOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [sourceDialog, setSourceDialog] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
   // Metrics are all-time here; the campaign stats strip carries period context.
   const period = 'all';
@@ -221,7 +223,7 @@ export default function CampaignSuppliers() {
                   <button onClick={() => toggleExpand(s.id)} className="text-muted-foreground hover:text-foreground" aria-label={isOpen ? 'Collapse sources' : 'Expand sources'}>
                     {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
-                  <span className="min-w-0 cursor-pointer" onClick={() => navigate(`/suppliers/${s.id}`)}>
+                  <span className="min-w-0 cursor-pointer" onClick={() => navigate(`/operations/suppliers?supplier=${s.id}`)}>
                     <span className="block font-medium text-foreground truncate">{s.name}</span>
                     {s.sid && <span className="block text-[11px] text-muted-foreground font-mono truncate">{s.sid}</span>}
                   </span>
@@ -260,6 +262,16 @@ export default function CampaignSuppliers() {
           })}
         </div>
       </Panel>
+
+      <SourceCreateDialog
+        open={!!sourceDialog}
+        onOpenChange={(v) => { if (!v) setSourceDialog(null); }}
+        supplier={sourceDialog?.supplier || null}
+        source={sourceDialog?.source || null}
+        existingCodes={(allSources || [])
+          .filter((x) => x.supplier_id === sourceDialog?.supplier?.id)
+          .map((x) => ({ id: x.id, code: x.source_code || '' }))}
+      />
 
       <Dialog open={modal} onOpenChange={(v) => { if (!v && !newKey) setModal(false); }}>
         <DialogContent className="bg-popover border-border max-w-[540px] max-h-[90vh] overflow-y-auto">
