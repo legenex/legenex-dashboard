@@ -96,6 +96,11 @@ export default function BuyerDetailPage({ buyer, verticals, onBack }) {
             </div>
           </div>
 
+          {/* Buyer Deliveries: sits above Wallet because routing cannot work
+              until the buyer has somewhere to send leads. Same card is used in
+              Lead Distribution. */}
+          <BuyerDeliveriesCard buyerId={buyer.id} buyerName={buyer.company_name || buyer.name} />
+
           {/* Wallet & Billing + Payment Methods */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
             <div className="rounded-lg border border-border bg-card p-5">
