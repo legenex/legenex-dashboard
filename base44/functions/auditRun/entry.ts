@@ -56,10 +56,13 @@ Deno.serve(async (req) => {
     const runId = `run_${startedAtMs}_${Math.random().toString(36).slice(2, 8)}`;
 
     // ---- previous completed run, for the diff -------------------------------
+    // Scoped to the SAME layer signature so a runtime run diffs only against a
+    // prior runtime run, never against a static or benchmark run (disjoint checks).
+    const layersSig = JSON.stringify(['runtime']);
     let previous = null;
     let previousFindings: any[] = [];
     try {
-      const prevRuns = arr(await svc.entities.AuditRun.filter({ status: 'completed' }, '-started_at', 1, 0));
+      const prevRuns = arr(await svc.entities.AuditRun.filter({ status: 'completed', layers: layersSig }, '-started_at', 1, 0));
       previous = prevRuns[0] || null;
       if (previous) {
         previousFindings = arr(await svc.entities.AuditFinding.filter({ run_id: previous.run_id }, '-created_at', 500, 0));
@@ -237,7 +240,7 @@ Deno.serve(async (req) => {
     // create the run first so findings reference a real row
     const runRecord = await svc.entities.AuditRun.create({
       run_id: runId,
-      layers: JSON.stringify(['runtime']),
+      layers: layersSig,
       trigger,
       write_mode: 'read_only',
       status: 'running',
