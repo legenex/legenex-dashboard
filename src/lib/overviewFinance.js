@@ -49,7 +49,7 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
     adSpend: { headline: trackedSpend, sub: paidSpend, gap: trackedSpend - paidSpend },
     supplierCost: { headline: totalCost, sub: paidPayouts, gap: totalCost - paidPayouts },
     cost: { headline: totalCost, sub: paidPayouts + paidSpend, gap: totalCost - (paidPayouts + paidSpend) },
-    cpl: { headline: blendedCpl, sub: 0, gap: 0 },
+    cpl: { headline: blendedCpl, sub: wLeads.length, gap: 0 },
   };
 
   // Small stat cards.
