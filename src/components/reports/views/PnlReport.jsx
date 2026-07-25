@@ -50,7 +50,7 @@ export default function PnlReport({ leads, adSpend, bankTx, filters }) {
       { label: 'Net Revenue', value: m.net_revenue, kind: 'total' },
       { label: 'Supplier Lead Cost', value: -(m.cost), kind: 'out' },
       { label: 'Ad Spend', value: -(m.ad_spend), kind: 'out' },
-      { label: 'Total Lead Cost', value: -(m.total_cost), kind: 'out' },
+      { label: 'Total Lead Cost', value: -(m.total_cost), kind: 'total' },
       { label: 'Gross Profit', value: grossProfit, kind: 'total' },
       { label: 'Tech & Tools', value: -techTotal, kind: 'out' },
       { label: 'Other Operating', value: -otherTotal, kind: 'out' },
