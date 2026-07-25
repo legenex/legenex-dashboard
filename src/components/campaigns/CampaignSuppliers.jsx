@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -71,7 +72,7 @@ export default function CampaignSuppliers() {
   });
   const { data: adSpend = [] } = useQuery({
     queryKey: ['ad-spend-all'],
-    queryFn: () => base44.entities.AdSpend.list('-date', 2000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.AdSpend.list('-date', limit, skip)),
   });
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
