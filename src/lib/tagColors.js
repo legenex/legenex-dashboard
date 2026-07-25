@@ -153,3 +153,14 @@ const SEVERITY_TAG = {
 export function severityTagClass(s) {
   return SEVERITY_TAG[String(s || '').toLowerCase()] || 'tag-neutral';
 }
+
+// Text-only colour for an audit verdict (used on the roll-up chip icons).
+const VERDICT_TEXT = {
+  pass: 'text-green-400',
+  fail: 'text-rose-300',
+  warn: 'text-amber-300',
+  needs_env: 'text-blue-300',
+};
+export function verdictTextClass(v) {
+  return VERDICT_TEXT[String(v || '').toLowerCase()] || 'text-muted-foreground';
+}
