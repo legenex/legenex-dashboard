@@ -203,6 +203,10 @@ Deno.serve(async (req) => {
 
     let accountsSynced = 0;
     let accountsFailed = 0;
+    // Spend on campaigns that resolve to no supplier at all. Never silently
+    // dropped without being reported, since it is the gap between the Ads
+    // Manager total and the platform cost total.
+    let unattributedSpend = 0;
     let accountRows = 0;
     let campaignRows = 0;
     let adRows = 0;
@@ -310,6 +314,18 @@ Deno.serve(async (req) => {
 
       try {
         const acctCampMaps = campMapsByAcct[node] || {};
+        // Campaign mappings created by older tooling carry supplier_name but no
+        // supplier_id. The aggregation below keys on the id, so without this
+        // fallback every campaign is treated as unattributed, no account level
+        // rows are written at all, and cost totals silently read zero while the
+        // campaign rows still look populated. Fall back to the supplier the ad
+        // account itself is associated with.
+        const resolveSupplier = (cm: any) => ({
+          id: cm?.supplier_id || assoc.supplier_id || '',
+          name: cm?.supplier_name || assoc.supplier_name || '',
+          vertical: cm?.vertical || '',
+          brand: cm?.brand || '',
+        });
         // Campaign attribution when the account is in campaign mode, has no
         // single supplier, or has any campaign mappings. Otherwise legacy
         // whole-account attribution.
@@ -326,11 +342,10 @@ Deno.serve(async (req) => {
           // for display. Only account-level rows drive cost, so these never
           // double count.
           campaignRows += await upsertLevel(node, 'campaign', (r) => `${r.date}|${r.meta_campaign_id || ''}`, campInsights, (row) => {
-            const cm = acctCampMaps[row.campaign_id || ''];
-            const sName = cm?.supplier_name || '';
+            const sup = resolveSupplier(acctCampMaps[row.campaign_id || '']);
             return {
               platform: 'meta',
-              supplier_id: cm?.supplier_id || '',
+              supplier_id: sup.id,
               supplier_ad_account_id: assoc.id,
               date: row.date_start,
               ad_account_id: node,
@@ -340,10 +355,10 @@ Deno.serve(async (req) => {
               impressions: Number(row.impressions) || 0,
               clicks: Number(row.clicks) || 0,
               leads: extractLeads(row.actions),
-              vertical: cm?.vertical || '',
-              brand: cm?.brand || '',
-              supplier_name: sName,
-              supplier_key: sName.trim().toLowerCase(),
+              vertical: sup.vertical,
+              brand: sup.brand,
+              supplier_name: sup.name,
+              supplier_key: sup.name.trim().toLowerCase(),
               cost_source: assoc.ad_account_name || node,
               meta_campaign_id: row.campaign_id || '',
               meta_campaign_name: row.campaign_name || '',
@@ -355,10 +370,10 @@ Deno.serve(async (req) => {
           // drive supplier cost. Unmapped campaigns are skipped (unattributed).
           const bySupDay: Record<string, any> = {};
           for (const row of campInsights) {
-            const cm = acctCampMaps[row.campaign_id || ''];
-            if (!cm || !cm.supplier_id) continue;
-            const key = `${cm.supplier_id}|${row.date_start}`;
-            const agg = bySupDay[key] || (bySupDay[key] = { cm, date: row.date_start, spend: 0, impressions: 0, clicks: 0, leads: 0 });
+            const sup = resolveSupplier(acctCampMaps[row.campaign_id || '']);
+            if (!sup.id) { unattributedSpend += Number(row.spend) || 0; continue; }
+            const key = `${sup.id}|${row.date_start}`;
+            const agg = bySupDay[key] || (bySupDay[key] = { sup, date: row.date_start, spend: 0, impressions: 0, clicks: 0, leads: 0 });
             agg.spend += Number(row.spend) || 0;
             agg.impressions += Number(row.impressions) || 0;
             agg.clicks += Number(row.clicks) || 0;
@@ -376,7 +391,7 @@ Deno.serve(async (req) => {
           }
           accountRows += await upsertLevel(node, 'account', (r) => `${r.date}|${r.meta_campaign_id}`, attribution, (agg) => ({
             platform: 'meta',
-            supplier_id: agg.cm.supplier_id,
+            supplier_id: agg.sup.id,
             supplier_ad_account_id: assoc.id,
             date: agg.date,
             ad_account_id: node,
@@ -386,12 +401,12 @@ Deno.serve(async (req) => {
             impressions: agg.impressions,
             clicks: agg.clicks,
             leads: agg.leads,
-            vertical: agg.cm.vertical || '',
-            brand: agg.cm.brand || '',
-            supplier_name: agg.cm.supplier_name || '',
-            supplier_key: (agg.cm.supplier_name || '').trim().toLowerCase(),
+            vertical: agg.sup.vertical,
+            brand: agg.sup.brand,
+            supplier_name: agg.sup.name,
+            supplier_key: agg.sup.name.trim().toLowerCase(),
             cost_source: assoc.ad_account_name || node,
-            meta_campaign_id: `__sup__${agg.cm.supplier_id}`,
+            meta_campaign_id: `__sup__${agg.sup.id}`,
             meta_campaign_name: '', adset_id: '', adset_name: '', ad_id: '', ad_name: '',
           }));
         } else {
@@ -477,6 +492,9 @@ Deno.serve(async (req) => {
       campaign_rows_inserted: campaignRows,
       ad_rows_inserted: adRows,
       skipped_no_date: skippedNoDate,
+      unchanged_rows: unchangedRows,
+      unattributed_spend: Number(unattributedSpend.toFixed(2)),
+      mode,
       account_errors: accountErrors,
     });
   } catch (error) {
