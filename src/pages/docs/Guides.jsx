@@ -17,7 +17,7 @@ export default function Guides() {
 
       <Section title="Map campaigns">
         <p className="text-[14px]">
-          Assign suppliers and buyers to campaigns and verticals so leads route to the right destinations.
+          Assign suppliers and buyers to campaigns and verticals so leads route to the right deliveries.
         </p>
         <Placeholder>Campaign mapping guide — coming soon.</Placeholder>
       </Section>
