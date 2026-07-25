@@ -59,6 +59,31 @@ export default function OperationsSuppliers() {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // Deep link support: /operations/suppliers?supplier=<id>[&tab=<tab>] opens
+  // that supplier's detail directly. This is what cross-links from Lead
+  // Distribution point at, so Operations stays the one place suppliers are
+  // managed instead of the older standalone /suppliers/:id page.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get('supplier');
+    if (id && drawer?.supplierId !== id) {
+      setDrawer({ supplierId: id, tab: searchParams.get('tab') || undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Clearing the detail also clears the deep link so a back navigation does not
+  // immediately reopen it.
+  const closeDetail = () => {
+    setDrawer(null);
+    if (searchParams.get('supplier')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('supplier');
+      next.delete('tab');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
   const { data: suppliers = [] } = useQuery({
     queryKey: ['op-suppliers'],
     queryFn: () => base44.entities.Supplier.list('-updated_date', 500),
