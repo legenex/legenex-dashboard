@@ -10,7 +10,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Copy, ArrowDownUp, Pencil, Files, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Copy, ArrowDownUp, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
 import { Panel, Tag } from '@/components/campaigns/campaignTable';
@@ -246,10 +246,11 @@ export default function CampaignSuppliers() {
                 </div>
                 {isOpen && (
                   <div className="border-b border-border/60 bg-background/30">
+                    <div className="px-6 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier Sources</div>
                     <SupplierSourceRows sources={sources} supplier={s} />
                     <div className="px-6 pb-3">
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate(`/suppliers/${s.id}?tab=sources`)}>
-                        <Plus className="w-3.5 h-3.5" /> Manage sources
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={(e) => { e.stopPropagation(); setSourceDialog({ supplier: s, source: null }); }}>
+                        <Plus className="w-3.5 h-3.5" /> Create source
                       </Button>
                     </div>
                   </div>
