@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useTheme } from '@/lib/theme';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
@@ -222,7 +223,7 @@ export default function OperationsSuppliers() {
     return (
       <SupplierDetailPage
         supplier={drawerSupplier}
-        onBack={() => setDrawer(null)}
+        onBack={closeDetail}
       />
     );
   }
