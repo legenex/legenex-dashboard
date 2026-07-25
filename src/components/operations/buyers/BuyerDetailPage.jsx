@@ -21,8 +21,13 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 // Full-page buyer detail. Swapped in-place over the list by the parent page.
 // The Overview tab lays the reused profile/coverage editors into a card grid;
 // Leads and Costs are stubs until their data sources are wired.
-export default function BuyerDetailPage({ buyer, verticals, onBack }) {
-  const [tab, setTab] = useState('overview');
+export default function BuyerDetailPage({ buyer, verticals, onBack, initialTab }) {
+  // initialTab lets a deep link (e.g. the redirect from the old /buyers/:id
+  // URL) open straight onto the right tab. Unknown values fall back to
+  // Overview rather than rendering nothing.
+  const [tab, setTab] = useState(
+    TABS.some((t) => t.key === initialTab) ? initialTab : 'overview',
+  );
   const verticalName = verticals.find((v) => v.code === buyer.vertical)?.name || buyer.vertical || 'No vertical';
 
   // Wallet transactions for this buyer (real data where present).
