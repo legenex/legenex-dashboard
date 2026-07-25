@@ -205,68 +205,66 @@ export default function SettingsAudits() {
   };
 
   // ---- exports --------------------------------------------------------------
-  async function loadAllFindings() {
-    const out = []; let skip = 0;
-    while (true) {
-      const batch = arr(await base44.entities.AuditFinding.list('-created_at', 500, skip));
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const toggleSelected = (id) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const allSelected = runs.length > 0 && runs.every((r) => selectedIds.has(r.run_id));
+  const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(runs.map((r) => r.run_id)));
+
+  // Reuse the per-run filter path (the one the findings panel already uses reliably).
+  async function findingsForRuns(runIds) {
+    const out = [];
+    for (const id of runIds) {
+      const batch = arr(await base44.entities.AuditFinding.filter({ run_id: id }, '-created_at', 500));
       out.push(...batch);
-      if (batch.length < 500) break;
-      skip += 500;
     }
     return out;
   }
 
-  const exportRun = (format) => {
-    if (!activeRun) return;
-    const base = `audit-${runLayers(activeRun) || 'run'}-${stamp()}`;
-    if (format === 'json') {
-      downloadBlob(`${base}.json`, JSON.stringify({ run: activeRun, findings }, null, 2), 'application/json');
-    } else if (format === 'csv') {
-      downloadCsv(`${base}.csv`, FINDING_COLUMNS, findings);
-    } else {
-      downloadBlob(`${base}.md`, runsToMarkdown([activeRun], { [activeRun.run_id]: findings }), 'text/markdown');
-    }
-    toast.success(`Exported this run as ${format.toUpperCase()}`);
-  };
-
-  const exportAll = async (format) => {
+  const exportSet = async (format) => {
+    const ids = selectedIds.size
+      ? runs.filter((r) => selectedIds.has(r.run_id)).map((r) => r.run_id)
+      : (activeRun ? [activeRun.run_id] : []);
+    if (!ids.length) { toast.error('No runs selected'); return; }
     try {
-      const allRuns = runs;
-      const allFindings = await loadAllFindings();
+      const selRuns = runs.filter((r) => ids.includes(r.run_id));
+      const all = await findingsForRuns(ids);
       const byRun = {};
-      for (const f of allFindings) (byRun[f.run_id] || (byRun[f.run_id] = [])).push(f);
-      const base = `audit-all-${stamp()}`;
+      for (const f of all) (byRun[f.run_id] || (byRun[f.run_id] = [])).push(f);
+      const label = ids.length === 1 ? (runLayers(selRuns[0]) || 'run') : `${ids.length}runs`;
+      const base = `audit-${label}-${stamp()}`;
       if (format === 'json') {
-        downloadBlob(`${base}.json`, JSON.stringify({ runs: allRuns, findings: allFindings }, null, 2), 'application/json');
+        downloadBlob(`${base}.json`, JSON.stringify({ runs: selRuns, findings: all }, null, 2), 'application/json');
       } else if (format === 'csv') {
-        downloadCsv(`${base}.csv`, FINDING_COLUMNS, allFindings);
+        downloadCsv(`${base}.csv`, FINDING_COLUMNS, all);
       } else {
-        downloadBlob(`${base}.md`, runsToMarkdown(allRuns, byRun), 'text/markdown');
+        downloadBlob(`${base}.md`, runsToMarkdown(selRuns, byRun), 'text/markdown');
       }
-      toast.success(`Exported ${allRuns.length} run(s) as ${format.toUpperCase()}`);
+      toast.success(`Exported ${ids.length} run(s) as ${format.toUpperCase()}`);
     } catch (err) {
       toast.error(`Export failed: ${err.message || 'Unknown error'}`);
     }
   };
 
+  const exportCount = selectedIds.size || (activeRun ? 1 : 0);
   const ExportMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="gap-2" disabled={runs.length === 0}>
           <Download className="h-4 w-4" />
-          Export
+          Export{selectedIds.size ? ` (${selectedIds.size})` : ''}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel>This run</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => exportRun('md')}>Markdown (for an LLM)</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => exportRun('json')}>JSON</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => exportRun('csv')}>CSV</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>{selectedIds.size ? `${selectedIds.size} run(s) selected` : 'Current run'}</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => exportSet('md')} disabled={!exportCount}>Markdown (for an LLM)</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportSet('json')} disabled={!exportCount}>JSON</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exportSet('csv')} disabled={!exportCount}>CSV</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>All runs</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => exportAll('md')}>Markdown (for an LLM)</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => exportAll('json')}>JSON</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => exportAll('csv')}>CSV</DropdownMenuItem>
+        <DropdownMenuItem onClick={toggleAll}>{allSelected ? 'Clear selection' : 'Select all runs'}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
