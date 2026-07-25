@@ -25,6 +25,7 @@ export const CONSUMER_DIRS = [
   'base44/functions/distributionConfig',
   'base44/functions/distributionShadowReport',
   'base44/functions/campaignDeliveryTest',
+  'base44/functions/auditRun',
 ];
 export const consumerPath = (dir) => `${dir}/routingEngine.generated.js`;
 const ENTRY = 'src/lib/distribution/backend-entry.js';
