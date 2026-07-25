@@ -198,6 +198,38 @@ export function computeMetrics(leads, adSpendRows = []) {
   };
 }
 
+// Per-lead acquisition cost, allocated.
+//
+// External suppliers post a price on each lead, so that value is the cost
+// outright. A Meta sourced supplier costs a pool per supplier per day, which
+// gets spread evenly across that supplier's leads on that day. Daily is the
+// finest grain Meta reports spend at, and a daily allocation rolls up correctly
+// to any period you slice afterwards, which a period-derived figure would not.
+//
+// Pass the full set of leads in the window, not a subset: the denominator has
+// to be every lead that supplier sent that day or the allocation inflates.
+// Returns a Map keyed by the lead object.
+export function allocatedLeadCost(allLeads = [], adSpendRows = []) {
+  const nkey = (v) => String(v ?? '').trim().toLowerCase();
+  const pool = {};
+  for (const r of spendRows(adSpendRows)) {
+    const k = `${nkey(r.supplier_key ?? r.supplier_name)}|${String(r.date || '').slice(0, 10)}`;
+    pool[k] = (pool[k] || 0) + num(r.spend);
+  }
+  const counts = {};
+  for (const l of allLeads) {
+    const k = `${nkey(l.supplier_name)}|${leadEventDayKey(l)}`;
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  const out = new Map();
+  for (const l of allLeads) {
+    const k = `${nkey(l.supplier_name)}|${leadEventDayKey(l)}`;
+    const share = pool[k] && counts[k] ? pool[k] / counts[k] : 0;
+    out.set(l, leadCost(l) + share);
+  }
+  return out;
+}
+
 // Metric catalog: key -> { label, format }
 // Naming note: `total_cost` and `blended_cpl` are the ones labelled plainly as
 // Cost and CPL, because they are the true numbers (supplier lead cost plus
