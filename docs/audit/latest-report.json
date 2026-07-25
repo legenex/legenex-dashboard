@@ -1,13 +1,13 @@
 {
   "summary": {
-    "run_id": "run_static_20260725110211",
-    "generated_at": "2026-07-25T11:02:26.150Z",
+    "run_id": "run_static_20260725110307",
+    "generated_at": "2026-07-25T11:03:22.068Z",
     "layer": "static",
     "total": 6,
     "pass": 2,
-    "fail": 2,
+    "fail": 3,
     "warn": 1,
-    "needs_env": 1
+    "needs_env": 0
   },
   "findings": [
     {
@@ -43,14 +43,14 @@
       "source": "script",
       "severity": "high",
       "category": "correctness",
-      "surface": "\u001b[22m\u001b[49m",
+      "surface": "src/components/distribution/DistributionNav.test.jsx",
       "expected": "Full suite green",
-      "observed": "? failed of 0",
-      "evidence_path": "\u001b[22m\u001b[49m",
+      "observed": "3 failed of 257",
+      "evidence_path": "src/components/distribution/DistributionNav.test.jsx",
       "value_score": null,
       "effort_score": 2,
       "check_id": "tests.suite",
-      "verdict": "needs_env"
+      "verdict": "fail"
     },
     {
       "layer": "static",
