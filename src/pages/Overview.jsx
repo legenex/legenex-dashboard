@@ -254,6 +254,8 @@ export default function Overview() {
     profit: daily.map(d => (d.Verified ?? 0) - (d.Spend ?? 0)),
     adSpend: daily.map(d => d.Spend ?? 0),
     supplierCost: daily.map(d => (d.Booked ?? 0) * 0.4),
+    cost: daily.map(d => d.Spend ?? 0),
+    cpl: daily.map(d => d.Spend ?? 0),
   };
 
   // Delta vs prior window per KPI (independent of Compare toggle, using briefPrior).
@@ -266,6 +268,8 @@ export default function Overview() {
     profit: deltaPct(kpis.profit.headline, briefPrior.kpis.profit.headline),
     adSpend: deltaPct(kpis.adSpend.headline, briefPrior.kpis.adSpend.headline),
     supplierCost: deltaPct(kpis.supplierCost.headline, briefPrior.kpis.supplierCost.headline),
+    cost: deltaPct(kpis.cost.headline, briefPrior.kpis.cost.headline),
+    cpl: deltaPct(kpis.cpl.headline, briefPrior.kpis.cpl.headline),
   };
 
   const KPI_NOTES = {
@@ -273,6 +277,8 @@ export default function Overview() {
     profit: 'Margin not computable',
     adSpend: 'No platform sync',
     supplierCost: 'No statements ingested',
+    cost: 'Supplier lead cost plus attributed ad spend',
+    cpl: 'Cost divided by leads in this period',
   };
 
   // Right-aligned meta chips for the lower panel section headers.
@@ -324,8 +330,8 @@ export default function Overview() {
         {[
           { key: 'revenue', label: 'Revenue', subLabel: 'Verified', icon: DollarSign, cmp: 'Booked' },
           { key: 'profit', label: 'Profit', subLabel: 'Cash', icon: TrendingUp, cmp: 'Reported' },
-          { key: 'adSpend', label: 'Ad Spend', subLabel: 'Paid', icon: Megaphone, cmp: 'Tracked' },
-          { key: 'supplierCost', label: 'Supplier Cost', subLabel: 'Paid', icon: Users, cmp: 'Accrued' },
+          { key: 'cost', label: 'Cost', subLabel: 'Paid', icon: Megaphone, cmp: 'Accrued' },
+          { key: 'cpl', label: 'CPL', subLabel: '', icon: Users, cmp: 'Blended' },
         ].map((c) => (
           <motion.div key={c.key} variants={itemVariants}>
             <GroupedKpiCard
