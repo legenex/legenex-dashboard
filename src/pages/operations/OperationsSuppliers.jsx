@@ -222,6 +222,7 @@ export default function OperationsSuppliers() {
     return (
       <SupplierDetailPage
         supplier={drawerSupplier}
+        initialTab={drawer?.tab}
         onBack={closeDetail}
       />
     );
