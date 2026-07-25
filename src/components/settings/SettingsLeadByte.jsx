@@ -21,7 +21,7 @@ import ConnectorFilterPanel from '@/components/settings/ConnectorFilterPanel';
 import { buildTriggerOptions, statusLabelFor } from '@/lib/leadStatus';
 import { verticalColor, triggerTagClass, TAG_NEUTRAL, statusTextClass } from '@/lib/tagColors';
 import { countConditions, normalizeConditionTree } from '@/lib/conditionGroups';
-import { Plus, Save, Play, Loader2, Trash2, Copy, ChevronDown, ChevronRight, ArrowDownUp } from 'lucide-react';
+import { Plus, Save, Play, Loader2, Trash2, ChevronDown, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
 import { motion } from 'framer-motion';
