@@ -7,6 +7,7 @@ import BuyerStatusPill from './BuyerStatusPill';
 import BuyerProfileTab from './BuyerProfileTab';
 import BuyerCoverageTab from './BuyerCoverageTab';
 import PortalEnablementCard from '@/components/shared/PortalEnablementCard';
+import BuyerDeliveriesCard from '@/components/shared/BuyerDeliveriesCard';
 import { billingTypeLabel } from '@/lib/billingTypes';
 
 const TABS = [
