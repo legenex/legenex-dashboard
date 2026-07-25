@@ -28,8 +28,13 @@ const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 // parent page. Overview lays the reused payout + notifications editors into a
 // two-card grid, with the sources/campaigns list full-width below. Leads is a
 // stub until its data source is wired.
-export default function SupplierDetailPage({ supplier, onBack }) {
-  const [tab, setTab] = useState('overview');
+export default function SupplierDetailPage({ supplier, onBack, initialTab }) {
+  // initialTab lets a deep link (e.g. the redirect from the old
+  // /suppliers/:id?tab=sources URL) open straight onto the right tab. Unknown
+  // values fall back to Overview rather than rendering nothing.
+  const [tab, setTab] = useState(
+    TABS.some((t) => t.key === initialTab) ? initialTab : 'overview',
+  );
 
   const { data: sources = [] } = useQuery({
     queryKey: ['supplier-sources', supplier.id],
