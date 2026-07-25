@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Download, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { money } from '@/lib/reportMetrics';
+import { money, spendRows } from '@/lib/reportMetrics';
 import { downloadCsv } from '@/lib/csv';
 import { Panel, THead, rise } from '@/components/finances/financeAtoms';
 import { StatChip } from '@/components/finances/financeUi';
