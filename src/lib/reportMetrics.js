@@ -156,8 +156,13 @@ export function computeMetrics(leads, adSpendRows = []) {
   const netRevenue = revenue - returns * (total ? revenue / Math.max(total, 1) : 0);
   const netProfit = netRevenue - cost - adSpend;
   const cpl = total > 0 ? cost / total : 0;
-  const blendedCpl = total > 0 ? (cost + adSpend) / total : 0;
-  const costPerSold = sold > 0 ? (cost + adSpend) / sold : 0;
+  // What the leads actually cost us. External suppliers post their price on the
+  // lead as cpl; Meta-sourced suppliers cost whatever ad spend was attributed to
+  // them. A supplier is one or the other, never both, so adding the two is safe
+  // and matches how the supplier cost engine prices a supplier.
+  const totalCost = cost + adSpend;
+  const blendedCpl = total > 0 ? totalCost / total : 0;
+  const costPerSold = sold > 0 ? totalCost / sold : 0;
   const convRate = total > 0 ? (sold / total) * 100 : 0;
   const qpMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
   const roas = adSpend > 0 ? revenue / adSpend : 0;
@@ -165,7 +170,7 @@ export function computeMetrics(leads, adSpendRows = []) {
   const revenueGap = bookedRevenue - verifiedIncome;
 
   return {
-    revenue, net_revenue: netRevenue, cost, cpl, profit, net_profit: netProfit,
+    revenue, net_revenue: netRevenue, cost, cpl, total_cost: totalCost, profit, net_profit: netProfit,
     qp_margin: qpMargin, total_leads: total, sold, unsold, returns, fakes, duplicates, dqs,
     conv_rate: convRate, booked_revenue: bookedRevenue, verified_income: verifiedIncome,
     revenue_gap: revenueGap, outstanding, overdue, short_paid: shortPaid,
@@ -175,11 +180,18 @@ export function computeMetrics(leads, adSpendRows = []) {
 }
 
 // Metric catalog: key -> { label, format }
+// Naming note: `total_cost` and `blended_cpl` are the ones labelled plainly as
+// Cost and CPL, because they are the true numbers (supplier lead cost plus
+// attributed ad spend). `cost` and `cpl` are the supplier-lead-cost-only
+// components, kept under explicit labels so nobody reads a $0 CPL on a Meta
+// sourced supplier and thinks the leads were free.
 export const METRIC_CATALOG = [
   { key: 'revenue', label: 'Revenue', format: 'money' },
   { key: 'net_revenue', label: 'Net Revenue', format: 'money' },
-  { key: 'cost', label: 'Cost', format: 'money' },
-  { key: 'cpl', label: 'CPL', format: 'money' },
+  { key: 'total_cost', label: 'Cost', format: 'money' },
+  { key: 'blended_cpl', label: 'CPL', format: 'money' },
+  { key: 'cost', label: 'Supplier Lead Cost', format: 'money' },
+  { key: 'cpl', label: 'Supplier CPL', format: 'money' },
   { key: 'profit', label: 'Profit', format: 'money' },
   { key: 'net_profit', label: 'Net Profit', format: 'money' },
   { key: 'qp_margin', label: 'QP Margin %', format: 'pct' },
@@ -198,7 +210,6 @@ export const METRIC_CATALOG = [
   { key: 'overdue', label: 'Overdue', format: 'money' },
   { key: 'short_paid', label: 'Short Paid', format: 'money' },
   { key: 'ad_spend', label: 'Ad Spend', format: 'money' },
-  { key: 'blended_cpl', label: 'Blended CPL', format: 'money' },
   { key: 'cost_per_sold', label: 'Cost Per Sold', format: 'money' },
   { key: 'roas', label: 'ROAS', format: 'num' },
   { key: 'phone_verified', label: 'Phone Verified', format: 'int' },
