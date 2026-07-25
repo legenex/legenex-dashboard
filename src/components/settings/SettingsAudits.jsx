@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Panel } from '@/components/settings/settingsUi';
 import { verdictTagClass, severityTagClass, verdictTextClass } from '@/lib/tagColors';
 import { downloadCsv } from '@/lib/csv';
