@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -10,14 +10,16 @@ import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, ArrowDownUp } from 'lucide-react';
+import { Plus, ArrowDownUp, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { money } from '@/lib/partnerMetrics';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
 import { TableShell, Row, Tag, EmptyRow } from '@/components/campaigns/campaignTable';
 import RowActionsMenu from '@/components/campaigns/RowActionsMenu';
+import BuyerDeliveryRows from '@/components/campaigns/BuyerDeliveryRows';
+import DeliveryEditorDialog from '@/components/campaigns/DeliveryEditorDialog';
 
-const BUYER_TEMPLATE = '1.6fr 0.8fr 0.9fr 1fr 0.9fr 0.9fr 0.9fr 0.9fr 1fr 0.9fr 0.9fr 0.9fr 0.8fr';
+const BUYER_TEMPLATE = '32px 1.5fr 0.7fr 0.8fr 0.9fr 1fr 0.9fr 0.9fr 0.9fr 0.9fr 1fr 0.9fr 0.9fr 0.9fr 0.8fr';
 
 const BLANK = {
   company_name: '', email: '', phone: '', location: '',
@@ -33,6 +35,14 @@ export default function CampaignBuyers() {
   const [editId, setEditId] = useState(null);
   const [ioOpen, setIoOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [deliveryDialog, setDeliveryDialog] = useState(null);
+
+  const toggleExpand = (id) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const { data: buyers = [] } = useQuery({
     queryKey: ['buyers'],
@@ -42,6 +52,28 @@ export default function CampaignBuyers() {
     queryKey: ['verticals'],
     queryFn: () => base44.entities.Vertical.list(),
   });
+  const { data: deliveries = [] } = useQuery({
+    queryKey: ['deliveries'],
+    queryFn: () => base44.entities.Delivery.list('-created_date', 2000),
+  });
+  const { data: subs = [] } = useQuery({
+    queryKey: ['subdeliveries'],
+    queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000),
+  });
+
+  // Deliveries grouped by buyer, and endpoints grouped by delivery, so an
+  // expanded row can render without another round trip.
+  const deliveriesByBuyer = useMemo(() => {
+    const map = {};
+    (deliveries || []).forEach((d) => { (map[d.buyer_id] ||= []).push(d); });
+    return map;
+  }, [deliveries]);
+  const subsByDelivery = useMemo(() => {
+    const map = {};
+    (subs || []).forEach((s) => { (map[s.delivery_id] ||= []).push(s); });
+    Object.values(map).forEach((list) => list.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
+    return map;
+  }, [subs]);
   const verticalOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
 
   const openCreate = () => { setForm(BLANK); setEditId(null); setModal(true); };
