@@ -579,7 +579,7 @@ export default function SettingsCustomFields() {
             </div>
             {showValues && (
               <div className="space-y-2 pt-2 border-t border-border">
-                <Label className="text-[12px]">Dropdown Values <span className="text-muted-foreground text-[11px]">(also used as Triggers on Destinations & Conversion Events)</span></Label>
+                <Label className="text-[12px]">Dropdown Values <span className="text-muted-foreground text-[11px]">(also used as Triggers on Deliveries & Conversion Events)</span></Label>
                 <DragDropContext onDragEnd={onOptionDragEnd}>
                   <Droppable droppableId="option-list">
                     {(provided) => (
