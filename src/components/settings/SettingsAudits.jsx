@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/settings/settingsUi';
-import { verdictTagClass, severityTagClass } from '@/lib/tagColors';
+import { verdictTagClass, severityTagClass, verdictTextClass } from '@/lib/tagColors';
 import { toast } from 'sonner';
 import {
   Play, ShieldCheck, AlertTriangle, XCircle, CircleHelp, CheckCircle2,
@@ -205,10 +205,10 @@ export default function SettingsAudits() {
           {activeRun && (
             <Panel className="p-4" i={1}>
               <div className="flex flex-wrap items-center gap-2">
-                <RollupChip icon={CheckCircle2} label="Pass" value={activeRun.checks_pass || 0} tone="text-green-400" />
-                <RollupChip icon={XCircle} label="Fail" value={activeRun.checks_fail || 0} tone="text-rose-300" />
-                <RollupChip icon={AlertTriangle} label="Warn" value={activeRun.checks_warn || 0} tone="text-amber-300" />
-                <RollupChip icon={CircleHelp} label="Needs env" value={activeRun.checks_needs_env || 0} tone="text-blue-300" />
+                <RollupChip icon={CheckCircle2} label="Pass" value={activeRun.checks_pass || 0} tone={verdictTextClass('pass')} />
+                <RollupChip icon={XCircle} label="Fail" value={activeRun.checks_fail || 0} tone={verdictTextClass('fail')} />
+                <RollupChip icon={AlertTriangle} label="Warn" value={activeRun.checks_warn || 0} tone={verdictTextClass('warn')} />
+                <RollupChip icon={CircleHelp} label="Needs env" value={activeRun.checks_needs_env || 0} tone={verdictTextClass('needs_env')} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
                 <span>Mode observed: <span className="font-mono text-foreground">{activeRun.distribution_mode_observed || 'unset'}</span></span>
