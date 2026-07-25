@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { resolvePeriod, PERIOD_LABELS } from '@/lib/periodRange';
 import {
   spendInWindow, leadsInWindow, platformsFrom, buildAccounts, portfolioOf,
@@ -16,7 +17,7 @@ export default function useAdManagerData() {
 
   const win = useMemo(() => resolvePeriod(period, custom), [period, custom]);
 
-  const spendQ = useQuery({ queryKey: ['adspend'], queryFn: () => base44.entities.AdSpend.list('-date', 5000) });
+  const spendQ = useQuery({ queryKey: ['adspend'], queryFn: () => fetchAll((limit, skip) => base44.entities.AdSpend.list('-date', limit, skip)) });
   const leadsQ = useQuery({ queryKey: ['report-leads'], queryFn: () => base44.entities.Lead.list('-created_date', 5000) });
   const mapQ = useQuery({ queryKey: ['adspend-mappings'], queryFn: () => base44.entities.AdSpendMapping.list() });
   const metaQ = useQuery({ queryKey: ['ad-creative-meta'], queryFn: () => base44.entities.AdCreativeMeta.list() });
