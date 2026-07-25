@@ -82,9 +82,13 @@ export default function CampaignRoutingTab({ campaign, method: sendMode = 'direc
           await base44.entities.RouteGroup.create({ campaign_id: campaign.id, name: 'Group 1', method: engineMethod, order_index: 0, lifecycle: 'draft', active: false });
         }
       } else if (next === 'hybrid') {
-        // Keep existing groups; if only one, leave it (operator adds more).
-        if (groups.length === 0) {
-          await base44.entities.RouteGroup.create({ campaign_id: campaign.id, name: 'Group 1', method: 'priority', order_index: 0, lifecycle: 'draft', active: false });
+        // Hybrid is a STRUCTURAL shape: deriveCampaignMethod only reports hybrid
+        // when more than one active group exists. Selecting Hybrid must therefore
+        // create the groups that make that shape real. Leaving a single group in
+        // place made the selection recompute straight back to Waterfall, so the
+        // Hybrid button never stuck.
+        for (let i = groups.length; i < 2; i++) {
+          await base44.entities.RouteGroup.create({ campaign_id: campaign.id, name: `Group ${i + 1}`, method: 'priority', order_index: i, lifecycle: 'draft', active: false });
         }
       }
       await qc.invalidateQueries({ queryKey: ['routeGroups'] });
