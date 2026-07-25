@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { fetchAll } from '@/lib/fetchAll';
+import { spendRows } from '@/lib/reportMetrics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -74,7 +75,7 @@ export default function Finances() {
     invoices: invoices.filter(i => inWin(i.created_date)),
     payments: payments.filter(p => inWin(p.paid_date)),
     payouts: payouts.filter(p => inWin(p.created_date)),
-    adSpend: adSpend.filter(a => inWin(a.date)),
+    adSpend: spendRows(adSpend).filter(a => inWin(a.date)),
     txns: txns.filter(t => inWin(t.date)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns, unmatchedIn, resolved, win]);
