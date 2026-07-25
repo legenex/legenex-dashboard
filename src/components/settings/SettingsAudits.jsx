@@ -12,6 +12,13 @@ import {
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 
+function runLayers(r) {
+  try {
+    const l = typeof r.layers === 'string' ? JSON.parse(r.layers) : r.layers;
+    return arr(l).join(', ');
+  } catch { return ''; }
+}
+
 const VERDICT_ORDER = ['fail', 'warn', 'needs_env', 'pass', 'skip'];
 const VERDICT_LABEL = { fail: 'Failing', warn: 'Warnings', needs_env: 'Needs environment', pass: 'Passing', skip: 'Skipped' };
 const VERDICT_ICON = { fail: XCircle, warn: AlertTriangle, needs_env: CircleHelp, pass: CheckCircle2, skip: CircleHelp };
@@ -186,6 +193,7 @@ export default function SettingsAudits() {
                     </span>
                   </div>
                   <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                    {runLayers(r) && <span className="font-mono">{runLayers(r)}</span>}
                     <span>{r.checks_total || 0} checks</span>
                     {(r.new_failures || 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{r.new_failures} new</span>
