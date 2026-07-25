@@ -70,7 +70,6 @@ export default function OperationsSuppliers() {
     if (id && drawer?.supplierId !== id) {
       setDrawer({ supplierId: id, tab: searchParams.get('tab') || undefined });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Clearing the detail also clears the deep link so a back navigation does not
