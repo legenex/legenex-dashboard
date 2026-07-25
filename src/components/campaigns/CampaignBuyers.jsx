@@ -142,7 +142,7 @@ export default function CampaignBuyers() {
     qc.invalidateQueries({ queryKey: ['buyers'] });
   };
 
-  const COLS = ['Buyer Name', 'Portal', 'Type', 'Vertical', 'Balance', 'Min Balance', 'Card', 'Auto Recharge', 'Billing', 'Revenue', 'Cost', 'Profit', 'Actions'];
+  const COLS = ['', 'Buyer Name', 'Deliveries', 'Portal', 'Type', 'Vertical', 'Balance', 'Min Balance', 'Card', 'Auto Recharge', 'Billing', 'Revenue', 'Cost', 'Profit', 'Actions'];
 
   return (
     <div>
@@ -165,11 +165,21 @@ export default function CampaignBuyers() {
 
       <TableShell head={COLS} template={BUYER_TEMPLATE} minWidth="1000px">
         {buyers.length === 0 && <EmptyRow>No buyers yet. Buyers can be created manually or are auto-created from LeadByte sold responses.</EmptyRow>}
-        {buyers.map((b, i) => (
-          <Row key={b.id} template={BUYER_TEMPLATE} i={i} onClick={() => navigate(`/buyers/${b.id}`)}>
+        {buyers.map((b, i) => {
+          const bDeliveries = deliveriesByBuyer[b.id] || [];
+          const isOpen = expanded.has(b.id);
+          return (
+          <div key={b.id}>
+          <Row template={BUYER_TEMPLATE} i={i} onClick={() => toggleExpand(b.id)}>
+            <span className="flex items-center justify-center text-muted-foreground">
+              {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </span>
             <span className="min-w-0">
               <span className="block font-medium text-foreground truncate">{b.company_name}</span>
               {b.auto_created && <Badge variant="outline" className="text-[9px] mt-0.5 text-muted-foreground">Auto</Badge>}
+            </span>
+            <span className="text-[12px] text-muted-foreground">
+              {bDeliveries.length === 0 ? <span className="text-muted-foreground">None</span> : `${bDeliveries.length}`}
             </span>
             <span onClick={e => e.stopPropagation()}>
               <Switch checked={!!b.portal_enabled} onClick={(e) => togglePortal(b, e)} onCheckedChange={() => {}} />
@@ -192,8 +202,27 @@ export default function CampaignBuyers() {
               />
             </span>
           </Row>
-        ))}
+          {isOpen && (
+            <BuyerDeliveryRows
+              deliveries={bDeliveries}
+              subsByDelivery={subsByDelivery}
+              onCreate={() => setDeliveryDialog({ buyer: b, delivery: null })}
+              onOpen={(d) => setDeliveryDialog({ buyer: b, delivery: d })}
+            />
+          )}
+          </div>
+          );
+        })}
       </TableShell>
+
+      <DeliveryEditorDialog
+        open={!!deliveryDialog}
+        onOpenChange={(v) => { if (!v) setDeliveryDialog(null); }}
+        buyerId={deliveryDialog?.buyer?.id}
+        buyerName={deliveryDialog?.buyer?.company_name}
+        delivery={deliveryDialog?.delivery || null}
+        primarySub={(subsByDelivery[deliveryDialog?.delivery?.id] || [])[0] || null}
+      />
 
       <Dialog open={modal} onOpenChange={setModal}>
         <DialogContent className="bg-popover border-border max-w-[520px]">
