@@ -53,6 +53,19 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
       const supSpend = spend.filter((r) => norm(r.supplier_key || r.supplier_name) === key);
       const m = computeMetrics(supLeads, supSpend);
       const record = suppliers.find((s) => norm(s.name) === key);
+      // Payout uses the supplier's own sources, since the payout rule lives on
+      // the source (falling back to the supplier-level payout_type). Profit
+      // share is computed on the window totals, never per lead, so it always
+      // reflects the date range on screen.
+      const sources = record ? supplierSources.filter((s) => s.supplier_id === record.id) : [];
+      const pricedLeads = supLeads.map((lead) => ({
+        lead,
+        cost: 0,
+        sourceId: resolveSource(lead, sources)?.id || null,
+      }));
+      const payout = record
+        ? supplierPayoutForWindow(record, sources, pricedLeads, m.revenue, m.total_cost)
+        : 0;
       return {
         key,
         label,
@@ -64,6 +77,7 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
         revenue: m.revenue,
         profit: m.revenue - m.total_cost,
         margin: m.revenue > 0 ? ((m.revenue - m.total_cost) / m.revenue) * 100 : 0,
+        payout,
       };
     }).sort((a, b) => b.cost - a.cost);
 
@@ -72,10 +86,11 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
       sold: a.sold + r.sold,
       cost: a.cost + r.cost,
       revenue: a.revenue + r.revenue,
-    }), { leads: 0, sold: 0, cost: 0, revenue: 0 });
+      payout: a.payout + r.payout,
+    }), { leads: 0, sold: 0, cost: 0, revenue: 0, payout: 0 });
 
     return { rows, totals, selected: filters?.supplier_name || '' };
-  }, [leads, adSpend, suppliers, filters]);
+  }, [leads, adSpend, suppliers, supplierSources, filters]);
 
   const blendedCpl = totals.leads > 0 ? totals.cost / totals.leads : 0;
   const profit = totals.revenue - totals.cost;
