@@ -32,7 +32,7 @@ const groupOf = (metric) => CATEGORY[metric] || 'data';
 
 // The Performance Overview canvas: pinned + grouped metric board, then widgets.
 export default function PerformanceCanvas({
-  leads, adSpend, cards, widgets, onCardsChange, onWidgetsChange, customFields, filters,
+  leads, adSpend, suppliers = [], cards, widgets, onCardsChange, onWidgetsChange, customFields, filters,
 }) {
   const [pickCard, setPickCard] = useState(false);
   const [pickWidget, setPickWidget] = useState(false);
