@@ -41,7 +41,7 @@ const SUGGESTIONS = [
   'How many leads sold today?',
   'Which supplier has the best conversion?',
   'Summarize my ad spend vs revenue',
-  'How many bank transactions are unmatched?',
+  'Draft a build request to add a CSV export to Leads',
 ];
 
 export default function DataBotWidget() {
@@ -88,7 +88,7 @@ export default function DataBotWidget() {
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Bot className="w-4.5 h-4.5 text-primary" /></div>
               <div>
                 <div className="text-[14px] font-semibold text-foreground leading-tight">DataBot</div>
-                <div className="text-[11px] text-muted-foreground leading-tight">Answers from your data + knowledge base</div>
+                <div className="text-[11px] text-muted-foreground leading-tight">Answers your data, drafts changes for admins</div>
               </div>
             </div>
             <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
