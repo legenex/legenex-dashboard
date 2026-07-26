@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import ReportSidebar, { STANDARD } from '@/components/reports/ReportSidebar';
 import ReportFilterBar from '@/components/reports/ReportFilterBar';
 import PerformanceCanvas, { makeDefaultCards, makeDefaultWidgets } from '@/components/reports/PerformanceCanvas';
-import { leadField } from '@/lib/reportMetrics';
 import DailyReport from '@/components/reports/views/DailyReport';
 import PnlReport from '@/components/reports/views/PnlReport';
 import AdReport from '@/components/reports/views/AdReport';
@@ -72,7 +71,6 @@ export default function Reports() {
   const { data: integrations = [] } = useQuery({ queryKey: ['report-integrations'], queryFn: () => base44.entities.IntegrationConfig.list() });
   const { data: reports = [] } = useQuery({ queryKey: ['reports'], queryFn: () => base44.entities.Report.filter({ group: 'custom' }, 'sort_order') });
   const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('sort_order') });
-  const { data: campaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list() });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order') });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
