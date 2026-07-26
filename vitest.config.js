@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: [
+      'src/lib/*.test.js',
       'src/lib/distribution/**/*.test.js',
       'src/components/distribution/**/*.test.jsx',
     ],
