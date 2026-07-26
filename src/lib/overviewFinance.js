@@ -1,7 +1,7 @@
 // Financial-truth aggregation for the main Overview dashboard.
 // Reuses reconcile() / workbench() from financeMetrics so numbers match the Finances section.
 import { reconcile, workbench, unmatched } from '@/lib/financeMetrics';
-import { leadField, leadEventInstant, leadEventDayKey, spendRows, leadCost } from '@/lib/reportMetrics';
+import { leadField, leadEventInstant, leadEventDayKey, spendRows, leadCost, internalSupplierSet } from '@/lib/reportMetrics';
 import { formatInTimeZone } from 'date-fns-tz';
 import { APP_TZ } from '@/lib/periodRange';
 import { format, isWithinInterval, startOfDay, subDays } from 'date-fns';
@@ -33,7 +33,7 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
     return t instanceof Date && !isNaN(t.getTime()) && t >= win.start && t <= win.end;
   });
 
-  const reconRows = reconcile({ leads: wLeads, buyers, suppliers, invoices, payments, payouts, adSpend: acctSpend });
+  const reconRows = reconcile({ leads: wLeads, buyers, suppliers, invoices, payments, payouts, adSpend: acctSpend, internalSuppliers: internal });
   const wb = workbench(reconRows, invoices);
 
   // Revenue: booked (from leads) vs verified (matched income / payments received).
@@ -50,7 +50,11 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
   // external supplier (Legenex, Inbounds) and overstating profit by the same
   // amount. leadCost resolves the aliases and the bag, which is what every
   // report already uses.
-  const accruedCost = wLeads.reduce((a, l) => a + leadCost(l), 0);
+  // Internal suppliers (LeadFlow, Legenex) cost ad spend, not a per-lead price,
+  // so their leads must not contribute lead cost even when a cpl value rides
+  // along on the payload.
+  const internal = internalSupplierSet(suppliers);
+  const accruedCost = wLeads.reduce((a, l) => a + leadCost(l, internal), 0);
   const trackedSpend = acctSpend.filter(a => inWinDay(a.date, win)).reduce((a, r) => a + num(r.spend), 0);
   const paidPayouts = payouts.reduce((a, p) => a + num(p.paid_amount), 0);
 
