@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { applyFilters, computeMetrics, money, spendInWindow } from '@/lib/reportMetrics';
+import { internalSupplierSet } from '@/lib/reportMetrics';
 import { ReportKpi, THead, TRow, AINote } from '@/components/reports/reportViewAtoms';
 import { Button } from '@/components/ui/button';
 
@@ -60,7 +61,7 @@ export default function AdReport({ adSpend, adMappings, integrations, leads, sup
     // alongside account rows double counted), and it honours the selected date
     // range. Every figure below is an aggregate, so all of them use it.
     const windowSpend = spendInWindow(adSpend, filters);
-    const m = computeMetrics(f, windowSpend);
+    const m = computeMetrics(f, windowSpend, internalSupplierSet(suppliers));
     const totalSpend = windowSpend.reduce((a, r) => a + num(r.spend), 0);
 
     const connectedSet = new Set(PLATFORMS.filter(p => integrations.find(c => c.name === p.key)).map(p => p.key));
