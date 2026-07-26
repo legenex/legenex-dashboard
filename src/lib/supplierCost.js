@@ -69,6 +69,11 @@ export function resolveSource(lead, sources) {
     if (byBrand) return byBrand;
   }
 
+  // A supplier with a single source does not need a source_code, per the
+  // SupplierSource schema. Without this fallback a one-source supplier whose
+  // leads carry no ssid resolved to nothing and lost its configured pricing.
+  if (active.length === 1) return active[0];
+
   return null;
 }
 
@@ -305,7 +310,11 @@ export function supplierCostMetrics(supplier, allLeads, sourcesBySupplier, adSpe
   for (const lead of rows) {
     revenue += num(lead.revenue);
     if (String(lead.final_status || '') === 'Sold') sold++;
-    const source = isInternal ? null : resolveSource(lead, sources);
+    // The source is resolved for every supplier, Internal included. Internal
+    // cost still comes from ad spend rather than the source, but the source is
+    // what carries the payout rule, so skipping it left a profit-share Internal
+    // supplier with no payout at all.
+    const source = resolveSource(lead, sources);
     const cost = isInternal ? 0 : externalLeadCost(lead, source);
     pricedLeads.push({ lead, cost, sourceId: source?.id || null });
   }
