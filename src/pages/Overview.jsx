@@ -72,6 +72,23 @@ function overviewSource(lead) {
   return null;
 }
 
+// One dimension filter. A native select keeps this dependency-free and is the
+// better control on a phone, where the OS renders its own picker.
+function OverviewFilter({ label, value, onChange, options }) {
+  const active = Boolean(value);
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={label}
+      className={`h-9 rounded-md border bg-card px-2.5 text-[12px] font-medium max-w-[190px] truncate focus:outline-none focus:ring-1 focus:ring-ring ${active ? 'border-primary text-foreground' : 'border-border text-muted-foreground'}`}
+    >
+      <option value="">{label}: All</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
 export default function Overview() {
   const qc = useQueryClient();
   const navigate = useNavigate();
