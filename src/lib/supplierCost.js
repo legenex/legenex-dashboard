@@ -17,7 +17,7 @@
 //   Internal (LEADFLOW, LEGENEX): cost from mapped ad accounts via AdSpend,
 //             never supplier_payout or CPL. Internal sources use pricing none.
 
-import { leadField, leadEventInstant } from '@/lib/reportMetrics';
+import { leadField, leadEventInstant, spendRows } from '@/lib/reportMetrics';
 import { parseRules, firstMatchIndex } from '@/components/operations/suppliers/tierRules';
 
 function num(v) { const n = Number(v); return Number.isNaN(n) ? 0 : n; }
@@ -108,13 +108,18 @@ export function externalLeadCost(lead, source) {
 
 // Sum of mapped ad spend for an Internal supplier within the loaded AdSpend
 // rows. AdSpend.supplier_key is the lowercased supplier_name.
+//
+// A supplier can have several ad accounts across several platforms, so the cost
+// basis is the per-account daily total, summed across all of that supplier's
+// accounts. spendRows resolves that: it takes the account rollup where one
+// exists and reconstructs it from that day's campaign rows where it does not,
+// keyed per ad account per day, so a partial backfill neither double counts nor
+// loses a day. Campaign and ad rows are never a cost basis in their own right;
+// they exist for ad performance reporting.
 export function internalSupplierSpend(supplierName, adSpendRows) {
   const key = norm(supplierName);
   let spend = 0;
-  for (const r of adSpendRows || []) {
-    // Only account-level rows drive cost. Campaign and ad rows are detail views
-    // and also carry a supplier now, so counting them would multiply the spend.
-    if (r.level && r.level !== 'account') continue;
+  for (const r of spendRows(adSpendRows || [])) {
     const rk = r.supplier_key != null ? norm(r.supplier_key) : norm(r.supplier_name);
     if (rk === key) spend += num(r.spend);
   }
