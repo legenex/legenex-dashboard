@@ -340,16 +340,9 @@ export default function LeadsTable({ view }) {
   }, [handleResizeMove, handleResizeEnd]);
 
   const filtered = useMemo(() => {
-    const { start, end } = resolvePeriod(period, customPeriod);
-    const result = leads.filter(lead => {
-      if (!matchesView(lead, view)) return false;
-      // Bound by the lead's real event time in APP_TZ, matching reporting.
-      const inst = leadEventInstant(lead);
-      if (start && (!inst || inst < start)) return false;
-      if (end && (!inst || inst > end)) return false;
-      if (!customFilters.every(f => matchesFilter(lead, f))) return false;
-      if (search && !matchesSearch(lead, search)) return false;
-      if (statusFilter.length > 0 && !statusFilter.includes(lead.final_status)) return false;
+    // scoped already applied view, period, custom filters, search and status.
+    // Only the two multi-selects remain.
+    const result = scoped.filter(lead => {
       if (supplierFilter.length > 0 && !supplierFilter.includes(lead.supplier_name)) return false;
       if (sourceFilter.length > 0 && !sourceFilter.includes(getSource(lead))) return false;
       return true;
