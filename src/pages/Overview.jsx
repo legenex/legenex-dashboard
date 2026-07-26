@@ -99,6 +99,11 @@ export default function Overview() {
 
   const win = useMemo(() => resolvePeriod(period, custom), [period, custom]);
 
+  // Dimension filters. Empty string means All.
+  const [buyerFilter, setBuyerFilter] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+
   const { data: leads = [] } = useQuery({ queryKey: ['ov-leads'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
@@ -112,9 +117,33 @@ export default function Overview() {
   const { data: spendMappings = [] } = useQuery({ queryKey: ['adspend-mappings'], queryFn: () => base44.entities.AdSpendMapping.list() });
   const { data: leadSources = [] } = useQuery({ queryKey: ['lead-sources'], queryFn: () => base44.entities.LeadSource.list('-created_date', 100) });
 
-  const dataset = { leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns };
+  // Filtered dataset. Leads narrow on all three dimensions; ad spend can only
+  // narrow on supplier, because AdSpend rows carry a supplier but have no buyer
+  // or lead-source dimension. Spend is incurred before a lead is ever sold to a
+  // buyer, so a buyer filter genuinely cannot attribute it. Rather than invent
+  // an allocation, cost is left whole and the card says so.
+  const fLeads = useMemo(() => {
+    const nb = norm(buyerFilter); const ns = norm(supplierFilter); const nsrc = norm(sourceFilter);
+    if (!nb && !ns && !nsrc) return leads;
+    return leads.filter((l) => {
+      if (nb && norm(l.buyer_name || l.buyer) !== nb) return false;
+      if (ns && !supplierMatches(l.supplier_name, ns)) return false;
+      if (nsrc && norm(overviewSource(l)) !== nsrc) return false;
+      return true;
+    });
+  }, [leads, buyerFilter, supplierFilter, sourceFilter]);
 
-  const truth = useMemo(() => financialTruth(dataset, win), [leads, buyers, suppliers, invoices, payments, payouts, adSpend, txns, win]);
+  const fAdSpend = useMemo(() => {
+    const ns = norm(supplierFilter);
+    if (!ns) return adSpend;
+    return adSpend.filter((r) => supplierMatches(r.supplier_key ?? r.supplier_name, ns));
+  }, [adSpend, supplierFilter]);
+
+  const costUnfiltered = Boolean(buyerFilter || sourceFilter);
+
+  const dataset = { leads: fLeads, buyers, suppliers, invoices, payments, payouts, adSpend: fAdSpend, txns };
+
+  const truth = useMemo(() => financialTruth(dataset, win), [fLeads, buyers, suppliers, invoices, payments, payouts, fAdSpend, txns, win]);
   const queue = useMemo(() => actionQueue(truth, txns), [truth, txns]);
   const donut = useMemo(() => financeDonut(truth.wLeads), [truth]);
   const daily = useMemo(() => dailyFinance({ wLeads: truth.wLeads, payments, adSpend }, win), [truth, payments, adSpend, win]);
