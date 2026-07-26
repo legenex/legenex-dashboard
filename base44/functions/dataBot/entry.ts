@@ -24,9 +24,6 @@ async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature =
   return content;
 }
 
-// Change-intent phrasing that may warrant a drafted build request (admins only).
-const BUILD_HINT = /\b(build|add|create|implement|make it|change|modify|edit|update the|remove|delete the|rename|redesign|refactor|wire|hook up|fix the|new (page|button|field|tab|section|report|column|widget|filter))\b/i;
-
 // Scope a change request into a single-concern build prompt for the CONTROLLED
 // channel (Claude via connector, Base44 builder, or Claude Code). Never executes.
 // If the message is really an analytics question, returns is_build=false.
@@ -62,24 +59,23 @@ Deno.serve(async (req) => {
     if (!question) return Response.json({ error: 'No question provided' }, { status: 400 });
 
     const isAdmin = user.role === 'admin';
+    const mode = body.mode === 'build' ? 'build' : 'data';
 
     // Friendly, actionable message instead of a silent 500 when the key is unset.
     if (!Deno.env.get('OPENAI_API_KEY')) {
-      return Response.json({ type: 'answer', answer: 'DataBot is not configured yet: the OPENAI_API_KEY secret is missing. An admin can add it in the app secrets, then I can answer.' });
+      return Response.json({ type: 'answer', answer: 'This assistant is not configured yet: the OPENAI_API_KEY secret is missing. An admin can add it in the app secrets, then I can answer.' });
     }
 
-    // Build-request drafting (admins only), triggered only by change-intent phrasing.
-    // Runs before the data snapshot so it stays fast and pulls no records.
-    if (BUILD_HINT.test(question)) {
+    // BuildBot: draft a single-concern build request for the controlled channel.
+    // Operator-gated for now; a grantable buildbot permission comes next.
+    if (mode === 'build') {
       if (!isAdmin) {
-        return Response.json({ type: 'answer', answer: 'Making changes to the app is available to admins only. I can still answer questions about your data and knowledge base.' });
+        return Response.json({ type: 'answer', answer: 'BuildBot is available to admins and owners only.' });
       }
       try {
         const draft = await draftBuildRequest(question, history);
-        if (draft && draft.is_build) {
-          return Response.json({ type: 'build_request', build_request: draft });
-        }
-      } catch (_) { /* not a build, or draft failed: fall through to an analytics answer */ }
+        if (draft && draft.is_build) return Response.json({ type: 'build_request', build_request: draft });
+      } catch (_) { /* not a build, or draft failed: fall through to an answer */ }
     }
 
     // --- Gather a compact snapshot of live app data (service role for full visibility) ---
