@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spendRows, spendInWindow } from '@/lib/reportMetrics';
+import { spendRows, spendInWindow, computeMetrics } from '@/lib/reportMetrics';
 
 // spendRows is the cost basis for every spend total in the app, so both of its
 // failure modes are pinned here with the real shape of the data.
