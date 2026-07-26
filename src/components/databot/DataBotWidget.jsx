@@ -148,7 +148,7 @@ export default function DataBotWidget() {
                   </div>
                 ))}
                 {busy && (
-                  <div className="flex justify-start"><div className="bg-card border border-border rounded-[12px] px-3 py-2 text-[13px] text-muted-foreground inline-flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking\u2026</div></div>
+                  <div className="flex justify-start"><div className="bg-card border border-border rounded-[12px] px-3 py-2 text-[13px] text-muted-foreground inline-flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking...</div></div>
                 )}
                 {messages.length === 1 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
