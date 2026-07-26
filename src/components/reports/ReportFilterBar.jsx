@@ -63,8 +63,6 @@ export default function ReportFilterBar({ value, onChange, options, hide = [] })
     onChange({ date_from: fmt(w.start), date_to: fmt(w.end) });
   };
 
-  const opt = (all, items) => [{ value: '', label: all }, ...items];
-
   // Filter values may be a single value (older saved views) or an array (the
   // multi-selects), so normalise before handing one to a MultiSelect.
   const asArray = (v) => {
