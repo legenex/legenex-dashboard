@@ -1,7 +1,7 @@
 // Financial-truth aggregation for the main Overview dashboard.
 // Reuses reconcile() / workbench() from financeMetrics so numbers match the Finances section.
 import { reconcile, workbench, unmatched } from '@/lib/financeMetrics';
-import { leadField, leadEventInstant, leadEventDayKey, spendRows } from '@/lib/reportMetrics';
+import { leadField, leadEventInstant, leadEventDayKey, spendRows, leadCost } from '@/lib/reportMetrics';
 import { formatInTimeZone } from 'date-fns-tz';
 import { APP_TZ } from '@/lib/periodRange';
 import { format, isWithinInterval, startOfDay, subDays } from 'date-fns';
@@ -41,7 +41,16 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
   const verifiedRevenue = payments.filter(p => inWin(p.paid_date, win)).reduce((a, p) => a + num(p.amount), 0);
 
   // Supplier cost: accrued (lead cost + tracked spend) vs paid (payout paid_amount).
-  const accruedCost = wLeads.reduce((a, l) => a + num(l.cost), 0);
+  // Lead-level cost, which is what an EXTERNAL supplier charges per lead.
+  //
+  // This read l.cost directly, and the Lead schema has no `cost` column at all:
+  // external suppliers post their price on the payload, so it lives in the
+  // mapped_fields bag under cost or cpl. The term was therefore always exactly
+  // zero, and Overview reported cost as ad spend alone, silently dropping every
+  // external supplier (Legenex, Inbounds) and overstating profit by the same
+  // amount. leadCost resolves the aliases and the bag, which is what every
+  // report already uses.
+  const accruedCost = wLeads.reduce((a, l) => a + leadCost(l), 0);
   const trackedSpend = acctSpend.filter(a => inWinDay(a.date, win)).reduce((a, r) => a + num(r.spend), 0);
   const paidPayouts = payouts.reduce((a, p) => a + num(p.paid_amount), 0);
 
