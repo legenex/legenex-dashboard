@@ -400,6 +400,10 @@ Deno.serve(async (req) => {
       const supPayoutType = supplierRecord.payout_type || 'None';
       const supPayoutValue = Number(supplierRecord.payout_value) || 0;
       let sourceFallbackUsed = 0;
+      // Profit share accumulators. Settled once after the per-lead loop.
+      let profitPctRate = 0;
+      let profitPctLeads = 0;
+      let profitPctRevenue = 0;
 
       for (const e of enriched) {
         if (e.returned) continue; // not billable
@@ -412,12 +416,27 @@ Deno.serve(async (req) => {
 
         if (source) {
           sourceCode = source.source_code || null;
-          if (source.pricing_model === 'rev_share') {
+          // These values must match the SupplierSource pricing_model enum
+          // exactly: none | flat_cpl | profit_pct | revenue_pct | tiered.
+          // This previously branched on 'rev_share' and read
+          // source.rev_share_pct, neither of which exists, so every Revenue %
+          // and Profit % source fell through unpriced and was billed on the
+          // supplier-level fallback instead of its own configured rate.
+          if (source.pricing_model === 'revenue_pct') {
             const rev = Number(e.lead.revenue) || 0;
-            unitPrice = rev * (Number(source.rev_share_pct) || 0) / 100;
+            unitPrice = rev * (Number(source.revenue_pct) || 0) / 100;
           } else if (source.pricing_model === 'flat_cpl') {
             unitPrice = Number(source.flat_cpl);
             if (isNaN(unitPrice)) unitPrice = null;
+          } else if (source.pricing_model === 'profit_pct') {
+            // Profit share is a PERIOD calculation, not a per-lead one: profit
+            // is the period's revenue minus the period's cost, and cost for a
+            // Meta sourced supplier is its attributed ad spend, which no single
+            // lead carries. Defer it and settle once after this loop.
+            profitPctRate = Number(source.profit_pct) || 0;
+            profitPctLeads += 1;
+            profitPctRevenue += Number(e.lead.revenue) || 0;
+            continue;
           } else if (source.pricing_model === 'tiered') {
             const rules = Array.isArray(source.tier_rules) ? source.tier_rules : parseJsonArray(source.tier_rules);
             for (const rule of rules) {
@@ -440,11 +459,13 @@ Deno.serve(async (req) => {
             const rev = Number(e.lead.revenue) || 0;
             unitPrice = rev * supPayoutValue / 100;
           } else if (supPayoutType === 'Profit %') {
-            // Profit is not resolvable here without cost data, so treat the
-            // supplier-level Profit % as applied to captured revenue as a
-            // best-effort payout. This mirrors Revenue % at this stage.
-            const rev = Number(e.lead.revenue) || 0;
-            unitPrice = rev * supPayoutValue / 100;
+            // Same deferral as the source-level case: settled once on period
+            // totals after the loop, against real ad spend, rather than being
+            // silently treated as Revenue % per lead.
+            profitPctRate = supPayoutValue;
+            profitPctLeads += 1;
+            profitPctRevenue += Number(e.lead.revenue) || 0;
+            continue;
           }
         }
 
