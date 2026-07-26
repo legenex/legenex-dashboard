@@ -24,6 +24,32 @@ async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature =
   return content;
 }
 
+// Change-intent phrasing that may warrant a drafted build request (admins only).
+const BUILD_HINT = /\b(build|add|create|implement|make it|change|modify|edit|update the|remove|delete the|rename|redesign|refactor|wire|hook up|fix the|new (page|button|field|tab|section|report|column|widget|filter))\b/i;
+
+// Scope a change request into a single-concern build prompt for the CONTROLLED
+// channel (Claude via connector, Base44 builder, or Claude Code). Never executes.
+// If the message is really an analytics question, returns is_build=false.
+async function draftBuildRequest(question, history) {
+  const schema = {
+    type: 'object',
+    properties: {
+      is_build: { type: 'boolean' },
+      title: { type: 'string' },
+      summary: { type: 'string' },
+      target_files: { type: 'array', items: { type: 'string' } },
+      do_not_touch: { type: 'array', items: { type: 'string' } },
+      risk: { type: 'string', enum: ['green', 'amber', 'red'] },
+      ready_prompt: { type: 'string' },
+    },
+    required: ['is_build', 'title', 'summary', 'ready_prompt'],
+  };
+  const convo = history.map((m) => `${m.role === 'user' ? 'User' : 'DataBot'}: ${m.content}`).join('\n');
+  const system = `You scope change requests for the Legenex Base44 app so they can be handed to a controlled build channel (Claude via the Base44 connector, the Base44 builder, or Claude Code). You NEVER execute changes yourself. If the user's message is actually an analytics or data question rather than a request to change the app, set is_build=false and leave the other fields empty.\n\nBake these conventions into ready_prompt so it is safe to run:\n- One concern per change, with an explicit do-not-touch list.\n- Follow DESIGN-SYSTEM.md: semantic tokens only, never raw hex/hsl or raw palette utilities.\n- RED surfaces that need explicit human approval and must not be edited casually: processLead, the four LeadByteConnectors and their enabled states, Conversion Events, distribution_mode (only via distributionSetMode), credentials, live endpoints, billing records, buyer pricing and state coverage.\n- Additive schema only. No em dashes anywhere. Checkpoint before any schema or destructive change. Verify with the design-token gate and lint.\n\nready_prompt must be a complete, copy-pasteable instruction a builder can act on: the target area, the exact change, the do-not-touch list, and the verification step. Set risk=red if the request touches any RED surface, amber if it touches shared or data surfaces, green for isolated UI or docs.`;
+  const prompt = `Conversation so far:\n${convo || '(none)'}\n\nUser request: ${question}\n\nReturn JSON only.`;
+  return await callOpenAI({ system, prompt, jsonSchema: schema, temperature: 0.2 });
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
