@@ -197,15 +197,28 @@ export function leadEventDayKey(lead) {
 }
 
 // Apply a filter object { field: value } to a list of leads.
+// Filter values may be a single value or an array of them, since the filter
+// bars are multi-select: picking two suppliers means "either of these", not
+// "both at once". An empty array is the same as no filter.
+function filterValues(value) {
+  const list = Array.isArray(value) ? value : [value];
+  return list.filter((v) => v != null && v !== '' && v !== 'all').map((v) => String(v).toLowerCase());
+}
+
 export function applyFilters(leads, filters = {}) {
-  const entries = Object.entries(filters).filter(([, v]) => v != null && v !== '' && v !== 'all');
+  const entries = Object.entries(filters).filter(([, v]) => {
+    if (Array.isArray(v)) return v.some((x) => x != null && x !== '' && x !== 'all');
+    return v != null && v !== '' && v !== 'all';
+  });
   if (entries.length === 0) return leads;
   return leads.filter((l) =>
     entries.every(([field, value]) => {
-      if (field === 'date_from') return leadEventInstant(l) >= fromZonedTime(value + 'T00:00:00', APP_TZ);
-      if (field === 'date_to') return leadEventInstant(l) <= fromZonedTime(value + 'T23:59:59', APP_TZ);
-      const lv = leadField(l, field);
-      return String(lv ?? '').toLowerCase() === String(value).toLowerCase();
+      if (field === 'date_from') return leadEventInstant(l) >= fromZonedTime(String(value) + 'T00:00:00', APP_TZ);
+      if (field === 'date_to') return leadEventInstant(l) <= fromZonedTime(String(value) + 'T23:59:59', APP_TZ);
+      const wanted = filterValues(value);
+      if (wanted.length === 0) return true;
+      const lv = String(leadField(l, field) ?? '').toLowerCase();
+      return wanted.includes(lv);
     })
   );
 }
