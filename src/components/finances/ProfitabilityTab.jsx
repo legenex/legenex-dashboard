@@ -26,7 +26,7 @@ const Stat = ({ label, value, sub, tone }) => {
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-[0_12px_32px_-16px_rgba(0,0,0,0.4)]">
       <div className="text-[9.5px] font-semibold tracking-[0.1em] uppercase text-muted-foreground/70 truncate">{label}</div>
-      <div className={`text-[20px] font-bold font-mono tabular-nums mt-1.5 whitespace-nowrap ${valueClass}`}>{value}</div>
+      <div className={`text-[16px] sm:text-[18px] lg:text-[20px] font-bold font-mono tabular-nums mt-1.5 truncate ${valueClass}`}>{value}</div>
       {sub && <div className="text-[11px] text-muted-foreground/70 mt-0.5">{sub}</div>}
     </div>
   );
