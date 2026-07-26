@@ -114,9 +114,6 @@ export function spendRows(rows = []) {
 
 // Account-level spend rows inside the report's date window.
 // applyFilters only ever touches leads, and AdSpend rows carry their own date,
-// so without this every report summed the entire spend history no matter which
-// period was selected. That is what made net profit on a This Month view read
-// against months of accumulated spend.
 // Spend rows inside the report's window AND matching the report's filters.
 //
 // applyFilters only ever touches leads, and AdSpend rows carry their own date,
