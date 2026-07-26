@@ -101,7 +101,7 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
     const header = COLS.join(',');
     const lines = rows.map((r) => [
       `"${r.label}"`, r.leads, r.sold, r.cost.toFixed(2), r.cpl.toFixed(2),
-      r.revenue.toFixed(2), r.profit.toFixed(2), r.margin.toFixed(1),
+      r.revenue.toFixed(2), r.profit.toFixed(2), r.margin.toFixed(1), r.payout.toFixed(2),
     ].join(','));
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -112,12 +112,13 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-2 lg:gap-3">
         <ReportKpi label="Cost" value={money(totals.cost)} hint={selected || 'all suppliers'} />
         <ReportKpi label="CPL" value={money(blendedCpl)} hint={totals.leads > 0 ? `over ${int(totals.leads)} leads` : 'no leads'} />
         <ReportKpi label="Revenue" value={money(totals.revenue)} />
         <ReportKpi label="Profit" value={money(profit)} tone={profit > 0 ? 'good' : 'risk'} />
         <ReportKpi label="Margin" value={totals.revenue > 0 ? pct(margin) : '-'} />
+        <ReportKpi label="Payout" value={money(totals.payout)} hint="owed to suppliers" />
         <ReportKpi label="Suppliers" value={int(rows.length)} hint={`${int(totals.sold)} sold`} />
       </div>
 
