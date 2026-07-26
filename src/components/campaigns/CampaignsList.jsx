@@ -50,8 +50,8 @@ export default function CampaignsList({ onCreate, onOpen }) {
   const { data: campaigns = [], isLoading } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list('-created_date', 500) });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order', 200) });
   const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
-  const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
-  const { data: members = [] } = useQuery({ queryKey: ['allRouteMembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 2000) });
+  const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteGroup.list('-created_date', limit, skip)) });
+  const { data: members = [] } = useQuery({ queryKey: ['allRouteMembers'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteMember.list('-created_date', limit, skip)) });
 
   // Map a vertical code to its full display name (e.g. "MVA" -> "Motor Vehicle Accidents").
   const verticalName = useMemo(() => {

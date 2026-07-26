@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -26,10 +27,10 @@ import { convertLegacyMember, destinationLabel } from '@/lib/campaigns/memberDes
 export default function CampaignRoutingTab({ campaign, method: sendMode = 'direct_post' }) {
   const qc = useQueryClient();
 
-  const { data: allGroups = [], isLoading: groupsLoading } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
-  const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list('-created_date', 1000) });
-  const { data: allMembers = [], isLoading: membersLoading } = useQuery({ queryKey: ['routeMembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 5000) });
-  const { data: subs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000) });
+  const { data: allGroups = [], isLoading: groupsLoading } = useQuery({ queryKey: ['routeGroups'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteGroup.list('-created_date', limit, skip)) });
+  const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => fetchAll((limit, skip) => base44.entities.Buyer.list('-created_date', limit, skip)) });
+  const { data: allMembers = [], isLoading: membersLoading } = useQuery({ queryKey: ['routeMembers'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteMember.list('-created_date', limit, skip)) });
+  const { data: subs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => fetchAll((limit, skip) => base44.entities.SubDelivery.list('-created_date', limit, skip)) });
 
   const groups = useMemo(
     () => allGroups

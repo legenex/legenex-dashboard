@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,11 +53,11 @@ export default function CampaignBuyers() {
   });
   const { data: deliveries = [] } = useQuery({
     queryKey: ['deliveries'],
-    queryFn: () => base44.entities.Delivery.list('-created_date', 2000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.Delivery.list('-created_date', limit, skip)),
   });
   const { data: subs = [] } = useQuery({
     queryKey: ['subdeliveries'],
-    queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.SubDelivery.list('-created_date', limit, skip)),
   });
 
   // Deliveries grouped by buyer, and endpoints grouped by delivery, so an

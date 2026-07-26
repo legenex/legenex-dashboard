@@ -36,7 +36,7 @@ export default function CampaignDetailPage({ campaign, onBack }) {
   const [tab, setTab] = useState('overview');
   const [savingHeader, setSavingHeader] = useState(false);
 
-  const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
+  const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteGroup.list('-created_date', limit, skip)) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list('-created_date', 500) });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order', 200) });
   const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
@@ -53,7 +53,7 @@ export default function CampaignDetailPage({ campaign, onBack }) {
   );
   const defaultGroup = campaignGroups[0] || null;
 
-  const { data: allMembers = [] } = useQuery({ queryKey: ['routeMembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 5000) });
+  const { data: allMembers = [] } = useQuery({ queryKey: ['routeMembers'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteMember.list('-created_date', limit, skip)) });
 
   const buyerName = useMemo(() => Object.fromEntries(buyers.map((b) => [b.id, b.company_name || b.name || b.id])), [buyers]);
   const supplierCount = useMemo(() => parseIds(campaign.supplier_ids).length, [campaign.supplier_ids]);

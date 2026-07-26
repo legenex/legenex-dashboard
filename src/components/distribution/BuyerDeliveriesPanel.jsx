@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -37,9 +38,9 @@ export default function BuyerDeliveriesPanel({ buyerId }) {
   const [newOpen, setNewOpen] = useState(false);
 
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('-created_date', 500) });
-  const { data: allDeliveries = [], isLoading } = useQuery({ queryKey: ['deliveries'], queryFn: () => base44.entities.Delivery.list('-created_date', 2000) });
-  const { data: subs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000) });
-  const { data: members = [] } = useQuery({ queryKey: ['routemembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 5000) });
+  const { data: allDeliveries = [], isLoading } = useQuery({ queryKey: ['deliveries'], queryFn: () => fetchAll((limit, skip) => base44.entities.Delivery.list('-created_date', limit, skip)) });
+  const { data: subs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => fetchAll((limit, skip) => base44.entities.SubDelivery.list('-created_date', limit, skip)) });
+  const { data: members = [] } = useQuery({ queryKey: ['routemembers'], queryFn: () => fetchAll((limit, skip) => base44.entities.RouteMember.list('-created_date', limit, skip)) });
   const { data: settings = [] } = useQuery({ queryKey: ['appsettings'], queryFn: () => base44.entities.AppSettings.list() });
 
   const distributionMode = String((settings[0] && settings[0].distribution_mode) || 'legacy_only');

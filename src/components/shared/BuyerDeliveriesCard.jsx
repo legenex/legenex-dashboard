@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery } from '@tanstack/react-query';
 import { Send } from 'lucide-react';
 import BuyerDeliveryRows from '@/components/campaigns/BuyerDeliveryRows';
@@ -17,11 +18,11 @@ export default function BuyerDeliveriesCard({ buyerId, buyerName }) {
 
   const { data: deliveries = [], isLoading } = useQuery({
     queryKey: ['deliveries'],
-    queryFn: () => base44.entities.Delivery.list('-created_date', 2000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.Delivery.list('-created_date', limit, skip)),
   });
   const { data: subs = [] } = useQuery({
     queryKey: ['subdeliveries'],
-    queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.SubDelivery.list('-created_date', limit, skip)),
   });
 
   const mine = useMemo(

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/lib/theme';
 import SectionHeader from '@/components/shared/SectionHeader';
@@ -36,7 +37,7 @@ export default function OperationsActiveStates() {
 
   const { data: stateStatuses = [] } = useQuery({
     queryKey: ['as-state-status'],
-    queryFn: () => base44.entities.StateStatus.list('', 2000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.StateStatus.list('', limit, skip)),
   });
   const { data: buyers = [] } = useQuery({
     queryKey: ['as-buyers'],
@@ -44,7 +45,7 @@ export default function OperationsActiveStates() {
   });
   const { data: cplRows = [] } = useQuery({
     queryKey: ['as-buyer-state-cpl'],
-    queryFn: () => base44.entities.BuyerStateCpl.list('', 2000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.BuyerStateCpl.list('', limit, skip)),
   });
   const { data: verticals = [] } = useQuery({
     queryKey: ['as-verticals'],

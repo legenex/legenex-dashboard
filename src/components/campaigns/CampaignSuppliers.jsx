@@ -68,7 +68,7 @@ export default function CampaignSuppliers() {
   });
   const { data: allSources = [] } = useQuery({
     queryKey: ['op-supplier-sources'],
-    queryFn: () => base44.entities.SupplierSource.list('source_code', 1000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.SupplierSource.list('source_code', limit, skip)),
   });
   const { data: adSpend = [] } = useQuery({
     queryKey: ['ad-spend-all'],

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -27,8 +28,8 @@ export default function MemberPickerDialog({
   const [subId, setSubId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const { data: allDeliveries = [] } = useQuery({ queryKey: ['deliveries'], queryFn: () => base44.entities.Delivery.list('-created_date', 2000) });
-  const { data: allSubs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => base44.entities.SubDelivery.list('-created_date', 5000) });
+  const { data: allDeliveries = [] } = useQuery({ queryKey: ['deliveries'], queryFn: () => fetchAll((limit, skip) => base44.entities.Delivery.list('-created_date', limit, skip)) });
+  const { data: allSubs = [] } = useQuery({ queryKey: ['subdeliveries'], queryFn: () => fetchAll((limit, skip) => base44.entities.SubDelivery.list('-created_date', limit, skip)) });
 
   const buyerDeliveries = useMemo(
     () => allDeliveries.filter((d) => d.buyer_id === buyerId && d.status === 'active'),

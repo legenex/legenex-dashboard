@@ -1,6 +1,6 @@
 // Report views, P&L. Create src/components/reports/views/PnlReport.jsx and route active === 'std:pnl' to it
 // in Reports.jsx (extend the existing daily/campaign routing; keep PerformanceCanvas for performance_overview + custom).
-// Add a BankTransaction query in Reports.jsx: base44.entities.BankTransaction.list('-date', 2000), pass as bankTx to PnlReport.
+// Add a BankTransaction query in Reports.jsx: fetchAll((limit, skip) => base44.entities.BankTransaction.list('-date', limit, skip)), pass as bankTx to PnlReport.
 // Use shared atoms from '@/components/reports/reportViewAtoms' (ReportKpi, AINote). ALL values REAL, honest zeros,
 // no fabricated numbers, no mock/seed data. No em dashes. Tokens for surfaces/text; tone accents inline hex.
 
