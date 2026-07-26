@@ -87,6 +87,10 @@ export default function Reports() {
   const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('sort_order') });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order') });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
+  // Sources carry the payout rule (flat CPL, revenue %, profit %, tiered), which
+  // is what a supplier is OWED. That is a different number from what their
+  // leads cost, so the supplier report needs both.
+  const { data: supplierSources = [] } = useQuery({ queryKey: ['supplier-sources-all'], queryFn: () => fetchAll((limit, skip) => base44.entities.SupplierSource.list('source_code', limit, skip)) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
   const { data: brands = [] } = useQuery({ queryKey: ['brands'], queryFn: () => base44.entities.Brand.list() });
 
@@ -208,7 +212,7 @@ export default function Reports() {
       ) : active === 'std:ad' ? (
         <AdReport adSpend={adSpend} adMappings={adMappings} integrations={integrations} leads={leads} filters={effectiveFilters} />
       ) : active === 'std:supplier' ? (
-        <SupplierReport leads={leads} adSpend={adSpend} suppliers={suppliers} filters={effectiveFilters} />
+        <SupplierReport leads={leads} adSpend={adSpend} suppliers={suppliers} supplierSources={supplierSources} filters={effectiveFilters} />
       ) : active === 'std:buyer' ? (
         <BuyerReport leads={leads} adSpend={adSpend} buyers={buyers} filters={effectiveFilters} />
       ) : (
