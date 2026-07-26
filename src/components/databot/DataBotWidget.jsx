@@ -66,8 +66,13 @@ export default function DataBotWidget() {
     setBusy(true);
     try {
       const res = await dataBot({ question, history: next.slice(-8) });
-      const answer = res?.data?.answer || res?.data?.error || 'Sorry, I could not answer that.';
-      setMessages(m => [...m, { role: 'assistant', content: answer }]);
+      const data = res?.data || {};
+      if (data.type === 'build_request' && data.build_request) {
+        setMessages(m => [...m, { role: 'assistant', type: 'build_request', build: data.build_request }]);
+      } else {
+        const answer = data.answer || data.error || 'Sorry, I could not answer that.';
+        setMessages(m => [...m, { role: 'assistant', content: answer }]);
+      }
     } catch (e) {
       setMessages(m => [...m, { role: 'assistant', content: 'Something went wrong reaching DataBot. Please try again.' }]);
     }
@@ -92,11 +97,15 @@ export default function DataBotWidget() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                <div className={`max-w-[85%] rounded-[12px] px-3 py-2 text-[13px] ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-foreground'}`}>
-                  {m.role === 'user'
-                    ? m.content
-                    : <div className="prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0"><ReactMarkdown>{m.content}</ReactMarkdown></div>}
-                </div>
+                {m.role === 'user' ? (
+                  <div className="max-w-[85%] rounded-[12px] px-3 py-2 text-[13px] bg-primary text-primary-foreground">{m.content}</div>
+                ) : m.type === 'build_request' ? (
+                  <BuildCard build={m.build} />
+                ) : (
+                  <div className="max-w-[85%] rounded-[12px] px-3 py-2 text-[13px] bg-card border border-border text-foreground">
+                    <div className="prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                  </div>
+                )}
               </div>
             ))}
             {busy && (
