@@ -64,7 +64,7 @@ export default function CampaignSuppliers() {
   });
   const { data: leads = [] } = useQuery({
     queryKey: ['leads-metrics'],
-    queryFn: () => base44.entities.Lead.list('-created_date', 1000),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)),
   });
   const { data: allSources = [] } = useQuery({
     queryKey: ['op-supplier-sources'],

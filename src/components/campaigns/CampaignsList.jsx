@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { fetchAll } from '@/lib/fetchAll';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -48,7 +49,7 @@ export default function CampaignsList({ onCreate, onOpen }) {
 
   const { data: campaigns = [], isLoading } = useQuery({ queryKey: ['campaigns'], queryFn: () => base44.entities.Campaign.list('-created_date', 500) });
   const { data: verticals = [] } = useQuery({ queryKey: ['verticals'], queryFn: () => base44.entities.Vertical.list('sort_order', 200) });
-  const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => base44.entities.Lead.list('-created_date', 1000) });
+  const { data: leads = [] } = useQuery({ queryKey: ['leads-metrics'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
   const { data: groups = [] } = useQuery({ queryKey: ['routeGroups'], queryFn: () => base44.entities.RouteGroup.list('-created_date', 1000) });
   const { data: members = [] } = useQuery({ queryKey: ['allRouteMembers'], queryFn: () => base44.entities.RouteMember.list('-created_date', 2000) });
 
