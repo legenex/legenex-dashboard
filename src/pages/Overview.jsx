@@ -164,6 +164,27 @@ export default function Overview() {
 
   const costUnfiltered = Boolean(buyerFilter || sourceFilter);
 
+  // Filter options come from leads inside the selected period, so a July view
+  // never offers a source that only ever appeared in June.
+  const filterOptions = useMemo(() => {
+    const inWin = (l) => {
+      const inst = leadEventInstant(l);
+      if (!inst) return false;
+      if (win?.start && inst < win.start) return false;
+      if (win?.end && inst > win.end) return false;
+      return true;
+    };
+    const b = new Set(); const s = new Set(); const src = new Set();
+    for (const l of leads) {
+      if (!inWin(l)) continue;
+      const bv = l.buyer_name || l.buyer; if (bv) b.add(String(bv));
+      if (l.supplier_name) s.add(String(l.supplier_name));
+      const sv = overviewSource(l); if (sv) src.add(sv);
+    }
+    const sorted = (set) => [...set].sort((x, y) => x.localeCompare(y));
+    return { buyers: sorted(b), suppliers: sorted(s), sources: sorted(src) };
+  }, [leads, win]);
+
   const dataset = { leads: fLeads, buyers, suppliers, invoices, payments, payouts, adSpend: fAdSpend, txns };
 
   const truth = useMemo(() => financialTruth(dataset, win), [fLeads, buyers, suppliers, invoices, payments, payouts, fAdSpend, txns, win]);
