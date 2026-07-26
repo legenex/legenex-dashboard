@@ -33,6 +33,11 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
     return t instanceof Date && !isNaN(t.getTime()) && t >= win.start && t <= win.end;
   });
 
+  // Internal suppliers (LeadFlow, Legenex) cost ad spend, not a per-lead price,
+  // so their leads must not contribute lead cost even when a cpl value rides
+  // along on the payload.
+  const internal = internalSupplierSet(suppliers);
+
   const reconRows = reconcile({ leads: wLeads, buyers, suppliers, invoices, payments, payouts, adSpend: acctSpend, internalSuppliers: internal });
   const wb = workbench(reconRows, invoices);
 
@@ -50,10 +55,6 @@ export function financialTruth({ leads, buyers, suppliers, invoices, payments, p
   // external supplier (Legenex, Inbounds) and overstating profit by the same
   // amount. leadCost resolves the aliases and the bag, which is what every
   // report already uses.
-  // Internal suppliers (LeadFlow, Legenex) cost ad spend, not a per-lead price,
-  // so their leads must not contribute lead cost even when a cpl value rides
-  // along on the payload.
-  const internal = internalSupplierSet(suppliers);
   const accruedCost = wLeads.reduce((a, l) => a + leadCost(l, internal), 0);
   const trackedSpend = acctSpend.filter(a => inWinDay(a.date, win)).reduce((a, r) => a + num(r.spend), 0);
   const paidPayouts = payouts.reduce((a, p) => a + num(p.paid_amount), 0);
