@@ -73,7 +73,37 @@ export function leadField(lead, field) {
 
 // The lead's cost. The Lead entity has no cost column, so this resolves through
 // the cost alias to mapped_fields.cpl, which arrives as a numeric string.
-export function leadCost(lead) { return num(leadField(lead, 'cost')); }
+// Build the set of Internal supplier names, normalised for comparison.
+// Pass this to leadCost / computeMetrics so an internal supplier never picks up
+// a per-lead price.
+export function internalSupplierSet(suppliers = []) {
+  const set = new Set();
+  for (const s of suppliers) {
+    if (String(s?.supplier_type || '').toLowerCase() === 'internal' && s?.name) {
+      set.add(String(s.name).trim().toLowerCase());
+    }
+  }
+  return set;
+}
+
+// Per-lead acquisition cost.
+//
+// A supplier costs money one of two ways and NEVER both: an External supplier
+// posts its price on the payload (cost or cpl in the mapped_fields bag), and an
+// Internal supplier costs whatever ad spend is attributed to it. Counting a
+// per-lead price for an Internal supplier would invent cost that does not
+// exist: Legenex is internal with no mapped ad accounts, so its cost is zero
+// even though its leads carry a cpl value.
+//
+// internalSuppliers is optional. Without it the caller has no supplier records
+// to judge by, so the posted price is taken at face value.
+export function leadCost(lead, internalSuppliers) {
+  if (internalSuppliers && internalSuppliers.size > 0) {
+    const sup = String(lead?.supplier_name ?? '').trim().toLowerCase();
+    if (sup && internalSuppliers.has(sup)) return 0;
+  }
+  return num(leadField(lead, 'cost'));
+}
 
 const S = (l) => String(l.final_status || '');
 
@@ -223,7 +253,9 @@ export function applyFilters(leads, filters = {}) {
 }
 
 // Core aggregate over a set of leads + matching ad spend rows.
-export function computeMetrics(leads, adSpendRows = []) {
+// internalSuppliers (optional) suppresses per-lead cost for Internal suppliers,
+// whose cost comes from ad spend instead.
+export function computeMetrics(leads, adSpendRows = [], internalSuppliers) {
   let revenue = 0, cost = 0, bookedRevenue = 0, verifiedIncome = 0, outstanding = 0, overdue = 0, shortPaid = 0;
   let sold = 0, unsold = 0, returns = 0, fakes = 0, duplicates = 0, dqs = 0, phoneVerified = 0;
   const total = leads.length;
@@ -231,7 +263,7 @@ export function computeMetrics(leads, adSpendRows = []) {
   for (const l of leads) {
     const s = S(l);
     revenue += num(l.revenue);
-    cost += leadCost(l);
+    cost += leadCost(l, internalSuppliers);
     if (s === 'Sold') { sold++; bookedRevenue += num(l.revenue); }
     else if (s === 'Unsold') unsold++;
     else if (s === 'Returned') returns++;
