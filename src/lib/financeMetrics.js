@@ -1,5 +1,5 @@
 // Reconciliation & finance aggregation for the Finances page.
-import { leadField } from '@/lib/reportMetrics';
+import { leadField, leadCost } from '@/lib/reportMetrics';
 
 function num(v) { const n = Number(v); return isNaN(n) ? 0 : n; }
 
@@ -27,7 +27,7 @@ export function reconcile({ leads, buyers, suppliers, invoices, payments, payout
   // SUPPLIERS: cost side. invoiced = payouts issued, paid = payout paid_amount.
   for (const s of suppliers) {
     const sLeads = leads.filter(l => l.supplier_name === s.name);
-    const cost = sLeads.reduce((a, l) => a + num(l.cost), 0);
+    const cost = sLeads.reduce((a, l) => a + leadCost(l), 0);
     const spend = (adSpend || []).filter(a => (!a.level || a.level === 'account') && a.supplier_name === s.name).reduce((a, r) => a + num(r.spend), 0);
     const trueCost = cost + spend;
     const sPayouts = payouts.filter(p => p.supplier_name === s.name);

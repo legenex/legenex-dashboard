@@ -183,8 +183,8 @@ export function topCampaigns(wLeads) {
     const key = leadField(l, 'campaign') || l.supplier_name || 'Unattributed';
     if (!groups[key]) groups[key] = { name: key, leads: 0, estimated: 0, verified: 0 };
     groups[key].leads += 1;
-    groups[key].estimated += num(l.revenue) - num(l.cost);
-    if (l.final_status === 'Sold') groups[key].verified += num(l.revenue) - num(l.cost);
+    groups[key].estimated += num(l.revenue) - leadCost(l);
+    if (l.final_status === 'Sold') groups[key].verified += num(l.revenue) - leadCost(l);
   }
   return Object.values(groups)
     .map(g => ({

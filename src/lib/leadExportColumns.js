@@ -5,7 +5,7 @@
 
 import { formatInTimeZone } from 'date-fns-tz';
 import { APP_TZ } from '@/lib/periodRange';
-import { leadField, leadEventInstant } from '@/lib/reportMetrics';
+import { leadField, leadEventInstant, leadCost } from '@/lib/reportMetrics';
 
 const f = (lead, key) => {
   const v = leadField(lead, key);
