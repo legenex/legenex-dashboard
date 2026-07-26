@@ -23,6 +23,16 @@ import { parseRules, firstMatchIndex } from '@/components/operations/suppliers/t
 function num(v) { const n = Number(v); return Number.isNaN(n) ? 0 : n; }
 function norm(v) { return String(v ?? '').trim().toLowerCase(); }
 
+// Local yyyy-MM-dd for comparing against AdSpend.date, which is already keyed to
+// the spend day rather than an instant.
+function toDayKey(d) {
+  const dt = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) return null;
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${dt.getFullYear()}-${m}-${day}`;
+}
+
 // The ssid the inbound lead carried, from any of the common aliases.
 export function leadSsid(lead) {
   for (const k of ['ssid', 'sid', 'supplier_sid', 'source_code', 'source_id']) {
@@ -210,12 +220,20 @@ export function supplierPayoutForWindow(supplier, sources, pricedLeads, revenue,
 // keyed per ad account per day, so a partial backfill neither double counts nor
 // loses a day. Campaign and ad rows are never a cost basis in their own right;
 // they exist for ad performance reporting.
-export function internalSupplierSpend(supplierName, adSpendRows) {
+export function internalSupplierSpend(supplierName, adSpendRows, window) {
   const key = norm(supplierName);
+  // AdSpend.date is a plain yyyy-MM-dd spend day. Without this the window only
+  // filtered leads, so selecting a single day still reported the supplier's
+  // entire spend history as that day's cost.
+  const from = window?.start ? toDayKey(window.start) : null;
+  const to = window?.end ? toDayKey(window.end) : null;
   let spend = 0;
   for (const r of spendRows(adSpendRows || [])) {
+    const d = String(r.date || '').slice(0, 10);
+    if (from && d < from) continue;
+    if (to && d > to) continue;
     const rk = r.supplier_key != null ? norm(r.supplier_key) : norm(r.supplier_name);
-    if (rk === key) spend += num(r.spend);
+    if (rk && (rk === key || rk.includes(key) || key.includes(rk))) spend += num(r.spend);
   }
   return spend;
 }
@@ -294,7 +312,7 @@ export function supplierCostMetrics(supplier, allLeads, sourcesBySupplier, adSpe
 
   let cost;
   if (isInternal) {
-    cost = internalSupplierSpend(supplier.name, adSpendRows);
+    cost = internalSupplierSpend(supplier.name, adSpendRows, window);
   } else {
     cost = pricedLeads.reduce((a, p) => a + p.cost, 0);
   }
