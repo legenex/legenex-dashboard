@@ -52,7 +52,7 @@ const PlatformCard = ({ platform, connected, spend, leadCount, revenue }) => {
   );
 };
 
-export default function AdReport({ adSpend, adMappings, integrations, leads, filters }) {
+export default function AdReport({ adSpend, adMappings, integrations, leads, suppliers = [], filters }) {
   const data = useMemo(() => {
     const f = applyFilters(leads, filters);
     // spendInWindow does two things this report was missing: it drops campaign

@@ -29,7 +29,7 @@ const PnlLine = ({ item }) => {
   );
 };
 
-export default function PnlReport({ leads, adSpend, bankTx, filters }) {
+export default function PnlReport({ leads, adSpend, bankTx, suppliers = [], filters }) {
   const { m, lines, grossProfit, netProfit, verified, gap } = useMemo(() => {
     const f = applyFilters(leads, filters);
     // Spend carries its own date, so it has to be windowed separately or the
