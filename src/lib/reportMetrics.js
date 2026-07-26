@@ -152,15 +152,14 @@ export function spendInWindow(rows = [], filters = {}) {
   }
 
   for (const [field, get] of Object.entries(SPEND_FILTERABLE)) {
-    const value = filters?.[field];
-    if (value == null || value === '' || value === 'all') continue;
-    const want = String(value).trim().toLowerCase();
+    const wanted = filterValues(filters?.[field]);
+    if (wanted.length === 0) continue;
     list = list.filter((r) => {
       const have = String(get(r) ?? '').trim().toLowerCase();
       if (!have) return false;
       // Supplier names arrive as LEADFLOW / LeadFlow / Leadflow, so match
       // loosely rather than splitting one supplier into two.
-      return have === want || have.includes(want) || want.includes(have);
+      return wanted.some((w) => have === w || have.includes(w) || w.includes(have));
     });
   }
 
