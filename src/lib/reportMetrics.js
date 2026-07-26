@@ -112,8 +112,6 @@ export function spendRows(rows = []) {
   return fallback.length ? account.concat(fallback) : account;
 }
 
-// Account-level spend rows inside the report's date window.
-// applyFilters only ever touches leads, and AdSpend rows carry their own date,
 // Spend rows inside the report's window AND matching the report's filters.
 //
 // applyFilters only ever touches leads, and AdSpend rows carry their own date,
