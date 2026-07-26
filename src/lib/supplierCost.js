@@ -77,15 +77,33 @@ function ruleSample(lead) {
 
 // Price one lead from a source's pricing. Returns a number, or null when the
 // source has no usable price (falls through to supplier_payout).
-function priceFromSource(lead, source) {
+//
+// The model values here must match the SupplierSource schema enum exactly:
+// none | flat_cpl | profit_pct | revenue_pct | tiered. An earlier version
+// branched on 'rev_share' and read source.rev_share_pct, neither of which
+// exists, so every Revenue % and Profit % source returned null and silently
+// fell back to the lead's reported supplier_payout instead of its configured
+// rate.
+function priceFromSource(lead, source, context = {}) {
   if (!source) return null;
   const model = source.pricing_model;
   if (model === 'flat_cpl') {
     return source.flat_cpl == null ? null : num(source.flat_cpl);
   }
-  if (model === 'rev_share') {
-    if (source.rev_share_pct == null) return null;
-    return num(lead.revenue) * num(source.rev_share_pct) / 100;
+  if (model === 'revenue_pct') {
+    if (source.revenue_pct == null) return null;
+    return num(lead.revenue) * num(source.revenue_pct) / 100;
+  }
+  if (model === 'profit_pct') {
+    if (source.profit_pct == null) return null;
+    // Profit is revenue minus the cost of acquiring that lead. For an Internal
+    // supplier that cost is its share of mapped ad spend, which the caller
+    // passes in as context.leadAcquisitionCost. Without it, profit collapses to
+    // revenue and this would silently behave like revenue_pct, so return null
+    // rather than report a number that looks right and is not.
+    if (context.leadAcquisitionCost == null) return null;
+    const profit = num(lead.revenue) - num(context.leadAcquisitionCost);
+    return profit * num(source.profit_pct) / 100;
   }
   if (model === 'tiered') {
     const rules = parseRules(source.tier_rules);
@@ -100,8 +118,8 @@ function priceFromSource(lead, source) {
 
 // Cost of a single lead for an External supplier: source price, else the lead's
 // reported supplier_payout.
-export function externalLeadCost(lead, source) {
-  const priced = priceFromSource(lead, source);
+export function externalLeadCost(lead, source, context = {}) {
+  const priced = priceFromSource(lead, source, context);
   if (priced != null) return priced;
   return num(lead.supplier_payout);
 }
