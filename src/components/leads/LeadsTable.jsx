@@ -393,14 +393,31 @@ export default function LeadsTable({ view }) {
   // Reset to page 1 whenever the view, search, or any filter changes.
   useEffect(() => { setPage(1); }, [view, search, period, customPeriod, customFilters, statusFilter, supplierFilter, sourceFilter, pageSize]);
 
-  // Real telemetry for the shell footer, computed across all loaded leads.
+  // Real telemetry for the shell footer.
+  //
+  // Counted over the SELECTED PERIOD, not every lead ever loaded. Counting all
+  // time here while the table showed one month is what made the footer read
+  // Sold 562 under a table showing 292. The view filter is deliberately not
+  // applied: the footer is a summary of the period across all statuses, so the
+  // Sold figure here matches the Sold tab's own row count.
+  const periodLeads = useMemo(() => {
+    const { start, end } = resolvePeriod(period, customPeriod);
+    return leads.filter((l) => {
+      const inst = leadEventInstant(l);
+      if (start && (!inst || inst < start)) return false;
+      if (end && (!inst || inst > end)) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, period, customPeriod.from, customPeriod.to]);
+
   const telemetry = useMemo(() => ({
-    total: leads.length,
-    sold: leads.filter(l => l.final_status === 'Sold').length,
-    queued: leads.filter(l => l.final_status === 'Queued').length,
-    errors: leads.filter(l => l.final_status === 'Error').length,
+    total: periodLeads.length,
+    sold: periodLeads.filter(l => l.final_status === 'Sold').length,
+    queued: periodLeads.filter(l => l.final_status === 'Queued').length,
+    errors: periodLeads.filter(l => l.final_status === 'Error').length,
     lastLeadAt: leads[0]?.created_date || null,
-  }), [leads]);
+  }), [periodLeads, leads]);
 
   const exportCSV = () => {
     const cols = columns;
