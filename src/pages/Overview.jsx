@@ -48,6 +48,29 @@ const RISK_TONE = {
 // Buyer-risk status -> the label copy the command center uses.
 const RISK_LABEL = { Overdue: 'Short Paid', Outstanding: 'No Payment Source', Overpaid: 'Overpaid', Settled: 'On Track' };
 
+const norm = (v) => String(v ?? '').trim().toLowerCase();
+
+// Supplier names arrive from inbound payloads in whatever case the supplier
+// uses (LEADFLOW) while the record may read LeadFlow, so compare loosely rather
+// than splitting one supplier into two.
+function supplierMatches(value, wanted) {
+  const have = norm(value);
+  if (!have || !wanted) return false;
+  return have === wanted || have.includes(wanted) || wanted.includes(have);
+}
+
+// A lead's source lives in the mapped_fields bag under any of several keys.
+function overviewSource(lead) {
+  let mf = {};
+  try { mf = JSON.parse(lead.mapped_fields || '{}'); } catch { mf = {}; }
+  for (const key of ['utm_source', 'source', 'lead_source', 'source_id', 'src']) {
+    for (const [k, v] of Object.entries(mf)) {
+      if (k.toLowerCase() === key && v != null && v !== '') return String(v);
+    }
+  }
+  return null;
+}
+
 export default function Overview() {
   const qc = useQueryClient();
   const navigate = useNavigate();
