@@ -91,11 +91,14 @@ export default function ReportFilterBar({ value, onChange, options, hide = [] })
             calls a Vertical, so the vertical filter is labelled Campaign here.
             The old Campaign filter listed Meta ad campaign names, which is an
             ad-reporting dimension rather than a distribution campaign, and has
-            been removed. */}
-        <SearchableSelect value={value.vertical || ''} onValueChange={v => set('vertical', v)} className="w-full lg:w-[150px] bg-card border-border" options={opt('Campaign: All', verticals.map(v => ({ value: v.code, label: v.name })))} />
-        {shows('supplier_name') && <SearchableSelect value={value.supplier_name || ''} onValueChange={v => set('supplier_name', v)} className="w-full lg:w-[150px] bg-card border-border" options={opt('Supplier: All', suppliers.map(s => ({ value: s.name, label: s.name })))} />}
-        {shows('buyer') && <SearchableSelect value={value.buyer || ''} onValueChange={v => set('buyer', v)} className="w-full lg:w-[150px] bg-card border-border" options={opt('Buyer: All', buyers.map(b => ({ value: b.company_name, label: b.company_name })))} />}
-        <SearchableSelect value={value.brand || ''} onValueChange={v => set('brand', v)} className="w-full lg:w-[140px] bg-card border-border" options={opt('Brand: All', brands.map(b => ({ value: b.brand_code, label: b.brand_name })))} />
+            been removed.
+
+            All of these are multi-select: clicking an option toggles it, so a
+            second click deselects. Several selections mean "any of these". */}
+        <MultiSelect value={asArray(value.vertical)} onValueChange={v => set('vertical', v)} className="w-full lg:w-[150px] bg-card border-border" placeholder="Campaign: All" options={verticals.map(v => ({ value: v.code, label: v.name }))} />
+        {shows('supplier_name') && <MultiSelect value={asArray(value.supplier_name)} onValueChange={v => set('supplier_name', v)} className="w-full lg:w-[150px] bg-card border-border" placeholder="Supplier: All" options={suppliers.map(s => ({ value: s.name, label: s.name }))} />}
+        {shows('buyer') && <MultiSelect value={asArray(value.buyer)} onValueChange={v => set('buyer', v)} className="w-full lg:w-[150px] bg-card border-border" placeholder="Buyer: All" options={buyers.map(b => ({ value: b.company_name, label: b.company_name }))} />}
+        <MultiSelect value={asArray(value.brand)} onValueChange={v => set('brand', v)} className="w-full lg:w-[140px] bg-card border-border" placeholder="Brand: All" options={brands.map(b => ({ value: b.brand_code, label: b.brand_name }))} />
 
         <Button
           variant={showFilters || extra.length > 0 ? 'default' : 'outline'}
