@@ -497,6 +497,64 @@ Deno.serve(async (req) => {
         g.amount = round2(g.amount + unitPrice);
       }
 
+      // ── PROFIT SHARE SETTLEMENT ──────────────────────────────────────────
+      // Settled once on period totals: payout = rate% x (revenue - cost).
+      // Cost is the supplier's attributed ad spend for the period. Account rows
+      // are the per-account daily rollup; where a day has no account row its
+      // campaign rows are summed to reconstruct it, which is exact and avoids
+      // both double counting and losing days the sync has not rolled up yet.
+      if (profitPctLeads > 0) {
+        const spendRowsAll = await loadAll(svc.entities.AdSpend, {});
+        const supKey = String(supplierRecord.name || '').trim().toLowerCase();
+        const inPeriod = (d: string) => d >= periodStart && d <= periodEnd;
+        const matches = (r: any) => {
+          const k = String(r.supplier_key ?? r.supplier_name ?? '').trim().toLowerCase();
+          if (!k || !supKey) return false;
+          return k === supKey || k.includes(supKey) || supKey.includes(k);
+        };
+
+        const accountKeys = new Set<string>();
+        let cost = 0;
+        for (const r of spendRowsAll) {
+          const d = String(r.date || '').slice(0, 10);
+          if (!inPeriod(d) || !matches(r)) continue;
+          if (!r.level || r.level === 'account') {
+            accountKeys.add(`${r.ad_account_id || ''}|${d}`);
+            cost += Number(r.spend) || 0;
+          }
+        }
+        for (const r of spendRowsAll) {
+          const d = String(r.date || '').slice(0, 10);
+          if (!inPeriod(d) || !matches(r)) continue;
+          if (r.level !== 'campaign') continue;
+          if (accountKeys.has(`${r.ad_account_id || ''}|${d}`)) continue;
+          cost += Number(r.spend) || 0;
+        }
+
+        const profit = round2(profitPctRevenue - cost);
+        const payout = round2(profit * profitPctRate / 100);
+
+        if (payout > 0) {
+          gross += payout;
+          groups.set('__profit_share__', {
+            vertical: null,
+            state: null,
+            campaign_id: null,
+            supplier_id: null,
+            source_code: 'PROFIT_SHARE',
+            unit_price: payout,
+            lead_count: profitPctLeads,
+            returns: 0,
+            amount: payout,
+          });
+          notes.push(`Profit share: ${profitPctRate}% of ${round2(profit)} profit (${round2(profitPctRevenue)} revenue less ${round2(cost)} ad spend) across ${profitPctLeads} leads.`);
+        } else {
+          // A loss-making period owes nothing. Recorded rather than billed, so
+          // the run does not look like it silently skipped the supplier.
+          notes.push(`Profit share not billed: period profit is ${round2(profit)} (${round2(profitPctRevenue)} revenue less ${round2(cost)} ad spend) across ${profitPctLeads} leads.`);
+        }
+      }
+
       if (sourceFallbackUsed > 0) {
         notes.push(`${sourceFallbackUsed} leads used the supplier level payout fallback because no SupplierSource matched their utm_source.`);
       }
