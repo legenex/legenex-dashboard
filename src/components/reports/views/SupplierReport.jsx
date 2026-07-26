@@ -5,9 +5,10 @@ import {
   applyFilters, computeMetrics, spendInWindow, leadField, money, pct, int,
 } from '@/lib/reportMetrics';
 import { ReportKpi, THead, TRow, AINote } from '@/components/reports/reportViewAtoms';
+import { resolveSource, supplierPayoutForWindow } from '@/lib/supplierCost';
 
-const TEMPLATE = '1.6fr repeat(7, 1fr)';
-const COLS = ['Supplier', 'Leads', 'Sold', 'Cost', 'CPL', 'Revenue', 'Profit', 'Margin'];
+const TEMPLATE = '1.6fr repeat(8, 1fr)';
+const COLS = ['Supplier', 'Leads', 'Sold', 'Cost', 'CPL', 'Revenue', 'Profit', 'Margin', 'Payout'];
 
 function norm(v) { return String(v ?? '').trim().toLowerCase(); }
 
@@ -20,10 +21,16 @@ function norm(v) { return String(v ?? '').trim().toLowerCase(); }
 // is that cost over the leads received, which is the only CPL that means
 // anything on a Meta sourced supplier.
 //
+// Cost and Payout are different numbers and both matter. Cost is what acquiring
+// the leads cost us. Payout is what the supplier is OWED under their payout
+// type: a flat-CPL source is owed what its leads cost, so the two match, but a
+// profit-share supplier like LeadFlow is owed a percentage of (revenue minus
+// cost) ON TOP of the ad spend, so they diverge entirely.
+//
 // Buyers are deliberately absent from this report. Who bought a lead does not
 // change what the lead cost to acquire, so a buyer filter here would silently
 // shrink the denominator of CPL and produce a number that is not a CPL.
-export default function SupplierReport({ leads, adSpend, suppliers = [], filters }) {
+export default function SupplierReport({ leads, adSpend, suppliers = [], supplierSources = [], filters }) {
   const { rows, totals, selected } = useMemo(() => {
     const scoped = applyFilters(leads, filters);
     const spend = spendInWindow(adSpend, filters);
