@@ -267,17 +267,47 @@ export default function LeadsTable({ view }) {
 
   const availableColumns = useMemo(() => buildAvailableColumns(customFields), [customFields]);
 
+  // Leads narrowed by everything EXCEPT the supplier and source multi-selects.
+  //
+  // The dropdown options used to be built from the raw all-time `leads`, so a
+  // July range still listed sources that had only ever appeared in June. The
+  // options have to reflect the current range.
+  //
+  // Each dropdown is then cross-filtered by the OTHER one but never by itself:
+  // filtering a select by its own value would collapse its list to the single
+  // option already chosen and you could never widen the selection again.
+  const scoped = useMemo(() => {
+    const { start, end } = resolvePeriod(period, customPeriod);
+    return leads.filter(lead => {
+      if (!matchesView(lead, view)) return false;
+      const inst = leadEventInstant(lead);
+      if (start && (!inst || inst < start)) return false;
+      if (end && (!inst || inst > end)) return false;
+      if (!customFilters.every(f => matchesFilter(lead, f))) return false;
+      if (search && !matchesSearch(lead, search)) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(lead.final_status)) return false;
+      return true;
+    });
+  }, [leads, view, period, customPeriod, customFilters, search, statusFilter]);
+
   const supplierOptions = useMemo(() => {
     const set = new Set();
-    leads.forEach(l => { if (l.supplier_name) set.add(l.supplier_name); });
+    scoped.forEach(l => {
+      if (sourceFilter.length > 0 && !sourceFilter.includes(getSource(l))) return;
+      if (l.supplier_name) set.add(l.supplier_name);
+    });
     return Array.from(set).sort().map(s => ({ value: s, label: s }));
-  }, [leads]);
+  }, [scoped, sourceFilter]);
 
   const sourceOptions = useMemo(() => {
     const set = new Set();
-    leads.forEach(l => { const s = getSource(l); if (s) set.add(s); });
+    scoped.forEach(l => {
+      if (supplierFilter.length > 0 && !supplierFilter.includes(l.supplier_name)) return;
+      const s = getSource(l);
+      if (s) set.add(s);
+    });
     return Array.from(set).sort().map(s => ({ value: s, label: s }));
-  }, [leads]);
+  }, [scoped, supplierFilter]);
 
   const columns = columnConfig.columns;
 
