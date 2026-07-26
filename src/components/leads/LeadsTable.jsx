@@ -161,8 +161,30 @@ export default function LeadsTable({ view }) {
 
   const [search, setSearch] = useState('');
   // Every leads table defaults to This Month (APP_TZ calendar month).
-  const [period, setPeriod] = useState('this_month');
-  const [customPeriod, setCustomPeriod] = useState({ from: '', to: '' });
+  //
+  // The period lives in the URL so the sub-nav count badges and the telemetry
+  // footer resolve the SAME window as this table. They used to count every lead
+  // ever received while the table showed one month, so a single page reported
+  // Sold as 562 in the sidebar, 562 in the footer and 292 in the table.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const period = searchParams.get('period') || 'this_month';
+  const customPeriod = {
+    from: searchParams.get('from') || '',
+    to: searchParams.get('to') || '',
+  };
+  const setPeriod = (p) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('period', p);
+    if (p !== 'custom') { next.delete('from'); next.delete('to'); }
+    setSearchParams(next, { replace: true });
+  };
+  const setCustomPeriod = (c) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('period', 'custom');
+    if (c?.from) next.set('from', c.from); else next.delete('from');
+    if (c?.to) next.set('to', c.to); else next.delete('to');
+    setSearchParams(next, { replace: true });
+  };
   const [customFilters, setCustomFilters] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
   const [initialTab, setInitialTab] = useState('summary');
