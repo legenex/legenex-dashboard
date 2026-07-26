@@ -357,7 +357,7 @@ export default function LeadsTable({ view }) {
       return Number.isNaN(t) ? -Infinity : t;
     };
     return result.sort((a, b) => instant(b) - instant(a));
-  }, [leads, view, period, customPeriod, customFilters, search, statusFilter, supplierFilter, sourceFilter]);
+  }, [scoped, supplierFilter, sourceFilter]);
 
   // Client-side pagination over the filtered set. Selection and bulk actions
   // still span the whole filtered set; only the rendered rows are sliced.
