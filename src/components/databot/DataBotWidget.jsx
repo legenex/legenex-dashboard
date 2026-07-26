@@ -2,8 +2,40 @@ import React, { useState, useRef, useEffect } from 'react';
 import { dataBot } from '@/functions/dataBot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bot, X, Send, Loader2 } from 'lucide-react';
+import { Bot, X, Send, Loader2, Copy } from 'lucide-react';
+import { toast } from 'sonner';
+import { verdictTagClass } from '@/lib/tagColors';
 import ReactMarkdown from 'react-markdown';
+
+function BuildCard({ build }) {
+  const copy = () => { navigator.clipboard.writeText(build.ready_prompt || ''); toast.success('Build request copied'); };
+  const riskVerdict = build.risk === 'red' ? 'fail' : build.risk === 'amber' ? 'warn' : 'pass';
+  return (
+    <div className="max-w-[95%] rounded-[12px] border border-border bg-card p-3 text-[13px] text-foreground">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-medium text-muted-foreground">Build request (draft)</span>
+        {build.risk && (
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${verdictTagClass(riskVerdict)}`}>{build.risk}</span>
+        )}
+      </div>
+      {build.title && <div className="mt-1 font-semibold">{build.title}</div>}
+      {build.summary && <p className="mt-1 text-muted-foreground">{build.summary}</p>}
+      {Array.isArray(build.target_files) && build.target_files.length > 0 && (
+        <div className="mt-2 text-[11px]"><span className="text-muted-foreground">Target: </span><span className="font-mono break-all">{build.target_files.join(', ')}</span></div>
+      )}
+      {Array.isArray(build.do_not_touch) && build.do_not_touch.length > 0 && (
+        <div className="mt-1 text-[11px]"><span className="text-muted-foreground">Do not touch: </span><span className="font-mono break-all">{build.do_not_touch.join(', ')}</span></div>
+      )}
+      {build.ready_prompt && (
+        <div className="mt-2 rounded-md border border-border bg-popover p-2 text-[11px] font-mono text-muted-foreground max-h-40 overflow-y-auto whitespace-pre-wrap">{build.ready_prompt}</div>
+      )}
+      <div className="mt-2">
+        <Button size="sm" onClick={copy} className="gap-1.5 h-7 text-[12px]"><Copy className="w-3.5 h-3.5" />Copy build request</Button>
+      </div>
+      <p className="mt-2 text-[10px] text-muted-foreground">DataBot drafts changes, it does not apply them. Paste this to Claude, the Base44 builder, or Claude Code to execute.</p>
+    </div>
+  );
+}
 
 const SUGGESTIONS = [
   'How many leads sold today?',
