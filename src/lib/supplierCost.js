@@ -117,11 +117,87 @@ function priceFromSource(lead, source, context = {}) {
 }
 
 // Cost of a single lead for an External supplier: source price, else the lead's
-// reported supplier_payout.
+// reported cpl/cost, else the lead's reported supplier_payout as a last resort.
 export function externalLeadCost(lead, source, context = {}) {
   const priced = priceFromSource(lead, source, context);
   if (priced != null) return priced;
+  // External suppliers post their own lead price on the payload, usually as
+  // cpl. leadField resolves cost/cpl through FIELD_ALIASES and the
+  // mapped_fields bag, so this is the normal path for a source with no
+  // configured pricing.
+  const posted = leadField(lead, 'cost');
+  if (posted != null && String(posted).trim() !== '') return num(posted);
   return num(lead.supplier_payout);
+}
+
+// ---------------------------------------------------------------------------
+// Payout: what the supplier is OWED. This is not cost.
+//
+// Cost is what acquiring the leads cost us (ad spend for Internal, the leads'
+// own cpl for External). Payout is what we hand the supplier under their payout
+// type. For a flat-CPL external source the two coincide, because the price we
+// pay per lead is both. For a profit-share supplier they are entirely
+// different: LeadFlow's cost is its ad spend, and on top of that it is owed a
+// percentage of the profit that spend produced.
+//
+// Profit-share is a WINDOW-level calculation, never per-lead: profit is window
+// revenue minus window cost, so the payout for 1-15 July is 30% of that
+// window's profit and nothing else.
+// ---------------------------------------------------------------------------
+
+// Resolve the payout rule in force, preferring the source's own model and
+// falling back to the supplier-level payout_type.
+function payoutRule(supplier, source) {
+  const model = source?.pricing_model;
+  if (model === 'flat_cpl' && source.flat_cpl != null) return { kind: 'flat', value: num(source.flat_cpl) };
+  if (model === 'revenue_pct' && source.revenue_pct != null) return { kind: 'revenue_pct', value: num(source.revenue_pct) };
+  if (model === 'profit_pct' && source.profit_pct != null) return { kind: 'profit_pct', value: num(source.profit_pct) };
+  if (model === 'tiered') return { kind: 'tiered', value: 0 };
+
+  const t = supplier?.payout_type || 'None';
+  const v = num(supplier?.payout_value);
+  if (t === 'Flat CPL') return { kind: 'flat', value: v };
+  if (t === 'Revenue %') return { kind: 'revenue_pct', value: v };
+  if (t === 'Profit %') return { kind: 'profit_pct', value: v };
+  return { kind: 'none', value: 0 };
+}
+
+// What a supplier is owed for one window.
+//
+// pricedLeads carries the per-lead acquisition cost already resolved by the
+// caller. revenue and cost are the window totals, so profit_pct lands on the
+// same basis the report displays.
+export function supplierPayoutForWindow(supplier, sources, pricedLeads, revenue, cost) {
+  // Group by the source that priced each lead so a supplier holding sources on
+  // different payout types settles correctly.
+  const groups = new Map();
+  for (const p of pricedLeads) {
+    const key = p.sourceId || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+
+  const byId = new Map((sources || []).map((s) => [s.id, s]));
+  const totalLeads = pricedLeads.length;
+  let payout = 0;
+
+  for (const [sourceId, rows] of groups) {
+    const source = sourceId ? byId.get(sourceId) : null;
+    const rule = payoutRule(supplier, source);
+    const groupRevenue = rows.reduce((a, p) => a + num(p.lead.revenue), 0);
+    // Internal cost is a single spend pool rather than a per-lead figure, so a
+    // group's share of it is proportional to its share of the leads.
+    const groupCost = totalLeads > 0 ? cost * (rows.length / totalLeads) : 0;
+
+    if (rule.kind === 'flat') payout += rule.value * rows.length;
+    else if (rule.kind === 'revenue_pct') payout += groupRevenue * rule.value / 100;
+    else if (rule.kind === 'profit_pct') payout += (groupRevenue - groupCost) * rule.value / 100;
+    else if (rule.kind === 'tiered') payout += rows.reduce((a, p) => a + num(p.cost), 0);
+    // 'none': the supplier posts what it is owed on the lead itself.
+    else payout += rows.reduce((a, p) => a + num(p.lead.supplier_payout), 0);
+  }
+
+  return payout;
 }
 
 // Sum of mapped ad spend for an Internal supplier within the loaded AdSpend
