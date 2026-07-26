@@ -66,6 +66,45 @@ describe('spendRows', () => {
   });
 });
 
+describe('CPL is cost per SOLD lead', () => {
+  // Paying for traffic buys sold leads, so dividing by every lead received
+  // (DQs are usually the majority) understates the real acquisition cost.
+  const lead = (status, revenue = 0, cpl = null) => ({
+    final_status: status,
+    revenue,
+    mapped_fields: cpl == null ? '{}' : JSON.stringify({ cpl }),
+  });
+
+  it('divides cost by sold leads, not by total leads', () => {
+    // 4 leads, 1 sold. $400 of external lead cost.
+    const leads = [
+      lead('Sold', 1000, 100),
+      lead('Disqualified', 0, 100),
+      lead('Disqualified', 0, 100),
+      lead('Unsold', 0, 100),
+    ];
+    const m = computeMetrics(leads, []);
+    expect(m.total_leads).toBe(4);
+    expect(m.sold).toBe(1);
+    expect(m.total_cost).toBeCloseTo(400, 2);
+    expect(m.blended_cpl).toBeCloseTo(400, 2); // 400 / 1 sold, not 400 / 4
+    expect(m.cost_per_sold).toBeCloseTo(m.blended_cpl, 2);
+  });
+
+  it('is zero rather than infinite when nothing sold', () => {
+    const m = computeMetrics([lead('Disqualified', 0, 50)], []);
+    expect(m.sold).toBe(0);
+    expect(m.blended_cpl).toBe(0);
+  });
+
+  it('includes attributed ad spend in the numerator', () => {
+    const leads = [lead('Sold', 500), lead('Unsold')];
+    const spend = [{ ad_account_id: 'a1', date: '2026-07-05', level: 'account', spend: 250 }];
+    const m = computeMetrics(leads, spend);
+    expect(m.blended_cpl).toBeCloseTo(250, 2); // 250 spend / 1 sold
+  });
+});
+
 describe('spendInWindow filters', () => {
   const rows = [
     { ad_account_id: 'a1', date: '2026-07-05', level: 'account', vertical: 'MVA', supplier_name: 'LeadFlow', spend: 1000 },
