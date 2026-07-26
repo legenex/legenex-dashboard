@@ -162,23 +162,23 @@ export default function Overview() {
   // buyer, so a buyer filter genuinely cannot attribute it. Rather than invent
   // an allocation, cost is left whole and the card says so.
   const fLeads = useMemo(() => {
-    const nb = norm(buyerFilter); const ns = norm(supplierFilter); const nsrc = norm(sourceFilter);
-    if (!nb && !ns && !nsrc) return leads;
+    const nb = buyerFilter.map(norm); const ns = supplierFilter.map(norm); const nsrc = sourceFilter.map(norm);
+    if (!nb.length && !ns.length && !nsrc.length) return leads;
     return leads.filter((l) => {
-      if (nb && norm(l.buyer_name || l.buyer) !== nb) return false;
-      if (ns && !supplierMatches(l.supplier_name, ns)) return false;
-      if (nsrc && norm(overviewSource(l)) !== nsrc) return false;
+      if (nb.length && !nb.includes(norm(l.buyer_name || l.buyer))) return false;
+      if (ns.length && !ns.some((w) => supplierMatches(l.supplier_name, w))) return false;
+      if (nsrc.length && !nsrc.includes(norm(overviewSource(l)))) return false;
       return true;
     });
   }, [leads, buyerFilter, supplierFilter, sourceFilter]);
 
   const fAdSpend = useMemo(() => {
-    const ns = norm(supplierFilter);
-    if (!ns) return adSpend;
-    return adSpend.filter((r) => supplierMatches(r.supplier_key ?? r.supplier_name, ns));
+    const ns = supplierFilter.map(norm);
+    if (!ns.length) return adSpend;
+    return adSpend.filter((r) => ns.some((w) => supplierMatches(r.supplier_key ?? r.supplier_name, w)));
   }, [adSpend, supplierFilter]);
 
-  const costUnfiltered = Boolean(buyerFilter || sourceFilter);
+  const costUnfiltered = buyerFilter.length > 0 || sourceFilter.length > 0;
 
   // Filter options come from leads inside the selected period, so a July view
   // never offers a source that only ever appeared in June.
@@ -403,9 +403,9 @@ export default function Overview() {
         <OverviewFilter label="Buyer" value={buyerFilter} onChange={setBuyerFilter} options={filterOptions.buyers} />
         <OverviewFilter label="Supplier" value={supplierFilter} onChange={setSupplierFilter} options={filterOptions.suppliers} />
         <OverviewFilter label="Source" value={sourceFilter} onChange={setSourceFilter} options={filterOptions.sources} />
-        {(buyerFilter || supplierFilter || sourceFilter) && (
+        {(buyerFilter.length > 0 || supplierFilter.length > 0 || sourceFilter.length > 0) && (
           <button
-            onClick={() => { setBuyerFilter(''); setSupplierFilter(''); setSourceFilter(''); }}
+            onClick={() => { setBuyerFilter([]); setSupplierFilter([]); setSourceFilter([]); }}
             className="text-[12px] font-medium text-muted-foreground hover:text-foreground px-2 py-1.5"
           >
             Clear
