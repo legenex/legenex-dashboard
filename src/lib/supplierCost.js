@@ -260,12 +260,22 @@ export function moneyDue(pricedLeads, supplier, now = new Date()) {
   return due;
 }
 
+// Supplier names arrive from inbound payloads in whatever case the supplier
+// uses (LEADFLOW), while the record may read LeadFlow or Leadflow. Compare on a
+// normalised form so attribution does not silently split into two suppliers.
+export function sameSupplier(a, b) {
+  const x = norm(a);
+  const y = norm(b);
+  if (!x || !y) return false;
+  return x === y || x.includes(y) || y.includes(x);
+}
+
 // Full metric bundle for one supplier over a window.
 // sourcesBySupplier: { [supplierId]: SupplierSource[] }.
 export function supplierCostMetrics(supplier, allLeads, sourcesBySupplier, adSpendRows, window, now = new Date()) {
   const sources = sourcesBySupplier[supplier.id] || [];
   const rows = leadsInWindow(
-    allLeads.filter((l) => l.supplier_name === supplier.name),
+    allLeads.filter((l) => sameSupplier(l.supplier_name, supplier.name)),
     window,
   );
   const isInternal = supplier.supplier_type === 'Internal';
@@ -292,6 +302,10 @@ export function supplierCostMetrics(supplier, allLeads, sourcesBySupplier, adSpe
   const leads = rows.length;
   const profit = revenue - cost;
   const cpl = leads > 0 ? cost / leads : 0;
+  // What the supplier is owed, which is a different number from what the leads
+  // cost. Computed on the window totals so a profit share reflects exactly the
+  // date range on screen.
+  const payout = supplierPayoutForWindow(supplier, sources, pricedLeads, revenue, cost);
   // Internal cost is a single spend pool, not per-lead, so distribute it across
   // priced leads for Money Due term accrual; External uses per-lead cost.
   const dueLeads = isInternal
@@ -299,7 +313,7 @@ export function supplierCostMetrics(supplier, allLeads, sourcesBySupplier, adSpe
     : pricedLeads;
   const due = moneyDue(dueLeads, supplier, now);
 
-  return { leads, sold, revenue, cost, profit, cpl, moneyDue: due, sourceCount: sources.length };
+  return { leads, sold, revenue, cost, profit, cpl, payout, moneyDue: due, sourceCount: sources.length };
 }
 
 // A short human summary of a supplier's payout: its sources' pricing, or the
