@@ -72,20 +72,17 @@ function overviewSource(lead) {
   return null;
 }
 
-// One dimension filter. A native select keeps this dependency-free and is the
-// better control on a phone, where the OS renders its own picker.
+// One dimension filter. Multi-select: clicking an option toggles it, so a
+// second click deselects, and several selections mean "any of these".
 function OverviewFilter({ label, value, onChange, options }) {
-  const active = Boolean(value);
   return (
-    <select
+    <MultiSelect
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={label}
-      className={`h-9 rounded-md border bg-card px-2.5 text-[12px] font-medium max-w-[190px] truncate focus:outline-none focus:ring-1 focus:ring-ring ${active ? 'border-primary text-foreground' : 'border-border text-muted-foreground'}`}
-    >
-      <option value="">{label}: All</option>
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
-    </select>
+      onValueChange={onChange}
+      options={options.map((o) => ({ value: o, label: o }))}
+      placeholder={`${label}: All`}
+      className={`w-full sm:w-[180px] bg-card ${value.length > 0 ? 'border-primary' : 'border-border'}`}
+    />
   );
 }
 
@@ -140,10 +137,11 @@ export default function Overview() {
 
   const win = useMemo(() => resolvePeriod(period, custom), [period, custom]);
 
-  // Dimension filters. Empty string means All.
-  const [buyerFilter, setBuyerFilter] = useState('');
-  const [supplierFilter, setSupplierFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+  // Dimension filters. Arrays so several values can be selected at once; an
+  // empty array means All.
+  const [buyerFilter, setBuyerFilter] = useState([]);
+  const [supplierFilter, setSupplierFilter] = useState([]);
+  const [sourceFilter, setSourceFilter] = useState([]);
 
   const { data: leads = [] } = useQuery({ queryKey: ['ov-leads'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
