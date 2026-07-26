@@ -61,6 +61,27 @@ Deno.serve(async (req) => {
     const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
     if (!question) return Response.json({ error: 'No question provided' }, { status: 400 });
 
+    const isAdmin = user.role === 'admin';
+
+    // Friendly, actionable message instead of a silent 500 when the key is unset.
+    if (!Deno.env.get('OPENAI_API_KEY')) {
+      return Response.json({ type: 'answer', answer: 'DataBot is not configured yet: the OPENAI_API_KEY secret is missing. An admin can add it in the app secrets, then I can answer.' });
+    }
+
+    // Build-request drafting (admins only), triggered only by change-intent phrasing.
+    // Runs before the data snapshot so it stays fast and pulls no records.
+    if (BUILD_HINT.test(question)) {
+      if (!isAdmin) {
+        return Response.json({ type: 'answer', answer: 'Making changes to the app is available to admins only. I can still answer questions about your data and knowledge base.' });
+      }
+      try {
+        const draft = await draftBuildRequest(question, history);
+        if (draft && draft.is_build) {
+          return Response.json({ type: 'build_request', build_request: draft });
+        }
+      } catch (_) { /* not a build, or draft failed: fall through to an analytics answer */ }
+    }
+
     // --- Gather a compact snapshot of live app data (service role for full visibility) ---
     const svc = base44.asServiceRole;
     const [leads, suppliers, buyers, adSpend, txns, kbDocs] = await Promise.all([
@@ -162,7 +183,7 @@ DataBot:`;
 
     const answer = await callOpenAI({ prompt });
 
-    return Response.json({ answer: typeof answer === 'string' ? answer : JSON.stringify(answer) });
+    return Response.json({ type: 'answer', answer: typeof answer === 'string' ? answer : JSON.stringify(answer) });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
