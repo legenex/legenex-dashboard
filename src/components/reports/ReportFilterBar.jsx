@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Panel } from '@/components/settings/settingsUi';
 import MobileFilterSheet from '@/components/shared/MobileFilterSheet';
 import { Filter, Plus, X } from 'lucide-react';
@@ -64,9 +65,17 @@ export default function ReportFilterBar({ value, onChange, options, hide = [] })
 
   const opt = (all, items) => [{ value: '', label: all }, ...items];
 
+  // Filter values may be a single value (older saved views) or an array (the
+  // multi-selects), so normalise before handing one to a MultiSelect.
+  const asArray = (v) => {
+    if (Array.isArray(v)) return v;
+    return v == null || v === '' || v === 'all' ? [] : [v];
+  };
+  const count = (v) => asArray(v).length;
+
   // Count active filters for the mobile Filters badge.
-  const activeCount = extra.length + (value.vertical ? 1 : 0) +
-    (shows('supplier_name') && value.supplier_name ? 1 : 0) + (shows('buyer') && value.buyer ? 1 : 0) + (value.brand ? 1 : 0);
+  const activeCount = extra.length + count(value.vertical) +
+    (shows('supplier_name') ? count(value.supplier_name) : 0) + (shows('buyer') ? count(value.buyer) : 0) + count(value.brand);
 
   return (
     <div className="mb-5 space-y-3">
