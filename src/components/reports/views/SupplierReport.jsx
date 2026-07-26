@@ -130,13 +130,15 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
 
       <div className="rounded-xl border border-border bg-card shadow-[0_12px_32px_-16px_rgba(0,0,0,0.35)] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="text-[13px] font-semibold text-foreground">Cost &amp; CPL by Supplier</h3>
+          <h3 className="text-[13px] font-semibold text-foreground">Cost, CPL &amp; Payout by Supplier</h3>
           <Button variant="outline" size="sm" onClick={exportCsv} className="gap-1.5 h-7 text-[11px]">
             <Download className="w-3 h-3" /> Export
           </Button>
         </div>
-        <THead cols={COLS} template={TEMPLATE} />
-        <div className="max-h-[560px] overflow-y-auto">
+        <div className="overflow-x-auto">
+          <div className="min-w-[900px]">
+            <THead cols={COLS} template={TEMPLATE} />
+            <div className="max-h-[560px] overflow-y-auto">
           {rows.length === 0 ? (
             <div className="py-10 text-center text-[12px] text-muted-foreground">
               No supplier activity in this period.
@@ -162,9 +164,12 @@ export default function SupplierReport({ leads, adSpend, suppliers = [], supplie
                 money(r.revenue),
                 money(r.profit),
                 r.revenue > 0 ? pct(r.margin) : '-',
+                money(r.payout),
               ]}
             />
           ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
