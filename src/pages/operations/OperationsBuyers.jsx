@@ -145,7 +145,8 @@ export default function OperationsBuyers() {
       return 0;
     });
     return sortDir === 'asc' ? sorted : sorted.reverse();
-  }, [buyers, tab, sortKey, sortDir, cplRows]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyers, tab, sortKey, sortDir, cplRows, verticalFilter]);
 
   const onSort = (key) => {
     if (sortKey === key) {
