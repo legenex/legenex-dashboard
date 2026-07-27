@@ -471,7 +471,7 @@ export function groupBy(leads, field, adSpendRows = []) {
     .map(r => ({
       ...r,
       profit: r.revenue - r.cost,
-      cpl: r.leads ? r.cost / r.leads : 0,
+      cpl: r.sold ? r.cost / r.sold : 0,
       convRate: r.leads ? (r.sold / r.leads) * 100 : 0,
     }))
     .sort((a, b) => b.revenue - a.revenue);
