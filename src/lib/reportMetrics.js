@@ -86,6 +86,24 @@ export function internalSupplierSet(suppliers = []) {
   return set;
 }
 
+// Application-wide default for the above.
+//
+// leadCost is called from roughly a dozen places (reports, portals, campaign
+// and supplier groupings), and threading an explicit set through every one of
+// them is how they drift apart. Any surface that loads the Supplier list
+// registers it once here, and every call site is then correct by default while
+// still allowing an explicit override.
+let defaultInternalSuppliers = new Set();
+
+export function registerInternalSuppliers(suppliers = []) {
+  defaultInternalSuppliers = internalSupplierSet(suppliers);
+  return defaultInternalSuppliers;
+}
+
+export function getInternalSuppliers() {
+  return defaultInternalSuppliers;
+}
+
 // Per-lead acquisition cost.
 //
 // A supplier costs money one of two ways and NEVER both: an External supplier
@@ -98,9 +116,10 @@ export function internalSupplierSet(suppliers = []) {
 // internalSuppliers is optional. Without it the caller has no supplier records
 // to judge by, so the posted price is taken at face value.
 export function leadCost(lead, internalSuppliers) {
-  if (internalSuppliers && internalSuppliers.size > 0) {
+  const internal = internalSuppliers || defaultInternalSuppliers;
+  if (internal && internal.size > 0) {
     const sup = String(lead?.supplier_name ?? '').trim().toLowerCase();
-    if (sup && internalSuppliers.has(sup)) return 0;
+    if (sup && internal.has(sup)) return 0;
   }
   return num(leadField(lead, 'cost'));
 }
