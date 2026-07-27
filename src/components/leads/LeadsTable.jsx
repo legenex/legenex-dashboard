@@ -199,6 +199,7 @@ export default function LeadsTable({ view }) {
   const [statusFilter, setStatusFilter] = useState([]);
   const [supplierFilter, setSupplierFilter] = useState([]);
   const [sourceFilter, setSourceFilter] = useState([]);
+  const [verticalFilter, setVerticalFilter] = useState([]);
   const [page, setPage] = useState(1);
   // Rows per page. 50 unless the operator saved a different default with the
   // tick box next to the selector (persisted per browser).
@@ -322,6 +323,12 @@ export default function LeadsTable({ view }) {
     return Array.from(set).sort().map(s => ({ value: s, label: s }));
   }, [scoped, sourceFilter]);
 
+  const verticalOptions = useMemo(() => {
+    const set = new Set();
+    scoped.forEach(l => { const v = leadField(l, 'vertical'); if (v) set.add(String(v)); });
+    return Array.from(set).sort().map(v => ({ value: v, label: v }));
+  }, [scoped]);
+
   const sourceOptions = useMemo(() => {
     const set = new Set();
     scoped.forEach(l => {
@@ -368,6 +375,7 @@ export default function LeadsTable({ view }) {
     const result = scoped.filter(lead => {
       if (supplierFilter.length > 0 && !supplierFilter.includes(lead.supplier_name)) return false;
       if (sourceFilter.length > 0 && !sourceFilter.includes(getSource(lead))) return false;
+      if (verticalFilter.length > 0 && !verticalFilter.includes(String(leadField(lead, 'vertical') ?? ''))) return false;
       return true;
     });
     // Sort newest first by the lead's real event time. leadEventInstant is the
@@ -391,7 +399,7 @@ export default function LeadsTable({ view }) {
     [filtered, safePage, pageSize]
   );
   // Reset to page 1 whenever the view, search, or any filter changes.
-  useEffect(() => { setPage(1); }, [view, search, period, customPeriod, customFilters, statusFilter, supplierFilter, sourceFilter, pageSize]);
+  useEffect(() => { setPage(1); }, [view, search, period, customPeriod, customFilters, statusFilter, supplierFilter, sourceFilter, verticalFilter, pageSize]);
 
   // Real telemetry for the shell footer.
   //
@@ -607,6 +615,9 @@ export default function LeadsTable({ view }) {
         setSupplierFilter={setSupplierFilter}
         supplierOptions={supplierOptions}
         sourceFilter={sourceFilter}
+        verticalFilter={verticalFilter}
+        setVerticalFilter={setVerticalFilter}
+        verticalOptions={verticalOptions}
         setSourceFilter={setSourceFilter}
         sourceOptions={sourceOptions}
       />
