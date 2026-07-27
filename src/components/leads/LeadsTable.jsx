@@ -183,18 +183,41 @@ export default function LeadsTable({ view }) {
     to: searchParams.get('to') || '',
   };
 
-  const setPeriod = (p) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('period', p);
-    if (p !== 'custom') { next.delete('from'); next.delete('to'); }
+  // Period ALWAYS starts at This Month, on every visit, refresh and login.
+  //
+  // The URL is an OUTPUT only, never an input: the sub-nav badges and the
+  // telemetry footer read it so they resolve the same window as this table.
+  // Reading it back in was the bug: navigating within the app carried
+  // ?period=custom from a previous screen, so the page reopened on a stale
+  // custom range with the Custom tab lit. Nothing is persisted either, so two
+  // visits can never resolve different windows and report different counts.
+  const [, setSearchParams] = useSearchParams();
+  const [period, setPeriodState] = useState('this_month');
+  const [customPeriod, setCustomPeriodState] = useState({ from: '', to: '' });
+
+  // Publish the current window to the URL, including on first mount, which
+  // overwrites anything inherited from the previous screen.
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search);
+    next.set('period', period);
+    if (period === 'custom') {
+      if (customPeriod.from) next.set('from', customPeriod.from); else next.delete('from');
+      if (customPeriod.to) next.set('to', customPeriod.to); else next.delete('to');
+    } else {
+      next.delete('from');
+      next.delete('to');
+    }
     setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, customPeriod.from, customPeriod.to]);
+
+  const setPeriod = (p) => {
+    setPeriodState(p);
+    if (p !== 'custom') setCustomPeriodState({ from: '', to: '' });
   };
   const setCustomPeriod = (c) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('period', 'custom');
-    if (c?.from) next.set('from', c.from); else next.delete('from');
-    if (c?.to) next.set('to', c.to); else next.delete('to');
-    setSearchParams(next, { replace: true });
+    setPeriodState('custom');
+    setCustomPeriodState({ from: c?.from || '', to: c?.to || '' });
   };
   const [customFilters, setCustomFilters] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
