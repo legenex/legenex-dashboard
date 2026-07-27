@@ -119,14 +119,21 @@ export default function OperationsBuyers() {
 
   const ctx = { cplRows };
 
+  // Vertical filter, applied alongside the client-type tabs. Empty means all.
+  const [verticalFilter, setVerticalFilter] = useState([]);
+  const matchesVertical = (b) => verticalFilter.length === 0 || verticalFilter.includes(b.vertical);
+
   const tabCounts = useMemo(() => {
     const counts = {};
-    for (const t of TABS) counts[t.key] = buyers.filter((b) => matchesTab(b, t.key)).length;
+    // Counts respect the vertical filter so the tab badges agree with the rows
+    // actually listed underneath them.
+    for (const t of TABS) counts[t.key] = buyers.filter((b) => matchesTab(b, t.key) && matchesVertical(b)).length;
     return counts;
-  }, [buyers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyers, verticalFilter]);
 
   const rows = useMemo(() => {
-    const filtered = buyers.filter((b) => matchesTab(b, tab));
+    const filtered = buyers.filter((b) => matchesTab(b, tab) && matchesVertical(b));
     const col = getBuyerColumnDef(sortKey);
     if (!col) return filtered;
     const sorted = [...filtered].sort((a, b) => {
