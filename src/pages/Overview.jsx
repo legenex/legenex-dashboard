@@ -396,28 +396,28 @@ export default function Overview() {
         compare={compare}
         onToggleCompare={() => setCompare(c => !c)}
         onRefresh={refreshAll}
+        filters={(
+          <>
+            <div className="w-px h-6 bg-border mx-0.5 hidden sm:block" />
+            <OverviewFilter label="Buyer" value={buyerFilter} onChange={setBuyerFilter} options={filterOptions.buyers} />
+            <OverviewFilter label="Supplier" value={supplierFilter} onChange={setSupplierFilter} options={filterOptions.suppliers} />
+            <OverviewFilter label="Source" value={sourceFilter} onChange={setSourceFilter} options={filterOptions.sources} />
+            {(buyerFilter.length > 0 || supplierFilter.length > 0 || sourceFilter.length > 0) && (
+              <button
+                onClick={() => { setBuyerFilter([]); setSupplierFilter([]); setSourceFilter([]); }}
+                className="text-[12px] font-medium text-muted-foreground hover:text-foreground px-2 py-1.5"
+              >
+                Clear
+              </button>
+            )}
+            {costUnfiltered && (
+              <span className="text-[11px] text-muted-foreground/80 basis-full sm:basis-auto">
+                Cost and CPL stay unfiltered: ad spend carries no buyer or source dimension.
+              </span>
+            )}
+          </>
+        )}
       />
-
-      {/* Dimension filters. Kept on their own row under the period bar so they
-          wrap cleanly on a phone rather than crushing the period buttons. */}
-      <div className="flex flex-wrap items-center gap-2 mt-3">
-        <OverviewFilter label="Buyer" value={buyerFilter} onChange={setBuyerFilter} options={filterOptions.buyers} />
-        <OverviewFilter label="Supplier" value={supplierFilter} onChange={setSupplierFilter} options={filterOptions.suppliers} />
-        <OverviewFilter label="Source" value={sourceFilter} onChange={setSourceFilter} options={filterOptions.sources} />
-        {(buyerFilter.length > 0 || supplierFilter.length > 0 || sourceFilter.length > 0) && (
-          <button
-            onClick={() => { setBuyerFilter([]); setSupplierFilter([]); setSourceFilter([]); }}
-            className="text-[12px] font-medium text-muted-foreground hover:text-foreground px-2 py-1.5"
-          >
-            Clear
-          </button>
-        )}
-        {costUnfiltered && (
-          <span className="text-[11px] text-muted-foreground/80">
-            Cost and CPL stay unfiltered: ad spend carries no buyer or source dimension.
-          </span>
-        )}
-      </div>
 
       {/* AI Analyst summary band */}
       <Reveal>
