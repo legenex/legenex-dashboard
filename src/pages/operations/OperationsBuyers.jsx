@@ -313,7 +313,21 @@ export default function OperationsBuyers() {
                 </button>
               ))}
             </div>
-            <ColumnManager config={config} availableColumns={BUYER_AVAILABLE_COLUMNS} onChange={onConfigChange} />
+            <div className="flex items-center gap-2">
+              {/* Vertical filter. Buyers already carry a vertical and the table
+                  shows it as a column, so it needs to be filterable: with WC and
+                  MVA buyers side by side the list is otherwise unreadable.
+                  Multi-select, and it grows automatically as new verticals are
+                  created rather than needing another hardcoded tab. */}
+              <MultiSelect
+                value={verticalFilter}
+                onValueChange={setVerticalFilter}
+                options={verticals.map((v) => ({ value: v.code, label: v.name || v.code }))}
+                placeholder="All Verticals"
+                className={`h-9 w-[170px] text-[12px] bg-card ${verticalFilter.length > 0 ? 'border-primary' : 'border-border'}`}
+              />
+              <ColumnManager config={config} availableColumns={BUYER_AVAILABLE_COLUMNS} onChange={onConfigChange} />
+            </div>
           </div>
 
           <BuyerBulkDeleteBar
