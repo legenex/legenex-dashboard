@@ -212,11 +212,32 @@ export default function OperationsDashboard() {
 
       {/* 3. State heat grid */}
       <div className="mt-5">
+        {/* Vertical tabs. Built from the Vertical records, so a new vertical
+            appears here automatically without another hardcoded tab. */}
+        <div className="flex gap-1 border-b border-border flex-wrap mb-4">
+          {[{ code: '', name: 'All states' }, ...verticals].map((v) => (
+            <button
+              key={v.code || 'all'}
+              onClick={() => setVertical(v.code)}
+              className={`px-3.5 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px
+                ${vertical === v.code ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            >
+              {v.code ? `${v.name} (${v.code})` : v.name}
+            </button>
+          ))}
+        </div>
+
         {grid.length === 0 ? (
           <div className="rounded-[10px] border border-border bg-card p-8 text-center">
             <MapPin className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-            <p className="text-[14px] font-semibold text-foreground">No buyer coverage has been configured yet</p>
-            <p className="text-[13px] text-muted-foreground mt-1.5">Set up state pricing on your buyers to light up the coverage map.</p>
+            <p className="text-[14px] font-semibold text-foreground">
+              {vertical ? `No buyer coverage configured for ${vertical} yet` : 'No buyer coverage has been configured yet'}
+            </p>
+            <p className="text-[13px] text-muted-foreground mt-1.5">
+              {vertical
+                ? `State pricing exists per vertical, so ${vertical} stays empty until a buyer is priced for it.`
+                : 'Set up state pricing on your buyers to light up the coverage map.'}
+            </p>
             <Button size="sm" variant="outline" onClick={() => navigate('/operations/buyers')} className="gap-1.5 mt-4">
               Go to Buyers <ArrowRight className="w-4 h-4" />
             </Button>
