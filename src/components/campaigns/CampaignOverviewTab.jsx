@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import { campaignMetrics } from '@/lib/campaignMetrics';
+import { leadField } from '@/lib/reportMetrics';
 import { Users, Factory, Tag as TagIcon, Activity } from 'lucide-react';
 
 const money = (v) => `$${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
