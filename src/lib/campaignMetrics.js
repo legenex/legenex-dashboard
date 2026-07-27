@@ -20,7 +20,7 @@ export function campaignMetrics(campaign, leads, now = new Date()) {
   let revenue = 0, cost = 0;
   for (const l of rows) {
     total++;
-    const created = new Date(l.created_date || l.processed_at || 0).getTime();
+    const created = (leadEventInstant(l) || new Date(l.processed_at || 0)).getTime();
     if (created >= cutoff) leads14d++;
     const s = String(l.final_status || '');
     if (s === 'Sold') accepted++;

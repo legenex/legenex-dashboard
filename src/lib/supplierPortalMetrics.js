@@ -9,8 +9,8 @@ function num(v) { const n = Number(v); return isNaN(n) ? 0 : n; }
 export function filterByPeriod(records, period, custom) {
   const { start, end } = resolvePeriod(period, custom);
   return records.filter(r => {
-    if (!r.created_date) return false;
-    const d = new Date(r.created_date);
+    const d = leadEventInstant(r);
+    if (!d) return false;
     return d >= start && d <= end;
   });
 }
@@ -65,8 +65,8 @@ export function supplierPortalMetrics(leads) {
 export function dailyBreakdown(leads) {
   const map = {};
   for (const l of leads) {
-    if (!l.created_date) continue;
-    const day = new Date(l.created_date).toISOString().slice(0, 10);
+    const day = leadEventDayKey(l);
+    if (!day) continue;
     if (!map[day]) map[day] = { day, total: 0, accepted: 0, revenue: 0, cost: 0 };
     map[day].total++;
     if (statusBucket(l.final_status) === 'accepted') map[day].accepted++;

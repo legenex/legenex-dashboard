@@ -60,7 +60,8 @@ export function leadsOverTime(leads, win) {
   return days.map(day => {
     const dayStr = format(day, fmt);
     const dl = leads.filter(l => {
-      const d = new Date(l.created_date);
+      const d = leadEventInstant(l);
+      if (!d) continue;
       return d >= new Date(day.getFullYear(), day.getMonth(), day.getDate()) &&
         d < new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
     });
