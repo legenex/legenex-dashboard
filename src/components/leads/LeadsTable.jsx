@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { processLead } from '@/functions/processLead';
 import { bulkDeleteLeads } from '@/functions/bulkDeleteLeads';
 import { loadColumnConfig, saveColumnConfig, getColumnDef, buildAvailableColumns } from '@/lib/columnConfig';
-import { leadEventInstant } from '@/lib/reportMetrics';
+import { leadEventInstant, leadField } from '@/lib/reportMetrics';
 import { invalidateLeadCaches } from '@/lib/leadCaches';
 import { resolvePeriod } from '@/lib/periodRange';
 
