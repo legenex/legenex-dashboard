@@ -144,6 +144,7 @@ export default function Overview() {
   const [buyerFilter, setBuyerFilter] = useState([]);
   const [supplierFilter, setSupplierFilter] = useState([]);
   const [sourceFilter, setSourceFilter] = useState([]);
+  const [verticalFilter, setVerticalFilter] = useState([]);
 
   const { data: leads = [] } = useQuery({ queryKey: ['ov-leads'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
@@ -164,21 +165,28 @@ export default function Overview() {
   // buyer, so a buyer filter genuinely cannot attribute it. Rather than invent
   // an allocation, cost is left whole and the card says so.
   const fLeads = useMemo(() => {
-    const nb = buyerFilter.map(norm); const ns = supplierFilter.map(norm); const nsrc = sourceFilter.map(norm);
-    if (!nb.length && !ns.length && !nsrc.length) return leads;
+    const nb = buyerFilter.map(norm); const ns = supplierFilter.map(norm);
+    const nsrc = sourceFilter.map(norm); const nv = verticalFilter.map(norm);
+    if (!nb.length && !ns.length && !nsrc.length && !nv.length) return leads;
     return leads.filter((l) => {
       if (nb.length && !nb.includes(norm(l.buyer_name || l.buyer))) return false;
       if (ns.length && !ns.some((w) => supplierMatches(l.supplier_name, w))) return false;
       if (nsrc.length && !nsrc.includes(norm(overviewSource(l)))) return false;
+      if (nv.length && !nv.includes(norm(leadField(l, 'vertical')))) return false;
       return true;
     });
-  }, [leads, buyerFilter, supplierFilter, sourceFilter]);
+  }, [leads, buyerFilter, supplierFilter, sourceFilter, verticalFilter]);
 
   const fAdSpend = useMemo(() => {
-    const ns = supplierFilter.map(norm);
-    if (!ns.length) return adSpend;
-    return adSpend.filter((r) => ns.some((w) => supplierMatches(r.supplier_key ?? r.supplier_name, w)));
-  }, [adSpend, supplierFilter]);
+    const ns = supplierFilter.map(norm); const nv = verticalFilter.map(norm);
+    if (!ns.length && !nv.length) return adSpend;
+    return adSpend.filter((r) => {
+      if (ns.length && !ns.some((w) => supplierMatches(r.supplier_key ?? r.supplier_name, w))) return false;
+      // AdSpend rows carry a vertical, so a vertical filter narrows cost too.
+      if (nv.length && !nv.includes(norm(r.vertical))) return false;
+      return true;
+    });
+  }, [adSpend, supplierFilter, verticalFilter]);
 
   const costUnfiltered = buyerFilter.length > 0 || sourceFilter.length > 0;
 
