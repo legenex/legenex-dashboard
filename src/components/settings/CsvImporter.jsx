@@ -280,6 +280,11 @@ export default function CsvImporter() {
   const [templateName, setTemplateName] = useState('');
   const [dupChecking, setDupChecking] = useState(false);
   const [dupResult, setDupResult] = useState(null); // { newCount, dupCount }
+  // Duplicate decision for the current import. The prompt holds the partitioned
+  // records; the ref carries the operator's choice back into the import run
+  // without waiting on a state flush.
+  const [dupPrompt, setDupPrompt] = useState(null);
+  const dupChoiceRef = useRef(null);
   const [dateOrder, setDateOrder] = useState('day'); // 'day' | 'month', user-overridable
   const [detectedOrder, setDetectedOrder] = useState('ambiguous'); // 'day' | 'month' | 'ambiguous'
 
