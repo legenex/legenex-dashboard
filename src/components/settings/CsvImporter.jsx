@@ -684,9 +684,31 @@ export default function CsvImporter() {
             await base44.entities.Lead.bulkCreate(chunk);
             createdCount += chunk.length;
           } catch {
-            // One bad row can fail the whole chunk, so retry the chunk one
-            // record at a time and skip only the genuinely bad rows.
+            // A chunk can fail AFTER writing some of its rows. Retrying the
+            // whole chunk one row at a time therefore re-creates whatever
+            // already landed, which is exactly how the 19 July import wrote
+            // 40+ leads twice under a single batch id.
+            //
+            // Re-read what actually persisted for this batch, and only retry
+            // the rows that are genuinely missing.
+            let landed = new Set();
+            try {
+              const written = [];
+              let p = 0;
+              // eslint-disable-next-line no-constant-condition
+              while (true) {
+                const b = await base44.entities.Lead.filter({ import_batch_id: batchId }, '-created_date', pageSize, p * pageSize);
+                written.push(...b);
+                if (b.length < pageSize) break;
+                p += 1;
+              }
+              const idx = buildDedupeIndex(written);
+              landed = idx;
+            } catch {
+              landed = null; // could not verify, fall back to retrying all
+            }
             for (const rec of chunk) {
+              if (landed && findExisting(landed, rec)) { createdCount += 1; continue; }
               try {
                 await base44.entities.Lead.create(rec);
                 createdCount += 1;
