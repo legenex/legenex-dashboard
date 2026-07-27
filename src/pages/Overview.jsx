@@ -146,7 +146,7 @@ export default function Overview() {
   const [sourceFilter, setSourceFilter] = useState([]);
   const [verticalFilter, setVerticalFilter] = useState([]);
 
-  const { data: leads = [] } = useQuery({ queryKey: ['ov-leads'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)) });
+  const { data: leads = [] } = useQuery({ queryKey: ['ov-leads'], queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.filter({ archived: false }, '-created_date', limit, skip)) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers'], queryFn: () => base44.entities.Buyer.list() });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list() });
   const { data: invoices = [] } = useQuery({ queryKey: ['all-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 500) });
