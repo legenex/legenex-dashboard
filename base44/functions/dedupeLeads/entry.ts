@@ -17,8 +17,24 @@
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const isOperator = (u: any) =>
-  !!u && (u.role === 'admin' || u.app_role === 'owner' || u.app_role === 'admin' || u.app_role === 'operator');
+const OPERATOR_PERMISSION_KEYS = ['leads', 'reports', 'overview', 'finances', 'distribution', 'operations'];
+
+// Operator authorization, mirroring the other service-role functions: admins
+// and operators holding a management permission are allowed; portal (buyer or
+// supplier) accounts are rejected outright. Deleting leads must never be
+// reachable from a portal session.
+function isOperator(caller: any): boolean {
+  if (!caller) return false;
+  if (caller.base_role === 'supplier' || caller.base_role === 'buyer') return false;
+  if (caller.linked_buyer_id || caller.linked_supplier_id) return false;
+  let permissions: Record<string, any> = {};
+  try {
+    permissions = typeof caller.permissions === 'string'
+      ? JSON.parse(caller.permissions || '{}')
+      : (caller.permissions || {});
+  } catch { permissions = {}; }
+  return caller.role === 'admin' || OPERATOR_PERMISSION_KEYS.some((k) => permissions[k] === true);
+}
 
 function normEmail(v: unknown): string | null {
   return String(v ?? '').trim().toLowerCase() || null;
