@@ -69,10 +69,23 @@ export default function OperationsDashboard() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(Date.now());
 
+  // Vertical tabs. operationsData already accepts a `vertical` body param and
+  // filters the state grid, lead counts and period by it; the page just never
+  // passed one, so this was always an all-verticals view with no way to see MVA
+  // and WC coverage apart. Empty string means all.
+  const [vertical, setVertical] = useState('');
+
+  const { data: verticals = [] } = useQuery({
+    queryKey: ['op-verticals'],
+    queryFn: () => base44.entities.Vertical.list('sort_order'),
+  });
+
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['operations-dashboard'],
+    // vertical is part of the key so switching tabs refetches rather than
+    // showing the previous vertical's grid.
+    queryKey: ['operations-dashboard', vertical],
     queryFn: async () => {
-      const res = await base44.functions.invoke('operationsData', {});
+      const res = await base44.functions.invoke('operationsData', vertical ? { vertical } : {});
       return { ...res.data, _loadedAt: Date.now() };
     },
   });
