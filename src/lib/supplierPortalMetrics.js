@@ -52,7 +52,9 @@ export function supplierPortalMetrics(leads) {
     revenue,
     cost,
     profit,
-    cpl: total > 0 ? cost / total : 0,
+    // CPL is cost per SOLD lead, consistent with Overview, Reports, the
+    // supplier cost engine and the buyer portal. accepted is the sold count.
+    cpl: accepted > 0 ? cost / accepted : 0,
     acceptedPct: total > 0 ? (accepted / total) * 100 : 0,
     duplicatePct: total > 0 ? (duplicate / total) * 100 : 0,
     dqPct: total > 0 ? (dq / total) * 100 : 0,
@@ -98,6 +100,10 @@ export function adReportSummary(adReporting, leadCount) {
     byCampaign[key].leads += num(r.leads);
   }
   const effLeads = leads || leadCount || 0;
+  // NOTE: this is the AD PLATFORM's own CPL, spend over the lead count Meta
+  // reports for the campaign. It is deliberately not cost-per-sold: it measures
+  // the ad account, not our pipeline, and is what you would compare against
+  // Ads Manager. Our cost-per-sold CPL is the one above.
   const campaigns = Object.values(byCampaign).map(c => ({
     ...c,
     cpl: c.leads > 0 ? c.spend / c.leads : 0,
