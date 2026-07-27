@@ -10,6 +10,7 @@ import { Upload, Loader2, Sparkles, Check, ArrowRight, Save, Copy, AlertTriangle
 import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { toZonedTime } from 'date-fns-tz';
+import { partitionImport } from '@/lib/leadDedupe';
 import { APP_TZ } from '@/lib/periodRange';
 import { invalidateLeadCaches } from '@/lib/leadCaches';
 import { materializeRecord, finalizePendingImports } from '@/lib/importFinalize';
