@@ -10,7 +10,7 @@ import { Upload, Loader2, Sparkles, Check, ArrowRight, Save, Copy, AlertTriangle
 import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { toZonedTime } from 'date-fns-tz';
-import { partitionImport } from '@/lib/leadDedupe';
+import { partitionImport, buildDedupeIndex, findExisting } from '@/lib/leadDedupe';
 import { APP_TZ } from '@/lib/periodRange';
 import { invalidateLeadCaches } from '@/lib/leadCaches';
 import { materializeRecord, finalizePendingImports } from '@/lib/importFinalize';
@@ -691,7 +691,7 @@ export default function CsvImporter() {
             //
             // Re-read what actually persisted for this batch, and only retry
             // the rows that are genuinely missing.
-            let landed = new Set();
+            let landed = null;
             try {
               const written = [];
               let p = 0;
