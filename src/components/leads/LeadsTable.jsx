@@ -528,8 +528,7 @@ export default function LeadsTable({ view }) {
       invalidateLeadCaches(qc);
       await Promise.all([
         qc.refetchQueries({ queryKey: ['leads-all-non-archived'] }),
-        qc.refetchQueries({ queryKey: ['leads-nav-counts'] }),
-      ]);
+              ]);
     } catch (e) {
       toast.error(`Delete failed: ${e?.message || 'unknown error'}`);
     }
@@ -591,8 +590,7 @@ export default function LeadsTable({ view }) {
         // views (Reports, Finances, campaign metrics) in sync too.
         await Promise.all([
           qc.refetchQueries({ queryKey: ['leads-all-non-archived'], type: 'active' }),
-          qc.refetchQueries({ queryKey: ['leads-nav-counts'], type: 'active' }),
-        ]);
+                  ]);
         invalidateLeadCaches(qc);
       }}
       onExport={exportCSV}
