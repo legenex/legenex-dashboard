@@ -1,5 +1,6 @@
 // Operational metrics for the Distribution dashboard. No revenue/profit/CPL anywhere.
 import { format, eachDayOfInterval, isWithinInterval, differenceInCalendarDays } from 'date-fns';
+import { leadEventInstant } from '@/lib/reportMetrics';
 
 const inWin = (d, win) => { const dt = new Date(d); return isWithinInterval(dt, { start: win.start, end: win.end }); };
 

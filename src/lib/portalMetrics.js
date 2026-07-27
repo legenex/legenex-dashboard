@@ -1,6 +1,6 @@
 // Portal-scoped metrics over a buyer's own leads + feedback within a period.
 import { resolvePeriod } from '@/lib/periodRange';
-import { leadCost } from '@/lib/reportMetrics';
+import { leadCost, leadEventInstant, leadEventDayKey } from '@/lib/reportMetrics';
 
 function num(v) { const n = Number(v); return isNaN(n) ? 0 : n; }
 
