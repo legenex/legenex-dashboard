@@ -613,21 +613,7 @@ export default function CsvImporter() {
         return out;
       });
       if (target === 'lead') {
-        // Load every existing lead's email + mobile (all time) into normalized sets for dedup.
-        const existingEmails = new Set();
-        const existingMobiles = new Set();
-        let page = 0;
         const pageSize = 500;
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const batch = await base44.entities.Lead.list('-created_date', pageSize, page * pageSize);
-          batch.forEach(l => {
-            const e = normEmail(l.email); if (e) existingEmails.add(e);
-            const m = normMobile(l.mobile); if (m) existingMobiles.add(m);
-          });
-          if (batch.length < pageSize) break;
-          page += 1;
-        }
 
         const batchId = `import_${Date.now()}`;
         const allExisting = [];
