@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 // Top-of-page header for the Performance OS Overview. Presentational, parent
 // owns all state (period, custom range, compare, refresh).
 export default function OverviewHeader({
-  period, onPeriodChange, custom, onCustomChange, compare, onToggleCompare, onRefresh, filters,
+  period, onPeriodChange, custom, onCustomChange, compare, onToggleCompare, onRefresh, filters, activity,
 }) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState(custom || { from: '', to: '' });
@@ -30,16 +30,12 @@ export default function OverviewHeader({
       <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
         {/* Title block */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-[24px] font-bold text-foreground tracking-tight">Overview</h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-status-sold text-[10px] font-bold uppercase tracking-wider status-sold">
-              <motion.span
-                className="w-1.5 h-1.5 rounded-full bg-[#3DD68C]"
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              Live
-            </span>
+            {/* The live activity strip sits inline with the title. It carries its
+                own pulsing dot, so the separate LIVE pill that used to live here
+                was saying the same thing twice on two different lines. */}
+            {activity}
           </div>
           <p className="text-[13px] text-muted-foreground mt-1.5 max-w-xl">
             One truth: what was booked, what cash is verified, and where the gap is.
