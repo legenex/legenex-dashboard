@@ -1,4 +1,4 @@
-import { leadEventInstant } from '@/lib/reportMetrics';
+import { leadEventInstant, leadField } from '@/lib/reportMetrics';
 // Per-campaign aggregate metrics for the Campaigns list table. A campaign is a
 // vertical, so leads are matched to a campaign by their lead_vertical / vertical
 // against the campaign's vertical code. Reads from records already loaded on the
