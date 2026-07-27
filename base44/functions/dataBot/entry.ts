@@ -61,21 +61,40 @@ Deno.serve(async (req) => {
     const isAdmin = user.role === 'admin';
     const mode = body.mode === 'build' ? 'build' : 'data';
 
+    // Resolve DataBot/BuildBot access from the permission model: explicit perms
+    // when the user has any stored, otherwise the role default. Partners (supplier
+    // or buyer) can never build, matching RESTRICTED_FOR_PARTNERS.
+    const resolvePerms = (u) => {
+      let p = {};
+      try { p = u.permissions ? (typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions) : {}; } catch { p = {}; }
+      if (p && Object.keys(p).length) return p;
+      return { databot: true, buildbot: u.role === 'owner' || u.role === 'admin' };
+    };
+    const isPartner = user.base_role === 'supplier' || user.base_role === 'buyer' || !!user.linked_supplier_id || !!user.linked_buyer_id;
+    const perms = resolvePerms(user);
+    const canData = !!perms.databot;
+    const canBuild = !isPartner && !!perms.buildbot;
+    void isAdmin;
+
     // Friendly, actionable message instead of a silent 500 when the key is unset.
     if (!Deno.env.get('OPENAI_API_KEY')) {
       return Response.json({ type: 'answer', answer: 'This assistant is not configured yet: the OPENAI_API_KEY secret is missing. An admin can add it in the app secrets, then I can answer.' });
     }
 
     // BuildBot: draft a single-concern build request for the controlled channel.
-    // Operator-gated for now; a grantable buildbot permission comes next.
+    // Gated by the buildbot permission (owner/admin by default, grantable in Users and Roles).
     if (mode === 'build') {
-      if (!isAdmin) {
-        return Response.json({ type: 'answer', answer: 'BuildBot is available to admins and owners only.' });
+      if (!canBuild) {
+        return Response.json({ type: 'answer', answer: 'BuildBot is not enabled for your account. An admin can grant the BuildBot permission in Users and Roles.' });
       }
       try {
         const draft = await draftBuildRequest(question, history);
         if (draft && draft.is_build) return Response.json({ type: 'build_request', build_request: draft });
       } catch (_) { /* not a build, or draft failed: fall through to an answer */ }
+    }
+
+    if (!canData) {
+      return Response.json({ type: 'answer', answer: 'DataBot access is turned off for your account. An admin can enable it in Users and Roles.' });
     }
 
     // --- Resolve caller scope (deny-by-default), then gather only what they may see ---
