@@ -741,6 +741,45 @@ export default function CsvImporter() {
 
   return (
     <div className="bg-card border border-border rounded-[12px] p-5">
+      {/* Duplicate decision. Blocks the import until the operator chooses, so a
+          re-run can never quietly write a second copy of every lead. */}
+      {dupPrompt && (
+        <div className="mb-4 rounded-lg border border-status-unsold bg-status-unsold p-4">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 status-unsold shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-foreground">
+                {dupPrompt.existingDupes.length + dupPrompt.intraFileDupes.length} duplicate{dupPrompt.existingDupes.length + dupPrompt.intraFileDupes.length === 1 ? '' : 's'} found
+              </p>
+              <ul className="text-[12px] text-muted-foreground mt-1.5 space-y-0.5">
+                <li><span className="text-foreground font-medium tabular-nums">{dupPrompt.fresh.length}</span> new leads to import</li>
+                {dupPrompt.existingDupes.length > 0 && (
+                  <li><span className="text-foreground font-medium tabular-nums">{dupPrompt.existingDupes.length}</span> already in the system (matched on email or mobile)</li>
+                )}
+                {dupPrompt.intraFileDupes.length > 0 && (
+                  <li><span className="text-foreground font-medium tabular-nums">{dupPrompt.intraFileDupes.length}</span> repeated inside this file</li>
+                )}
+              </ul>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <Button size="sm" onClick={() => { dupChoiceRef.current = 'skip'; setDupPrompt(null); commit(); }}>
+                  Import {dupPrompt.fresh.length} new, ignore duplicates
+                </Button>
+                {dupPrompt.existingDupes.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => { dupChoiceRef.current = 'merge'; setDupPrompt(null); commit(); }}>
+                    Merge: update the {dupPrompt.existingDupes.length} existing
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => { dupChoiceRef.current = null; setDupPrompt(null); }}>
+                  Cancel
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground/80 mt-2">
+                Merge updates the matched lead in place. It never creates a second copy, and it leaves email and mobile untouched.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-2 mb-1">
         <Sparkles className="w-4 h-4 text-primary" />
         <div className="text-[15px] font-semibold text-foreground">CSV Importer</div>
