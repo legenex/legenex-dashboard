@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 // Top-of-page header for the Performance OS Overview. Presentational, parent
 // owns all state (period, custom range, compare, refresh).
 export default function OverviewHeader({
-  period, onPeriodChange, custom, onCustomChange, compare, onToggleCompare, onRefresh,
+  period, onPeriodChange, custom, onCustomChange, compare, onToggleCompare, onRefresh, filters,
 }) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState(custom || { from: '', to: '' });
@@ -116,6 +116,12 @@ export default function OverviewHeader({
         <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-1.5">
           <RefreshCw className={`w-4 h-4 ${spinning ? 'animate-spin' : ''}`} /> Refresh
         </Button>
+
+        {/* Dimension filters sit on this same row rather than a row of their own.
+            Below the period bar they read as a separate block and were easy to
+            miss entirely. flex-wrap lets them drop to a second line on narrow
+            screens without being visually detached. */}
+        {filters}
       </div>
     </motion.div>
   );
