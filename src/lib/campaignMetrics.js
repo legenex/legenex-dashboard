@@ -6,13 +6,11 @@ import { leadEventInstant } from '@/lib/reportMetrics';
 
 function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
-function leadVertical(l) {
 // Vertical lives in the mapped_fields bag, not in a lead column: both
 // lead_vertical and vertical read null on every lead, so this used to group
 // everything under the empty string. leadField resolves the bag.
-function leadVerticalOf(l) {
+function leadVertical(l) {
   return String(leadField(l, 'vertical') ?? '').toLowerCase();
-}
 }
 
 // Returns metrics for one campaign: leads14d, total, accepted %, duplicate %,
