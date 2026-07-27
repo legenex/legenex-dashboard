@@ -387,8 +387,6 @@ export default function Overview() {
 
   return (
     <div>
-      <ActivityStreamBar events={activityEvents} />
-
       <OverviewHeader
         period={period}
         onPeriodChange={setPeriod}
@@ -397,6 +395,7 @@ export default function Overview() {
         compare={compare}
         onToggleCompare={() => setCompare(c => !c)}
         onRefresh={refreshAll}
+        activity={<ActivityStreamBar events={activityEvents} inline />}
         filters={(
           <>
             <div className="w-px h-6 bg-border mx-0.5 hidden sm:block" />
