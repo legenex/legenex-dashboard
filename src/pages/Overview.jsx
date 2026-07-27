@@ -200,15 +200,16 @@ export default function Overview() {
       if (win?.end && inst > win.end) return false;
       return true;
     };
-    const b = new Set(); const s = new Set(); const src = new Set();
+    const b = new Set(); const s = new Set(); const src = new Set(); const v = new Set();
     for (const l of leads) {
       if (!inWin(l)) continue;
       const bv = l.buyer_name || l.buyer; if (bv) b.add(String(bv));
       if (l.supplier_name) s.add(String(l.supplier_name));
       const sv = overviewSource(l); if (sv) src.add(sv);
+      const vv = leadField(l, 'vertical'); if (vv) v.add(String(vv));
     }
     const sorted = (set) => [...set].sort((x, y) => x.localeCompare(y));
-    return { buyers: sorted(b), suppliers: sorted(s), sources: sorted(src) };
+    return { buyers: sorted(b), suppliers: sorted(s), sources: sorted(src), verticals: sorted(v) };
   }, [leads, win]);
 
   const dataset = { leads: fLeads, buyers, suppliers, invoices, payments, payouts, adSpend: fAdSpend, txns };
@@ -407,12 +408,13 @@ export default function Overview() {
         filters={(
           <>
             <div className="w-px h-6 bg-border mx-0.5 hidden sm:block" />
+            <OverviewFilter label="Vertical" value={verticalFilter} onChange={setVerticalFilter} options={filterOptions.verticals} />
             <OverviewFilter label="Buyer" value={buyerFilter} onChange={setBuyerFilter} options={filterOptions.buyers} />
             <OverviewFilter label="Supplier" value={supplierFilter} onChange={setSupplierFilter} options={filterOptions.suppliers} />
             <OverviewFilter label="Source" value={sourceFilter} onChange={setSourceFilter} options={filterOptions.sources} />
-            {(buyerFilter.length > 0 || supplierFilter.length > 0 || sourceFilter.length > 0) && (
+            {(buyerFilter.length > 0 || supplierFilter.length > 0 || sourceFilter.length > 0 || verticalFilter.length > 0) && (
               <button
-                onClick={() => { setBuyerFilter([]); setSupplierFilter([]); setSourceFilter([]); }}
+                onClick={() => { setBuyerFilter([]); setSupplierFilter([]); setSourceFilter([]); setVerticalFilter([]); }}
                 className="text-[12px] font-medium text-muted-foreground hover:text-foreground px-2 py-1.5"
               >
                 Clear
