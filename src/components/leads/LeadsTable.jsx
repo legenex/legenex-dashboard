@@ -161,23 +161,33 @@ export default function LeadsTable({ view }) {
   const config = VIEW_CONFIGS[view] || VIEW_CONFIGS.all;
 
   const [search, setSearch] = useState('');
-  // Every leads table defaults to This Month (APP_TZ calendar month).
+  // Period resolution, in order: the URL, then this operator's last choice,
+  // then This Month.
   //
-  // The period lives in the URL so the sub-nav count badges and the telemetry
-  // footer resolve the SAME window as this table. They used to count every lead
-  // ever received while the table showed one month, so a single page reported
-  // Sold as 562 in the sidebar, 562 in the footer and 292 in the table.
+  // It lives in the URL so the sub-nav count badges and the telemetry footer
+  // resolve the SAME window as this table. They used to count every lead ever
+  // received while the table showed one month, so a single page reported Sold
+  // as 562 in the sidebar, 562 in the footer and 292 in the table.
+  //
+  // It is ALSO remembered per operator, so a chosen range survives a reload.
+  // But the remembered value is only ever applied on first mount, and a saved
+  // 'custom' with no dates falls back to This Month rather than stranding the
+  // page on an empty custom range.
   const [searchParams, setSearchParams] = useSearchParams();
-  const period = searchParams.get('period') || 'this_month';
-  const customPeriod = {
-    from: searchParams.get('from') || '',
-    to: searchParams.get('to') || '',
-  };
+
+  const urlPeriod = searchParams.get('period');
+  const [remembered] = useState(() => loadPeriodPref(view));
+  const period = urlPeriod || remembered.period || 'this_month';
+  const customPeriod = urlPeriod
+    ? { from: searchParams.get('from') || '', to: searchParams.get('to') || '' }
+    : { from: remembered.from || '', to: remembered.to || '' };
+
   const setPeriod = (p) => {
     const next = new URLSearchParams(searchParams);
     next.set('period', p);
     if (p !== 'custom') { next.delete('from'); next.delete('to'); }
     setSearchParams(next, { replace: true });
+    savePeriodPref(view, { period: p, from: '', to: '' });
   };
   const setCustomPeriod = (c) => {
     const next = new URLSearchParams(searchParams);
@@ -185,6 +195,7 @@ export default function LeadsTable({ view }) {
     if (c?.from) next.set('from', c.from); else next.delete('from');
     if (c?.to) next.set('to', c.to); else next.delete('to');
     setSearchParams(next, { replace: true });
+    savePeriodPref(view, { period: 'custom', from: c?.from || '', to: c?.to || '' });
   };
   const [customFilters, setCustomFilters] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
