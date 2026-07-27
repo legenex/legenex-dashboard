@@ -23,7 +23,7 @@ export default function ActivityStreamBar({ events = [], right = null }) {
   const current = events[idx];
 
   return (
-    <div className="flex items-center justify-between gap-3 mb-4">
+    <div className={inline ? 'flex items-center gap-3 min-w-0' : 'flex items-center justify-between gap-3 mb-4'}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
           <span className="relative flex h-2 w-2">
