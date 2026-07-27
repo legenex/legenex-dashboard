@@ -75,6 +75,7 @@ function overviewSource(lead) {
 
 // One dimension filter. Multi-select: clicking an option toggles it, so a
 // second click deselects, and several selections mean "any of these".
+// Sized to sit inline with the period bar rather than stretch across a row.
 function OverviewFilter({ label, value, onChange, options }) {
   return (
     <MultiSelect
@@ -82,7 +83,7 @@ function OverviewFilter({ label, value, onChange, options }) {
       onValueChange={onChange}
       options={options.map((o) => ({ value: o, label: o }))}
       placeholder={`${label}: All`}
-      className={`w-full sm:w-[180px] bg-card ${value.length > 0 ? 'border-primary' : 'border-border'}`}
+      className={`h-9 w-[150px] text-[12px] bg-card ${value.length > 0 ? 'border-primary' : 'border-border'}`}
     />
   );
 }
