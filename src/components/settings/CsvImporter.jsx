@@ -624,24 +624,62 @@ export default function CsvImporter() {
         }
 
         const batchId = `import_${Date.now()}`;
-        const seenEmails = new Set();
-        const seenMobiles = new Set();
-        let skipped = 0;
-        const clean = [];
-        records.forEach(r => {
-          const e = normEmail(r.email);
-          const m = normMobile(r.mobile);
-          const dupExisting = (e && existingEmails.has(e)) || (m && existingMobiles.has(m));
-          const dupIntra = (e && seenEmails.has(e)) || (m && seenMobiles.has(m));
-          if (dupExisting || dupIntra) { skipped += 1; return; }
-          if (e) seenEmails.add(e);
-          if (m) seenMobiles.add(m);
-          clean.push({
-            ...r,
-            revenue: r.revenue != null ? Number(r.revenue) || 0 : undefined,
-            import_batch_id: batchId,
+        const allExisting = [];
+        {
+          let p = 0;
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const b = await base44.entities.Lead.list('-created_date', pageSize, p * pageSize);
+            allExisting.push(...b);
+            if (b.length < pageSize) break;
+            p += 1;
+          }
+        }
+
+        const { fresh, existingDupes, intraFileDupes } = partitionImport(records, allExisting);
+        const dupTotal = existingDupes.length + intraFileDupes.length;
+
+        // Duplicates are never resolved silently. A double-run import on
+        // 19 July wrote 40+ leads twice and inflated every Sold count in the
+        // app, and nothing on screen said so. Ask, then act.
+        if (dupTotal > 0 && !dupChoiceRef.current) {
+          setProgress(null);
+          setBusy(false);
+          setDupPrompt({
+            fresh,
+            existingDupes,
+            intraFileDupes,
+            batchId,
+            records,
           });
-        });
+          return;
+        }
+
+        const choice = dupChoiceRef.current || 'skip';
+        dupChoiceRef.current = null;
+
+        // 'skip' imports only genuinely new leads. 'merge' additionally updates
+        // the matched existing lead in place rather than creating a second
+        // copy, so a re-exported file can correct revenue or status without
+        // ever duplicating a record.
+        const clean = fresh.map(r => ({
+          ...r,
+          revenue: r.revenue != null ? Number(r.revenue) || 0 : undefined,
+          import_batch_id: batchId,
+        }));
+        let merged = 0;
+        if (choice === 'merge') {
+          for (const { record, existing } of existingDupes) {
+            try {
+              const patch = { ...record };
+              delete patch.email;
+              delete patch.mobile;
+              await base44.entities.Lead.update(existing.id, patch);
+              merged += 1;
+            } catch { /* a failed merge leaves the original untouched */ }
+          }
+        }
+        const skipped = dupTotal - merged;
 
         const chunkSize = 100;
         setProgress({ done: 0, total: clean.length });
