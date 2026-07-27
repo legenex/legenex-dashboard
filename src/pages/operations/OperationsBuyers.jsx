@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import SectionHeader from '@/components/shared/SectionHeader';
 import RefreshButton from '@/components/shared/RefreshButton';
 import ColumnManager from '@/components/leads/ColumnManager';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { PulseDot } from '@/components/settings/settingsUi';
 import BuyerTable from '@/components/operations/buyers/BuyerTable';
 import BuyersEmptyState from '@/components/operations/buyers/BuyersEmptyState';
