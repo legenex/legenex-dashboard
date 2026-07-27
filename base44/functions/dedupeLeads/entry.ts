@@ -65,11 +65,13 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const mode = body?.mode === 'apply' ? 'apply' : 'scan';
 
-    // Page through every lead. A single call is capped at 500 rows.
+    // Page through every LIVE lead. A single call is capped at 500 rows.
+    // Archived records are excluded: they are already retired, and including
+    // them would re-flag every duplicate that has previously been handled.
     const all: any[] = [];
     const pageSize = 500;
     for (let page = 0; page < 400; page += 1) {
-      const batch = await base44.asServiceRole.entities.Lead.list('created_date', pageSize, page * pageSize);
+      const batch = await base44.asServiceRole.entities.Lead.filter({ archived: false }, 'created_date', pageSize, page * pageSize);
       if (!batch || batch.length === 0) break;
       all.push(...batch);
       if (batch.length < pageSize) break;
@@ -142,10 +144,17 @@ Deno.serve(async (req) => {
       }
       for (const dupe of g.remove) {
         try {
-          await base44.asServiceRole.entities.Lead.delete(dupe.id);
+          // Archive rather than hard delete. A duplicate can always be restored
+          // if the match turns out to be wrong; a deleted lead cannot. Every
+          // reporting query already excludes archived records, so the counts
+          // correct immediately either way.
+          await base44.asServiceRole.entities.Lead.update(dupe.id, {
+            archived: true,
+            archived_reason: 'duplicate_scan',
+          });
           deleted += 1;
         } catch (e) {
-          failures.push(`delete ${dupe.id}: ${(e as Error).message}`);
+          failures.push(`archive ${dupe.id}: ${(e as Error).message}`);
         }
       }
     }
