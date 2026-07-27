@@ -15,7 +15,7 @@
 //
 // Operator-gated. Never exposed to portal users.
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.0';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const isOperator = (u: any) =>
   !!u && (u.role === 'admin' || u.app_role === 'owner' || u.app_role === 'admin' || u.app_role === 'operator');
