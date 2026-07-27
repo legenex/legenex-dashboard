@@ -161,8 +161,6 @@ export default function LeadsTable({ view }) {
   const config = VIEW_CONFIGS[view] || VIEW_CONFIGS.all;
 
   const [search, setSearch] = useState('');
-  // Period: the URL if present, otherwise ALWAYS This Month.
-  //
   // Period ALWAYS starts at This Month, on every visit, refresh and login.
   //
   // The URL is an OUTPUT only, never an input: the sub-nav badges and the
