@@ -163,26 +163,6 @@ export default function LeadsTable({ view }) {
   const [search, setSearch] = useState('');
   // Period: the URL if present, otherwise ALWAYS This Month.
   //
-  // It is deliberately NOT remembered between visits. A remembered range meant
-  // that opening the page could silently resolve a different window than the
-  // last time, so the same view reported a different Sold count on consecutive
-  // visits with nothing on screen explaining why. Every load starts from the
-  // same known window; a range is still shareable through the URL and survives
-  // a reload of that URL.
-  //
-  // The period lives in the URL so the sub-nav count badges and the telemetry
-  // footer resolve the SAME window as this table. They used to count every lead
-  // ever received while the table showed one month, so a single page reported
-  // Sold as 562 in the sidebar, 562 in the footer and 292 in the table.
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const urlPeriod = searchParams.get('period');
-  const period = urlPeriod || 'this_month';
-  const customPeriod = {
-    from: searchParams.get('from') || '',
-    to: searchParams.get('to') || '',
-  };
-
   // Period ALWAYS starts at This Month, on every visit, refresh and login.
   //
   // The URL is an OUTPUT only, never an input: the sub-nav badges and the
