@@ -72,15 +72,35 @@ const PANELS = {
 
 const VALID = Object.keys(PANELS);
 
+// Permission required to view each tab. Anything absent is always viewable
+// (your own profile, the status board). Kept beside PANELS so a new tab cannot
+// be added without a conscious decision about who may see it.
+const TAB_PERMS = {
+  general: 'set_integrations',
+  users: 'set_users',
+  integrations: 'set_integrations',
+  'data-sources': 'set_data_sources',
+  fields: 'set_custom_fields',
+  'field-mapping': 'set_field_mapping',
+  apikeys: 'set_api_keys',
+  errors: 'set_error_logs',
+  audits: 'set_integrations',
+  knowledge: 'set_knowledge_base',
+  billing: 'set_billing',
+  adaptive: 'set_custom_fields',
+};
+
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { realRole, can } = usePermissions();
   const isAdmin = realRole === 'admin' || realRole === 'owner';
   const raw = searchParams.get('tab') || 'dashboard';
   let tab = VALID.includes(raw) ? raw : 'dashboard';
-  // Fail closed: a non-admin reaching an admin-only tab directly is sent to the
-  // dashboard rather than the admin panel.
+  // Fail closed. A non-admin reaching an admin-only tab directly, or anyone
+  // reaching a tab their role does not permit, lands on the dashboard rather
+  // than on a panel they should not see.
   if (PANELS[tab]?.adminOnly && !isAdmin) tab = 'dashboard';
+  if (TAB_PERMS[tab] && !can(TAB_PERMS[tab])) tab = 'dashboard';
   const setTab = (v) => setSearchParams({ tab: v }, { replace: true });
 
   const panel = PANELS[tab];
