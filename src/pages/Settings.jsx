@@ -48,6 +48,7 @@ function buildNav(isAdmin) {
 
 // tab key -> { title (page name in header), subtitle, panel }
 const PANELS = {
+  dashboard: { title: 'Dashboard', subtitle: 'What is connected, what is live, and what needs attention.', node: null },
   profile: { title: 'Profile', subtitle: 'Your account details.', node: <SettingsProfile /> },
   general: { title: 'General', subtitle: 'Workspace defaults.', node: <SettingsGeneral /> },
   users: { title: 'Users and Roles', subtitle: 'Team members and permissions.', node: <SettingsUsers /> },
@@ -84,7 +85,11 @@ export default function Settings() {
     <SectionShell nav={<SettingsNav groups={nav} active={tab} onSelect={setTab} />}>
       <SettingsShell title={panel.title} subtitle={panel.subtitle}>
         <SettingsErrorBoundary key={tab}>
-          {panel.node}
+          {/* The dashboard needs isAdmin and the tab setter, so it is rendered
+              here rather than held as a static node in PANELS. */}
+          {tab === 'dashboard'
+            ? <SettingsDashboard onSelect={setTab} isAdmin={isAdmin} />
+            : panel.node}
         </SettingsErrorBoundary>
       </SettingsShell>
     </SectionShell>
