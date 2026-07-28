@@ -17,17 +17,16 @@ import ToolTile from '@/components/tools/ToolTile';
 //
 // Counts are real, loaded from the same entities the panels themselves use.
 export default function SettingsDashboard({ onSelect, isAdmin }) {
-  const q = (key, fn) => useQuery({ queryKey: [key], queryFn: fn, staleTime: 60_000 });
-
-  const { data: users = [] } = q('users', () => base44.entities.User.list());
-  const { data: apiKeys = [] } = q('api-keys', () => base44.entities.ApiKey.list('-created_date', 200));
-  const { data: integrations = [] } = q('integration-configs', () => base44.entities.IntegrationConfig.list());
-  const { data: errors = [] } = q('error-logs', () => base44.entities.ErrorLog.list('-created_date', 500));
-  const { data: suppliers = [] } = q('suppliers', () => base44.entities.Supplier.list());
-  const { data: customFields = [] } = q('custom-fields', () => base44.entities.CustomField.list('-created_date', 500));
-  const { data: mappings = [] } = q('field-mappings', () => base44.entities.FieldMapping.list('-created_date', 500));
-  const { data: docs = [] } = q('kb-docs', () => base44.entities.KnowledgeDoc.list('-created_date', 200));
-  const { data: audits = [] } = q('audit-runs', () => base44.entities.AuditRun.list('-created_date', 20));
+  const opts = { staleTime: 60_000 };
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => base44.entities.User.list(), ...opts });
+  const { data: apiKeys = [] } = useQuery({ queryKey: ['api-keys'], queryFn: () => base44.entities.ApiKey.list('-created_date', 200), ...opts });
+  const { data: integrations = [] } = useQuery({ queryKey: ['integration-configs'], queryFn: () => base44.entities.IntegrationConfig.list(), ...opts });
+  const { data: errors = [] } = useQuery({ queryKey: ['error-logs'], queryFn: () => base44.entities.ErrorLog.list('-created_date', 500), ...opts });
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list(), ...opts });
+  const { data: customFields = [] } = useQuery({ queryKey: ['custom-fields'], queryFn: () => base44.entities.CustomField.list('-created_date', 500), ...opts });
+  const { data: mappings = [] } = useQuery({ queryKey: ['field-mappings'], queryFn: () => base44.entities.FieldMapping.list('-created_date', 500), ...opts });
+  const { data: docs = [] } = useQuery({ queryKey: ['kb-docs'], queryFn: () => base44.entities.KnowledgeDoc.list('-created_date', 200), ...opts });
+  const { data: audits = [] } = useQuery({ queryKey: ['audit-runs'], queryFn: () => base44.entities.AuditRun.list('-created_date', 20), ...opts });
 
   const isConnected = (i) => i.connected || i.enabled || i.status === 'connected';
   const connected = integrations.filter(isConnected);
@@ -161,18 +160,20 @@ export default function SettingsDashboard({ onSelect, isAdmin }) {
         </div>
       )}
 
+      {/* ToolTile is a Link. It navigates to /settings?tab=..., which the page
+          reads, so no click handler is needed and we avoid nesting a link
+          inside a button. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {tiles.map((t) => (
-          <button key={t.key} onClick={() => onSelect(t.key)} className="text-left">
-            <ToolTile
-              to={`/settings?tab=${t.key}`}
-              icon={t.icon}
-              title={t.title}
-              description={t.description}
-              stats={t.stats}
-              status={t.status}
-            />
-          </button>
+          <ToolTile
+            key={t.key}
+            to={`/settings?tab=${t.key}`}
+            icon={t.icon}
+            title={t.title}
+            description={t.description}
+            stats={t.stats}
+            status={t.status}
+          />
         ))}
       </div>
     </div>
