@@ -90,6 +90,9 @@ export const navGroups = [
   {
     label: 'Settings', icon: SettingsIcon, type: 'dropdown', path: '/settings',
     children: [
+      // First child, and no permKey, so clicking Settings always lands on the
+      // status board rather than dropping straight into the General form.
+      { label: 'Dashboard', path: '/settings', tab: 'dashboard', icon: LayoutDashboard },
       { label: 'General', path: '/settings', tab: 'general', icon: Cog, permKey: 'set_integrations' },
       { label: 'Users and Roles', path: '/settings', tab: 'users', icon: User, permKey: 'set_users' },
       { label: 'Integrations', path: '/settings', tab: 'integrations', icon: Plug, permKey: 'set_integrations' },
