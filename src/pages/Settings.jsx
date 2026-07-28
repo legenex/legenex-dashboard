@@ -18,6 +18,7 @@ import SettingsBilling from '@/components/settings/SettingsBilling';
 import SettingsIgnoreList from '@/components/settings/SettingsIgnoreList';
 import SettingsProfile from '@/components/settings/SettingsProfile';
 import SettingsAudits from '@/components/settings/SettingsAudits';
+import SettingsDashboard from '@/components/settings/SettingsDashboard';
 import ErrorLogs from '@/pages/ErrorLogs';
 
 // NAV is built inside the component so the admin-only Inbound Webhooks item can
@@ -25,6 +26,7 @@ import ErrorLogs from '@/pages/ErrorLogs';
 function buildNav(isAdmin) {
   return [
     { group: 'Account', items: [
+      { key: 'dashboard', label: 'Dashboard' },
       { key: 'profile', label: 'Profile' },
       { key: 'general', label: 'General' },
       { key: 'users', label: 'Users and Roles' },
@@ -68,10 +70,11 @@ export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { realRole } = usePermissions();
   const isAdmin = realRole === 'admin' || realRole === 'owner';
-  const raw = searchParams.get('tab') || 'general';
-  let tab = VALID.includes(raw) ? raw : 'general';
-  // Fail closed: a non-admin reaching an admin-only tab directly is sent to General.
-  if (PANELS[tab]?.adminOnly && !isAdmin) tab = 'general';
+  const raw = searchParams.get('tab') || 'dashboard';
+  let tab = VALID.includes(raw) ? raw : 'dashboard';
+  // Fail closed: a non-admin reaching an admin-only tab directly is sent to the
+  // dashboard rather than the admin panel.
+  if (PANELS[tab]?.adminOnly && !isAdmin) tab = 'dashboard';
   const setTab = (v) => setSearchParams({ tab: v }, { replace: true });
 
   const panel = PANELS[tab];
