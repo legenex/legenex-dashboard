@@ -241,6 +241,8 @@ export default function OperationsSuppliers() {
         </Button>
       </SectionHeader>
 
+      <AutoCreatedReviewBanner kind="supplier" />
+
       {suppliers.length === 0 ? (
         <SuppliersEmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
