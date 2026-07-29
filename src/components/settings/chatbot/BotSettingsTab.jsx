@@ -90,6 +90,43 @@ export default function BotSettingsTab({ botKey }) {
         </div>
       </div>
 
+      {/* Access control, directly under the master switch: who may use this bot
+          at all is a more consequential setting than its name or tone.
+
+          Roles and named people are one combined searchable list. Leaving it
+          empty falls back to the per-user permission flag in Users and Roles,
+          which is the existing behaviour, so an unconfigured bot keeps working
+          for owners and admins. Enforcement is server side in the dataBot
+          function; this only configures it. */}
+      <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-foreground">Who can use this bot</div>
+            <div className="text-[12px] text-muted-foreground mt-0.5">
+              {accessValue.length === 0
+                ? 'Anyone whose role permits it in Users and Roles.'
+                : `Restricted to ${accessValue.length} selected role${accessValue.length === 1 ? '' : 's'} or person.`}
+            </div>
+          </div>
+          {accessValue.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setF('allowed_roles', []); setF('allowed_user_ids', []); }}
+              className="text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Clear restriction
+            </button>
+          )}
+        </div>
+        <MultiSelect
+          value={accessValue}
+          onValueChange={onAccessChange}
+          options={accessOptions}
+          placeholder="Search roles and people…"
+          className="w-full bg-background border-border"
+        />
+      </div>
+
       <div className="rounded-[10px] border border-border bg-card p-4 space-y-3">
         <div className="text-[13px] font-semibold text-foreground">General</div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
