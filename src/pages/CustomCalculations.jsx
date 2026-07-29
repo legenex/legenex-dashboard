@@ -170,7 +170,7 @@ export default function CustomCalculations() {
   });
   const verticalName = (code) => verticals.find(v => v.code === code)?.name || code;
 
-  const inboundFields = customFields.filter(f => f.source === 'inbound' || !f.source);
+  const inboundFields = customFields.filter(f => (f.source === 'inbound' || !f.source) && f.field_type !== 'Calculated');
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
@@ -504,8 +504,19 @@ export default function CustomCalculations() {
                 <SearchableSelect
                   value={form.input_field}
                   onValueChange={v => setF('input_field', v)}
-                  options={inboundFields.map(f => ({ value: f.field_name, label: f.label || f.field_name }))}
+                  options={inboundFields.map(f => ({ value: f.field_name, label: f.label || f.field_name, field_type: f.field_type, required: f.required }))}
                   placeholder="Select field…"
+                  renderItem={(opt) => (
+                    <>
+                      <span className="truncate">{opt.label || opt.value}</span>
+                      <span className="ml-auto flex items-center gap-1 shrink-0">
+                        {opt.required && (
+                          <span className="text-[9px] font-semibold text-primary bg-primary/10 px-1 py-0.5 rounded">req</span>
+                        )}
+                        <span className="text-[9px] text-muted-foreground bg-muted px-1 py-0.5 rounded">{opt.field_type || 'string'}</span>
+                      </span>
+                    </>
+                  )}
                 />
               </div>
             )}
