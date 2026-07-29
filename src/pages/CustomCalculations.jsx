@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { base44 } from '@/api/base44Client';
@@ -171,6 +171,37 @@ export default function CustomCalculations() {
   const verticalName = (code) => verticals.find(v => v.code === code)?.name || code;
 
   const inboundFields = customFields.filter(f => (f.source === 'inbound' || !f.source) && f.field_type !== 'Calculated');
+
+  // Parse dropdown options from a CustomField's options string (JSON array or comma-separated)
+  const parseDropdownOptions = (optStr) => {
+    if (!optStr) return [];
+    try {
+      const parsed = JSON.parse(optStr);
+      if (Array.isArray(parsed)) return parsed.map(v => String(v)).filter(Boolean);
+    } catch {}
+    return String(optStr).split(',').map(v => v.trim()).filter(Boolean);
+  };
+
+  const inputFieldObj = customFields.find(f => f.field_name === form.input_field);
+  const inputDropdownOptions = inputFieldObj?.field_type === 'dropdown' ? parseDropdownOptions(inputFieldObj.options) : [];
+
+  // Auto-populate value_map rows from the input field's dropdown options
+  useEffect(() => {
+    if (form.transform_type !== 'value_map' || !inputDropdownOptions.length) return;
+    setForm(f => {
+      const currentFroms = f.value_map.map(r => r.from).filter(Boolean);
+      const matches = currentFroms.length === inputDropdownOptions.length &&
+        inputDropdownOptions.every((v, i) => currentFroms[i] === v);
+      if (matches) return f;
+      return {
+        ...f,
+        value_map: inputDropdownOptions.map(v => {
+          const existing = f.value_map.find(r => r.from === v);
+          return existing || { from: v, to: '' };
+        }),
+      };
+    });
+  }, [form.input_field, form.transform_type]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
@@ -598,7 +629,20 @@ export default function CustomCalculations() {
                 <Label className="block mb-1">Value Mappings</Label>
                 {form.value_map.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <Input className="flex-1" value={row.from} onChange={e => updateMapRow(i, 'from', e.target.value)} placeholder="From value" />
+                    {inputDropdownOptions.length > 0 ? (
+                      <Select value={row.from} onValueChange={v => updateMapRow(i, 'from', v)}>
+                        <SelectTrigger className="flex-1 h-9">
+                          <SelectValue placeholder="From value" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inputDropdownOptions.map(opt => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="flex-1" value={row.from} onChange={e => updateMapRow(i, 'from', e.target.value)} placeholder="From value" />
+                    )}
                     <span className="text-muted-foreground">→</span>
                     <Input className="flex-1" value={row.to} onChange={e => updateMapRow(i, 'to', e.target.value)} placeholder="To value" />
                     <Button size="icon" variant="ghost" className="text-destructive shrink-0" onClick={() => removeMapRow(i)}><Trash2 className="w-3.5 h-3.5" /></Button>
