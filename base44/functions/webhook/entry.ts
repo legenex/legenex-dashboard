@@ -161,6 +161,59 @@ const MUTABLE_OUTCOME_FIELDS = new Set([
 const reply = (status: number, payload: Record<string, unknown>) =>
   Response.json(payload, { status });
 
+// A resold lead can name a buyer this system has never seen. Silently writing
+// the code onto the lead leaves reports pointing at a buyer that does not exist,
+// so the record is created here and flagged for review.
+//
+// It is created INERT on purpose: status draft, active false, no pricing and no
+// state coverage. Those are operator decisions, and an auto-created buyer must
+// never become routable or billable on the strength of a webhook payload.
+async function ensureBuyer(svc: any, code: string | null, name: string | null) {
+  if (!code && !name) return null;
+  const n = (v: unknown) => String(v ?? '').trim().toLowerCase();
+  try {
+    const buyers = await svc.entities.Buyer.list();
+    const list = Array.isArray(buyers) ? buyers : [];
+    const hit = list.find((b: any) => {
+      if (code && n(b.buyer_code) && n(b.buyer_code) === n(code)) return true;
+      if (name && n(b.company_name) && n(b.company_name) === n(name)) return true;
+      return false;
+    });
+    if (hit) return { created: false, id: hit.id, name: hit.company_name, code: hit.buyer_code };
+
+    const created = await svc.entities.Buyer.create({
+      company_name: name || code,
+      buyer_code: code || undefined,
+      auto_created: true,
+      status: 'draft',
+      active: false,
+      notes: `Auto-created from an inbound webhook outcome on ${new Date().toISOString()}. No pricing or state coverage set. Review in Operations, Buyers.`,
+    });
+    return { created: true, id: created?.id || null, name: name || code, code: code || null };
+  } catch {
+    return null;
+  }
+}
+
+// Same contract for a sid that matches no supplier.
+async function ensureSupplier(svc: any, sid: string | null) {
+  if (!sid) return null;
+  try {
+    const created = await svc.entities.Supplier.create({
+      name: sid,
+      sid,
+      supplier_type: 'External',
+      auto_created: true,
+      status: 'new',
+      active: false,
+      notes: `Auto-created from an inbound webhook sid on ${new Date().toISOString()}. No payout terms set. Review in Operations, Suppliers.`,
+    });
+    return { created: true, id: created?.id || null, name: sid };
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return reply(405, { ok: false, outcome: 'rejected', reason: 'method_not_allowed', message: 'POST a JSON body to this endpoint.' });
@@ -244,6 +297,9 @@ Deno.serve(async (req) => {
     // A route may pin a status. Blank event_type means dynamic, which is the
     // default: read it from lead_status on the payload.
     const status = mapStatus(route?.event_type) || mapStatus(c.lead_status);
+    // Records this request brought into existence, echoed back on the response so
+    // the sender's log shows it and the operator can go and review them.
+    const autoCreated: Array<Record<string, unknown>> = [];
 
     // == Supplier resolution ==
     // A supplier-scoped key pins the supplier. A master key resolves it from
@@ -270,6 +326,18 @@ Deno.serve(async (req) => {
       } catch { /* fall through to the raw sid below */ }
       // Only fall back to the raw sid when there is nothing better to use.
       supplierName = resolved || fallbackSupplier || c.sid;
+      if (!resolved && !fallbackSupplier) {
+        const madeSupplier = await ensureSupplier(svc, c.sid);
+        if (madeSupplier?.created) autoCreated.push({ type: 'supplier', name: madeSupplier.name, id: madeSupplier.id });
+      }
+    }
+
+    // Resolve the buyer named on the outcome, creating an inert record for review
+    // when it is one this system has not seen.
+    let buyerReview: any = null;
+    if (c.buyer_id || c.buyer_name) {
+      buyerReview = await ensureBuyer(svc, c.buyer_id || null, c.buyer_name || null);
+      if (buyerReview?.created) autoCreated.push({ type: 'buyer', name: buyerReview.name, code: buyerReview.code, id: buyerReview.id });
     }
 
     // Everything that reaches a lead write counts as a receipt on the row.
