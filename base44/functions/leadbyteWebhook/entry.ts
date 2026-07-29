@@ -332,6 +332,22 @@ Deno.serve(async (req) => {
       const sidUpper = String(canonical.sid || '').trim().toUpperCase();
       const leadType = (sidUpper === 'LEADFLOW' || sidUpper === 'LGNX') ? 'Quiz' : 'Affiliate';
 
+      // Resolve the supplier by matching the sid against the Supplier records,
+      // loosely, because a sid (LEADFLOW, INBNDS-SURVEY) and a supplier name
+      // (LeadFlow, Inbounds) differ in case and suffix. Falls back to the raw
+      // sid so the lead is still attributed to something searchable.
+      let supplierName: string | null = canonical.sid || null;
+      try {
+        const sups = await svc.entities.Supplier.list();
+        const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+        const s = norm(canonical.sid);
+        const hit = (Array.isArray(sups) ? sups : []).find((x: any) => {
+          const n = norm(x.name);
+          return n && s && (n === s || s.includes(n) || n.includes(s));
+        });
+        if (hit?.name) supplierName = hit.name;
+      } catch { /* keep the sid fallback */ }
+
       const created = await svc.entities.Lead.create({
         ...outcome,
         archived: false,
@@ -339,9 +355,8 @@ Deno.serve(async (req) => {
         last_name: contactLast || undefined,
         email: contactEmail || undefined,
         mobile: contactPhone || undefined,
-        supplier_name: resolvedSupplierName || undefined,
+        supplier_name: supplierName || undefined,
         lead_type: leadType,
-        source_channel: 'leadbyte_webhook',
       });
 
       leadId = created?.id || null;
