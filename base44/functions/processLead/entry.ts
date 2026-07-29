@@ -1450,11 +1450,61 @@ Deno.serve(async (req) => {
       first_name: firstName, last_name: lastName, mobile: mobile, email: email,
     });
 
-    // ── UNKNOWN INBOUND FIELDS ─────────────────────────────────────────
-    // Fields not defined as CustomFields are NOT auto-created. The lead still
-    // processes normally: every inbound key is preserved in raw_payload and
-    // mapped_fields, and forwarding pulls from those. Unknown fields simply
-    // aren't persisted as CustomField records (no auto-detection).
+    // ── AUTO-DETECT UNKNOWN INBOUND FIELDS ──────────────────────────────
+    // When adaptive_fields_enabled is true (default), inbound payload keys that
+    // aren't in the CustomField catalog and aren't on the ignore list are
+    // auto-created as CustomField records with auto_created=true. They appear in
+    // the "X fields auto-detected" banner on the Custom Fields settings page for
+    // the operator to review and confirm (Add) or delete (Ignore).
+    //
+    // Required fields gate the lead (checkRequiredFields below); non-required
+    // fields accept any value. Auto-detected fields default to non-required,
+    // include_in_leadbyte=false, so they never block or forward until confirmed.
+    if (appSettings.adaptive_fields_enabled !== false) {
+      const ignoreList = parseJsonArray(appSettings.adaptive_fields_ignore_list)
+        .map(s => String(s).toLowerCase());
+      const existingNames = new Set(customFields.map(f => (f.field_name || '').toLowerCase()));
+      // System/routing keys that must never be cataloged as custom fields.
+      const SYSTEM_KEYS = new Set([
+        'lead_route', 'lead_status', 'lead_id', 'lead_type',
+        'trustedform_url', 'trustedform_cert', 'jornaya_token', 'jornaya_leadid',
+        'ssid', 'supplier_brand', 'brand', 'supplier_name',
+        'ip_address', 'ipaddress', 'optin_url', 'optinurl',
+        'utm_ad_label', 'utm_source', 'utm_medium', 'utm_campaign',
+        'user_agent', 'browser', 'resolution', 'device',
+      ]);
+      let autoAdded = 0;
+      for (const [key, value] of Object.entries(leadPayload)) {
+        if (autoAdded >= 10) break; // cap per lead to prevent flooding
+        const keyLower = key.toLowerCase();
+        if (existingNames.has(keyLower)) continue;
+        if (SYSTEM_KEYS.has(keyLower)) continue;
+        if (ignoreList.includes(keyLower)) continue;
+        // Skip PII fields that are already Lead entity columns.
+        if (['first_name', 'firstname', 'last_name', 'lastname', 'mobile', 'phone', 'phone1', 'phone_number', 'email'].includes(keyLower)) continue;
+        const sample = value == null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value)).trim();
+        if (!sample) continue;
+        let guessedType = 'string';
+        if (typeof value === 'boolean') guessedType = 'boolean';
+        else if (typeof value === 'number') guessedType = 'number';
+        try {
+          const newField = await db.entities.CustomField.create({
+            field_name: key,
+            label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            field_type: guessedType,
+            source: 'inbound',
+            include_in_leadbyte: false,
+            leadbyte_field_name: key,
+            auto_created: true,
+            sample_value: sample.slice(0, 200),
+            sort_order: customFields.length,
+          });
+          customFields.push(newField);
+          existingNames.add(keyLower);
+          autoAdded++;
+        } catch {}
+      }
+    }
 
     // ── ROUTE: lead_route (case-insensitive contains) ────────────────────
     const leadRouteRaw = String(leadPayload.lead_route || 'standard').trim().toLowerCase();
