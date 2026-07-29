@@ -129,8 +129,12 @@ const STATUS_MAP: Record<string, string> = {
   rejected: 'Rejected',
   reject: 'Rejected',
   duplicate: 'Duplicate',
+  dupe: 'Duplicate',
   disqualified: 'Disqualified',
   dq: 'Disqualified',
+  converted: 'Converted',
+  conversion: 'Converted',
+  fake: 'Fake',
   qualified: 'Qualified',
   queued: 'Queued',
   error: 'Error',
@@ -184,20 +188,57 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ---- Optional webhook row -------------------------------------------------
+  // The key authenticates; `route` is optional and only identifies which
+  // InboundWebhookRoute row gets the receipt, and whether that row pins a
+  // status instead of reading lead_status off the payload.
+  const routeId = clean(url.searchParams.get('route'));
+  let route: any = null;
+  if (routeId) {
+    try {
+      const found = await svc.entities.InboundWebhookRoute.filter({ id: routeId });
+      route = (Array.isArray(found) ? found : [])[0] || null;
+    } catch { /* an unknown route must not block a valid key */ }
+  }
+
+  if (route && route.enabled === false) {
+    return reply(403, {
+      ok: false, outcome: 'rejected', reason: 'webhook_disabled',
+      message: `The webhook "${route.name}" is disabled. Enable it in Settings, Inbound Webhooks.`,
+    });
+  }
+
+  const bumpRoute = async (ok: boolean, errText?: string) => {
+    if (!route) return;
+    try {
+      await svc.entities.InboundWebhookRoute.update(route.id, ok
+        ? {
+            receipt_count: (Number(route.receipt_count) || 0) + 1,
+            last_received_at: new Date().toISOString(),
+          }
+        : {
+            error_count: (Number(route.error_count) || 0) + 1,
+            last_error: String(errText || '').slice(0, 500),
+          });
+    } catch { /* telemetry only */ }
+  };
+
   try {
     const c = canonicalise(body);
     const email = c.email || null;
     const mobile = c.mobile || null;
     const externalId = num(c.lead_id);
-    const status = mapStatus(c.lead_status);
+    // A route may pin a status. Blank event_type means dynamic, which is the
+    // default: read it from lead_status on the payload.
+    const status = mapStatus(route?.event_type) || mapStatus(c.lead_status);
 
     // ---- Supplier resolution ------------------------------------------------
     // A supplier-scoped key pins the supplier. A master key resolves it from
     // the sid on the payload, matched loosely against the Supplier records
     // because a sid (LEADFLOW, INBNDS-SURVEY) and a name (LeadFlow, Inbounds)
     // differ in case and suffix.
-    let supplierName: string | null = clean(apiKey.supplier_name);
-    if (!supplierName && c.sid) {
+    let supplierName: string | null = clean(apiKey.supplier_name) || clean(route?.supplier_name);
+    if (c.sid) {
       supplierName = c.sid;
       try {
         const sups = await svc.entities.Supplier.list();
@@ -210,6 +251,9 @@ Deno.serve(async (req) => {
         if (hit?.name) supplierName = hit.name;
       } catch { /* keep the sid as the attribution */ }
     }
+
+    // Everything that reaches a lead write counts as a receipt on the row.
+    await bumpRoute(true);
 
     if (!email && !mobile && externalId === null) {
       return reply(400, {
@@ -341,6 +385,8 @@ Deno.serve(async (req) => {
       message: 'Lead was not in this system and has been created from the payload.',
     });
   } catch (error) {
-    return reply(500, { ok: false, outcome: 'error', message: (error as Error).message });
+    const message = (error as Error).message;
+    await bumpRoute(false, message);
+    return reply(500, { ok: false, outcome: 'error', message });
   }
 });
