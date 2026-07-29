@@ -102,13 +102,15 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="p-0"
+        sideOffset={4}
+        collisionPadding={8}
+        className="p-0 max-h-[60vh] overflow-y-auto"
         style={{ width: 'var(--radix-popover-trigger-width)', minWidth: '16rem' }}
         onOpenAutoFocus={(e) => { /* keep focus on input via Command */ }}
       >
         <Command shouldFilter={true}>
           <CommandInput placeholder="Search fields…" value={search} onValueChange={setSearch} className="h-9" />
-          <CommandList className="max-h-[260px] overflow-y-auto">
+          <CommandList className="max-h-[220px] overflow-y-auto overscroll-contain">
             <CommandEmpty>No fields found.</CommandEmpty>
             <CommandGroup>
               {fields.map((f) => (
