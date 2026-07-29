@@ -108,21 +108,32 @@ export default function AutoCreatedReviewBanner({ kind }) {
     [records],
   );
 
-  // Referenced on a lead, matching no record at all.
+  // Referenced on a lead, matching no record at all. Keyed on the code when the
+  // lead carries one, so "LFWC9" and "Levine Law" from the same lead collapse
+  // into a single row that knows both.
   const unregistered = useMemo(() => {
     const out = new Map();
     for (const l of leads || []) {
-      for (const raw of cfg.refsFromLead(l)) {
-        const ref = String(raw ?? '').trim();
-        if (!ref || ref === '-' || dismissed.has(ref)) continue;
-        if ((records || []).some((r) => cfg.matches(r, ref))) continue;
-        if (!out.has(ref)) out.set(ref, 0);
-        out.set(ref, out.get(ref) + 1);
+      const raw = cfg.refFromLead(l);
+      const code = String(raw.code ?? '').trim();
+      const name = String(raw.name ?? '').trim();
+      const clean = (v) => (!v || v === '-' ? '' : v);
+      const ref = { code: clean(code), name: clean(name) };
+      if (!ref.code && !ref.name) continue;
+      const key = (ref.code || ref.name).toLowerCase();
+      if (dismissed.has(key)) continue;
+      if ((records || []).some((r) => cfg.matches(r, ref))) continue;
+      const seen = out.get(key);
+      if (seen) {
+        seen.count += 1;
+        // Fill in whichever half a later lead supplies.
+        if (!seen.ref.name && ref.name) seen.ref.name = ref.name;
+        if (!seen.ref.code && ref.code) seen.ref.code = ref.code;
+      } else {
+        out.set(key, { key, ref, count: 1 });
       }
     }
-    return Array.from(out.entries())
-      .map(([ref, count]) => ({ ref, count }))
-      .sort((a, b) => b.count - a.count);
+    return Array.from(out.values()).sort((a, b) => b.count - a.count);
   }, [leads, records, dismissed, cfg]);
 
   if (pending.length === 0 && unregistered.length === 0) return null;
@@ -131,6 +142,11 @@ export default function AutoCreatedReviewBanner({ kind }) {
     qc.invalidateQueries({ queryKey: [`auto-created-${kind}`] });
     qc.invalidateQueries({ queryKey: [`unregistered-refs-${kind}`] });
     qc.invalidateQueries({ queryKey: cfg.queryKey });
+    // The Operations tables use their own keys. Without these the record was
+    // written but the table behind the dialog never refetched, so Keep and
+    // Create looked like they had done nothing at all.
+    qc.invalidateQueries({ queryKey: ['op-buyers'] });
+    qc.invalidateQueries({ queryKey: ['op-suppliers'] });
   };
 
   const accept = async (r) => {
