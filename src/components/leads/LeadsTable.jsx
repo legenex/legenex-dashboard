@@ -20,6 +20,7 @@ import { loadColumnConfig, saveColumnConfig, getColumnDef, buildAvailableColumns
 import { leadEventInstant, leadField } from '@/lib/reportMetrics';
 import { invalidateLeadCaches } from '@/lib/leadCaches';
 import { resolvePeriod } from '@/lib/periodRange';
+import LeadCountsStrip, { leadCounts } from '@/components/shared/LeadCountsStrip';
 
 function getFieldValue(lead, field) {
   if (lead[field] != null && lead[field] !== '') return String(lead[field]);
