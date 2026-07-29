@@ -34,6 +34,8 @@ const TABS = [
   { key: 'Aggregator', label: 'Aggregators' },
   { key: 'Network', label: 'Networks' },
   { key: 'Reseller', label: 'Resellers' },
+  { key: 'Test', label: 'Test' },
+  { key: 'needs_setup', label: 'Needs Setup' },
   { key: 'unclassified', label: 'Unclassified' },
   { key: 'disabled', label: 'Disabled' },
 ];
@@ -46,9 +48,18 @@ function isDisabled(buyer) {
 
 // Match a buyer against a tab. Unclassified = client_type is null/empty.
 // Disabled = status paused or terminated.
+// A buyer that arrived from a lead payload rather than onboarding: it has no type
+// and no pricing, so reports can point at it but nothing can route to it. These
+// need an operator to finish them, which is what the Needs Setup tab collects.
+export function needsSetup(buyer) {
+  if (!buyer) return false;
+  return !buyer.client_type || buyer.status === 'draft';
+}
+
 function matchesTab(buyer, tabKey) {
   if (tabKey === 'disabled') return isDisabled(buyer);
   if (tabKey === 'all') return true;
+  if (tabKey === 'needs_setup') return needsSetup(buyer);
   if (tabKey === 'unclassified') return !buyer.client_type;
   return buyer.client_type === tabKey;
 }
