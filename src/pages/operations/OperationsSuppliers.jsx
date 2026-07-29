@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SectionHeader from '@/components/shared/SectionHeader';
+import AutoCreatedReviewBanner from '@/components/operations/AutoCreatedReviewBanner';
 import RefreshButton from '@/components/shared/RefreshButton';
 import ColumnManager from '@/components/leads/ColumnManager';
 import { PulseDot } from '@/components/settings/settingsUi';
