@@ -287,66 +287,77 @@ Deno.serve(async (req) => {
       await svc.entities.Lead.update(existing.id, patch);
       resultStatus = patch.final_status || existing.final_status || null;
     } else {
-      // No matching lead. This is an outcome/postback webhook: it records the
-      // buyer outcome onto a lead that already exists in our system. It must
-      // NEVER create a new lead, because doing so produced phantom "Processing"
-      // duplicates for direct-route leads.
+      // No matching lead: CREATE it.
       //
-      // But it must not vanish either. Returning a bare 200 told LeadByte the
-      // outcome was accepted, so it never retried, and the Sold status was
-      // dropped on the floor with nothing on screen to show for it. That is the
-      // slippage: LeadByte reports a lead as Sold, this system never hears it,
-      // and the counts drift apart with no trace of why.
+      // Not every lead reaches this system through processLead. Inbounds and
+      // other affiliates post straight into LeadByte, so the first this system
+      // ever hears of those leads is this webhook. Refusing to create them, and
+      // merely logging the outcome, meant real sold leads never appeared here
+      // at all and the counts drifted from LeadByte permanently.
       //
-      // Record it as a resolvable error instead. It surfaces on the Settings
-      // dashboard with an unresolved count, carries the whole payload so the
-      // lead can be reconciled by hand, and is idempotent on repeat delivery.
-      const identity = [
-        leadbyteId ? `leadbyte_id=${leadbyteId}` : null,
-        contactEmail ? `email=${contactEmail}` : null,
-        contactPhone ? `phone=${contactPhone}` : null,
-      ].filter(Boolean).join(' ') || 'no identifying fields on payload';
-
-      try {
-        // Do not pile up a new row every time LeadByte re-sends the same
-        // outcome: look for an open one first.
-        const priorArr = await svc.entities.ErrorLog.filter({
-          stage: 'leadbyte',
-          resolved: false,
-          message: `Unmatched outcome: ${identity}`,
-        });
-        const prior = (Array.isArray(priorArr) ? priorArr : [])[0] || null;
-        if (!prior) {
+      // The earlier no-create rule existed to stop phantom "Processing"
+      // duplicates for leads already in flight through processLead. That is
+      // handled properly now: the match above checks leadbyte id, then email,
+      // then mobile before we get here, so anything reaching this branch is a
+      // lead this system genuinely has not seen.
+      if (!contactEmail && !contactPhone && leadbyteId === null) {
+        // Nothing to identify it by, so creating would guarantee an
+        // unmergeable orphan. Record for reconciliation instead.
+        try {
           await svc.entities.ErrorLog.create({
             stage: 'leadbyte',
             severity: 'warning',
-            message: `Unmatched outcome: ${identity}`,
-            supplier_name: clean(body.supplier_sid) || null,
+            message: 'Unmatched outcome: no identifying fields on payload',
+            supplier_name: canonical.sid || null,
             detail: JSON.stringify({
-              reason: 'Outcome webhook arrived for a lead that is not in this system.',
-              consequence: 'Status was NOT applied. This lead will read differently here than in LeadByte until reconciled.',
-              lead_status: clean(body.lead_status) || null,
-              lead_revenue: body.lead_revenue ?? null,
-              buyer_name: clean(body.buyer_name) || null,
-              received_at: new Date().toISOString(),
+              reason: 'Outcome webhook carried no email, phone or leadbyte id, so no lead could be created or matched.',
+              consequence: 'Nothing was written. Check the webhook payload mapping in LeadByte.',
               payload: body,
             }),
           });
-        }
-      } catch {
-        // Never let the audit write mask the acknowledgement below.
+        } catch { /* audit write must never mask the response */ }
+
+        await svc.entities.InboundWebhookRoute.update(route.id, {
+          receipt_count: (Number(route.receipt_count) || 0) + 1,
+          last_received_at: new Date().toISOString(),
+        });
+        return Response.json({
+          ok: true, matched: false, created: false, lead_id: null, final_status: null,
+          message: 'No identifying fields on payload (email, phone or lead id); nothing written.',
+        }, { status: 200 });
       }
+
+      // lead_type is derived from the supplier id, matching backfillLeadType:
+      // LEADFLOW and LGNX are Quiz leads, every other sid is Affiliate.
+      const sidUpper = String(canonical.sid || '').trim().toUpperCase();
+      const leadType = (sidUpper === 'LEADFLOW' || sidUpper === 'LGNX') ? 'Quiz' : 'Affiliate';
+
+      const created = await svc.entities.Lead.create({
+        ...outcome,
+        archived: false,
+        first_name: contactFirst || undefined,
+        last_name: contactLast || undefined,
+        email: contactEmail || undefined,
+        mobile: contactPhone || undefined,
+        supplier_name: resolvedSupplierName || undefined,
+        lead_type: leadType,
+        source_channel: 'leadbyte_webhook',
+      });
+
+      leadId = created?.id || null;
 
       await svc.entities.InboundWebhookRoute.update(route.id, {
         receipt_count: (Number(route.receipt_count) || 0) + 1,
         last_received_at: new Date().toISOString(),
       });
+
       return Response.json({
         ok: true,
         matched: false,
-        lead_id: null,
-        final_status: null,
-        message: 'No matching lead found; outcome recorded for reconciliation (no lead created).',
+        created: true,
+        lead_id: leadId,
+        final_status: finalStatus,
+        message: 'Lead did not exist in this system and was created from the outcome payload.',
       }, { status: 200 });
     }
 
