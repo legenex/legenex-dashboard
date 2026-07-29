@@ -23,8 +23,8 @@ import { computeBlastRadius } from '@/components/operations/buyers/buyerListMode
 import { useRecomputeCoverage } from '@/components/operations/buyers/useRecomputeCoverage';
 import RecomputingIndicator from '@/components/operations/buyers/RecomputingIndicator';
 import AutoCreatedReviewBanner from '@/components/operations/AutoCreatedReviewBanner';
-import {
 import { verticalFilterOptions } from '@/lib/verticalOptions';
+import {
   BUYER_AVAILABLE_COLUMNS, loadBuyerColumnConfig, saveBuyerColumnConfig, getBuyerColumnDef,
 } from '@/components/operations/buyers/buyerColumns';
 
