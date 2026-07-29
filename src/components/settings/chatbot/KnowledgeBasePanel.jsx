@@ -19,10 +19,13 @@ const KIND_META = {
   template: { label: 'Template', icon: MessageSquareText },
 };
 
+// Semantic status tokens, not raw palette utilities. See DESIGN-SYSTEM.md:
+// raw Tailwind colours do not follow the light theme and are blocked by the
+// design-token gate.
 const SOURCE_BADGE = {
-  file_upload: 'bg-blue-500/10 text-blue-400',
-  json_upload: 'bg-purple-500/10 text-purple-400',
-  ai_generated: 'bg-emerald-500/10 text-emerald-400',
+  file_upload: 'bg-status-duplicate status-duplicate',
+  json_upload: 'bg-status-queued status-queued',
+  ai_generated: 'bg-status-sold status-sold',
 };
 
 const empty = { title: '', kind: 'doc', term: '', content: '', active: true, sort_order: 0, file_url: '', source_type: 'manual' };
