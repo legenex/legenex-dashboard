@@ -70,66 +70,84 @@ function setIf(out: Record<string, any>, key: string, value: unknown) {
 // raw LeadByte bucket value), never to the Calculated accident_date field.
 // supplier_source maps into the "Supplier Source" canonical field like any
 // other mapped field and no longer feeds supplier_name.
-const CANONICAL_MAP: Record<string, string> = {
-  contact_first_name: 'first_name',
-  contact_last_name: 'last_name',
-  contact_email: 'email',
-  contact_phone: 'mobile',
-  contact_zip: 'zip',
-  contact_phone_verified: 'phone_verified',
-  contact_jornaya_token: 'jornaya_token',
-  contact_optin_url: 'optin_url',
-  contact_user_agent: 'user_agent',
-  geo_country: 'geoip_country',
-  geo_state: 'geoip_state',
-  geo_city: 'geoip_city',
-  geo_zip: 'geoip_zip',
-  geo_ip: 'ip_address',
-  geo_language: 'geo_language',
-  utm_source: 'utm_source',
-  utm_campaign: 'utm_campaign',
-  utm_medium: 'utm_medium',
-  utm_content: 'utm_content',
-  utm_terms: 'utm_terms',
-  utm_ad_label: 'ad_label',
-  supplier_sid: 'sid',
-  supplier_ssid: 'ssid',
-  supplier_s1: 's1',
-  supplier_s2: 's2',
-  supplier_s3: 's3',
-  supplier_brand: 'supplier_brand',
-  supplier_source: 'Supplier Source',
-  tc_id: 'tc_id',
-  leadshook_id: 'leadshook_id',
-  accident_state: 'accident_state',
-  accident_type: 'accident_type',
-  accident_details: 'accident_details',
-  incident_date: 'incident_date',
-  injured: 'injured',
-  injury_type: 'injury_type',
-  treatment: 'treatment',
-  treatment_type: 'treatment_type',
-  treatment_time: 'treatment_time',
-  fault: 'fault',
-  attorney: 'attorney',
-  attorney_change: 'attorney_change',
-  insurance: 'insurance',
-  police_report_filed: 'police_report',
-  accident_date: 'accident_timeframe',
-  lead_status: 'lead_status',
-  lead_revenue: 'revenue',
-  lead_vertical: 'vertical',
-  leadbyte_id: 'lead_id',
-  date_created: 'timestamp',
+// Payload key -> canonical field.
+//
+// Each canonical field lists EVERY payload key that can carry it, because two
+// payload styles are in use: the original prefixed one (contact_email,
+// supplier_sid, geo_state) and the flat one (email, sid, geoip_state). A
+// webhook rebuilt with flat keys previously matched nothing at all, since the
+// handler could not find an email or phone to match on and silently dropped
+// most of the record. First present key wins.
+const CANONICAL_MAP: Record<string, string[]> = {
+  first_name: ['contact_first_name', 'first_name', 'firstname'],
+  last_name: ['contact_last_name', 'last_name', 'lastname'],
+  email: ['contact_email', 'email'],
+  mobile: ['contact_phone', 'mobile', 'phone', 'phone1'],
+  zip: ['contact_zip', 'zip', 'postcode'],
+  phone_verified: ['contact_phone_verified', 'phone_verified'],
+  jornaya_token: ['contact_jornaya_token', 'jornaya_token'],
+  optin_url: ['contact_optin_url', 'optin_url', 'optinurl'],
+  user_agent: ['contact_user_agent', 'user_agent'],
+  trustedform_url: ['contact_trustedform_url', 'trustedform_url'],
+  geoip_country: ['geo_country', 'geoip_country', 'country'],
+  geoip_state: ['geo_state', 'geoip_state'],
+  geoip_city: ['geo_city', 'geoip_city'],
+  geoip_zip: ['geo_zip', 'geoip_zip'],
+  ip_address: ['geo_ip', 'ip_address', 'ipaddress'],
+  geo_language: ['geo_language'],
+  utm_source: ['utm_source'],
+  utm_campaign: ['utm_campaign'],
+  utm_medium: ['utm_medium'],
+  utm_content: ['utm_content'],
+  utm_terms: ['utm_terms'],
+  ad_label: ['utm_ad_label', 'ad_label'],
+  sid: ['supplier_sid', 'sid'],
+  ssid: ['supplier_ssid', 'ssid'],
+  s1: ['supplier_s1', 's1'],
+  s2: ['supplier_s2', 's2'],
+  s3: ['supplier_s3', 's3'],
+  supplier_brand: ['supplier_brand'],
+  'Supplier Source': ['supplier_source', 'source'],
+  supplier_payout: ['supplier_payout'],
+  tc_id: ['tc_id'],
+  leadshook_id: ['leadshook_id'],
+  accident_state: ['accident_state'],
+  accident_type: ['accident_type'],
+  accident_details: ['accident_details'],
+  incident_date: ['incident_date'],
+  injured: ['injured'],
+  injury_type: ['injury_type'],
+  treatment: ['treatment'],
+  treatment_type: ['treatment_type'],
+  treatment_time: ['treatment_time'],
+  fault: ['fault'],
+  attorney: ['attorney'],
+  attorney_change: ['attorney_change'],
+  insurance: ['insurance'],
+  police_report: ['police_report_filed', 'police_report'],
+  accident_timeframe: ['accident_date'],
+  lead_status: ['lead_status'],
+  revenue: ['lead_revenue', 'revenue'],
+  vertical: ['lead_vertical', 'vertical'],
+  lead_tier: ['lead_tier'],
+  buyer_name: ['buyer_name', 'buyername'],
+  buyer_id: ['buyer_id', 'buyer'],
+  buyer_feedback: ['buyer_feedback'],
+  returned: ['buyer_returned'],
+  returned_reason: ['buyer_return_reason'],
+  lead_id: ['leadbyte_id', 'lead_id', 'leadid'],
+  timestamp: ['date_created', 'received', 'timestamp'],
 };
 
 // Build the canonical object from the payload, keeping only cleaned present
 // values (clean skips null/empty/single-dash).
 function buildCanonical(body: Record<string, any>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [payloadKey, canonicalKey] of Object.entries(CANONICAL_MAP)) {
-    const value = clean(body[payloadKey]);
-    if (value !== null) out[canonicalKey] = value;
+  for (const [canonicalKey, payloadKeys] of Object.entries(CANONICAL_MAP)) {
+    for (const k of payloadKeys) {
+      const value = clean(body[k]);
+      if (value !== null) { out[canonicalKey] = value; break; }
+    }
   }
   return out;
 }
