@@ -69,6 +69,12 @@ export default function DataBotWidget() {
   const [busy, setBusy] = useState(false);
   const [threads, setThreads] = useState({ data: [], build: [] });
   const scrollRef = useRef(null);
+  // Ref mirror so the bridge event handler (which captures a stale closure)
+  // always sees the latest threads instead of wiping history.
+  const threadsRef = useRef(threads);
+  threadsRef.current = threads;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   const messages = activeBot ? threads[activeBot] : [];
   const cfg = activeBot ? BOTS[activeBot] : null;
@@ -104,11 +110,13 @@ export default function DataBotWidget() {
 
   const sendToBot = async (bot, text) => {
     const question = (text ?? input).trim();
-    if (!question || busy || !bot) return;
-    const next = [...threads[bot], { role: 'user', content: question }];
+    if (!question || busyRef.current || !bot) return;
+    const current = threadsRef.current[bot] || [];
+    const next = [...current, { role: 'user', content: question }];
     setThreads((t) => ({ ...t, [bot]: next }));
     if (bot === activeBot) setInput('');
     setBusy(true);
+    busyRef.current = true;
     try {
       const res = await dataBot({ question, history: next.slice(-8), mode: bot, conversation_id: conversationIds[bot] });
       const data = res?.data || {};
@@ -121,6 +129,7 @@ export default function DataBotWidget() {
       setThreads((t) => ({ ...t, [bot]: [...t[bot], { role: 'assistant', content: 'Something went wrong reaching the assistant. Please try again.' }] }));
     }
     setBusy(false);
+    busyRef.current = false;
   };
 
   const send = (text) => sendToBot(activeBot, text);
