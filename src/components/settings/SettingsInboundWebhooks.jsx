@@ -121,33 +121,9 @@ export default function SettingsInboundWebhooks() {
     toast.success('Route created');
   };
 
-  const handleCreate = async () => {
-    const token = generateToken();
-    const token_hash = await sha256Hex(token);
-    await base44.entities.InboundWebhookRoute.create({
-      name: form.name,
-      provider: 'leadbyte',
-      event_type: form.event_type,
-      enabled: true,
-      token_hash,
-      token_hint: token.slice(-4),
-      receipt_count: 0,
-      error_count: 0,
-    });
-    invalidate();
-    setReveal(token);
-  };
-
-  const handleRotate = async (route) => {
-    const token = generateToken();
-    const token_hash = await sha256Hex(token);
-    await base44.entities.InboundWebhookRoute.update(route.id, {
-      token_hash,
-      token_hint: token.slice(-4),
-    });
-    invalidate();
-    setReveal(token);
-  };
+  // Per-route tokens are retired. Authentication is by API key on the URL
+  // (?key=...), so a route no longer mints or rotates a secret of its own and
+  // one key can serve every route.
 
   const toggleEnabled = async (route) => {
     await base44.entities.InboundWebhookRoute.update(route.id, { enabled: !route.enabled });
