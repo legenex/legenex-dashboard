@@ -182,18 +182,11 @@ export default function SettingsInboundWebhooks() {
                 <td className="px-4 py-3 font-mono text-[12px]">
                   <span className={r.error_count ? 'status-error' : ''}>{r.error_count || 0}</span>
                 </td>
-                <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{r.token_hint ? `...${r.token_hint}` : '-'}</td>
-                <td className="px-4 py-3">
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1" title="Copy inbound URL (without token)"
-                    onClick={() => { navigator.clipboard.writeText(INBOUND_BASE_URL); toast.success('Inbound URL copied (no token)'); }}>
-                    <Copy className="w-3 h-3" /> URL
-                  </Button>
-                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1" title="Rotate token"
-                      onClick={() => handleRotate(r)}>
-                      <RefreshCw className="w-3 h-3" /> Rotate
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1" title="Edit route"
+                      onClick={() => openEdit(r)}>
+                      <Pencil className="w-3 h-3" /> Edit
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Delete"
                       onClick={() => setDeleteTarget(r)}>
