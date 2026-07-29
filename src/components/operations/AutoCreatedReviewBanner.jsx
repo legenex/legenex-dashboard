@@ -86,6 +86,7 @@ export default function AutoCreatedReviewBanner({ kind }) {
   const cfg = CONFIG[kind];
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState(null);
+  const [open, setOpen] = useState(false);
   const [discardTarget, setDiscardTarget] = useState(null);
   const [dismissed, setDismissed] = useState(() => new Set());
 
@@ -167,7 +168,6 @@ export default function AutoCreatedReviewBanner({ kind }) {
   };
 
   const total = pending.length + unregistered.length;
-  if (total === 0) return null;
 
   const rows = (
     <div className="rounded-md border border-border overflow-hidden">
