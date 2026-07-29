@@ -65,14 +65,15 @@ const CONFIG = {
     codeOf: (r) => r.sid,
     accept: { status: 'new', active: false, auto_created: false },
     finishHint: 'Set payout terms before making it active.',
-    refsFromLead: (l) => [l.supplier_name],
+    refFromLead: (l) => ({ code: '', name: l.supplier_name || '' }),
     matches: (r, ref) => {
       const n = (v) => String(v ?? '').trim().toLowerCase();
-      return (n(r.sid) && n(r.sid) === n(ref)) || (n(r.name) && n(r.name) === n(ref));
+      const nm = n(ref.name) || n(ref.code);
+      return (n(r.sid) && n(r.sid) === nm) || (n(r.name) && n(r.name) === nm);
     },
     build: (ref) => ({
-      name: ref,
-      sid: ref,
+      name: ref.name || ref.code,
+      sid: ref.name || ref.code,
       supplier_type: 'External',
       auto_created: true,
       status: 'new',
