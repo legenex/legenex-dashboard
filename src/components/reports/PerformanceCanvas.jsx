@@ -6,6 +6,7 @@ import ReportWidget from './ReportWidget';
 import AddWidgetPicker from './AddWidgetPicker';
 import { computeMetrics, dailySeries, applyFilters, METRIC_CATALOG, leadField, seriesWindow, spendInWindow } from '@/lib/reportMetrics';
 import { internalSupplierSet } from '@/lib/reportMetrics';
+import LeadCountsStrip from '@/components/shared/LeadCountsStrip';
 import { reorder } from '@/lib/reorder';
 
 let idc = 0;
