@@ -68,7 +68,11 @@ function TokenRevealBox({ token, onClose }) {
 export default function SettingsInboundWebhooks() {
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', event_type: 'sold' });
+  // editing holds the route being edited, or null when creating.
+  const [editing, setEditing] = useState(null);
+  // event_type empty means dynamic: read the status from lead_status on the
+  // payload rather than pinning this route to one event.
+  const [form, setForm] = useState({ name: '', event_type: '' });
   const [reveal, setReveal] = useState(null); // one-time full token string
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -80,9 +84,41 @@ export default function SettingsInboundWebhooks() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ['inbound-webhook-routes'] });
 
   const openCreate = () => {
-    setForm({ name: '', event_type: 'sold' });
+    setEditing(null);
+    setForm({ name: '', event_type: '' });
     setReveal(null);
     setModalOpen(true);
+  };
+
+  const openEdit = (r) => {
+    setEditing(r);
+    setForm({ name: r.name || '', event_type: r.event_type || '' });
+    setReveal(null);
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (editing) {
+      await base44.entities.InboundWebhookRoute.update(editing.id, {
+        name: form.name,
+        event_type: form.event_type || null,
+      });
+      invalidate();
+      setModalOpen(false);
+      setEditing(null);
+      toast.success('Route updated');
+      return;
+    }
+    await base44.entities.InboundWebhookRoute.create({
+      name: form.name,
+      event_type: form.event_type || null,
+      enabled: true,
+      receipt_count: 0,
+      error_count: 0,
+    });
+    invalidate();
+    setModalOpen(false);
+    toast.success('Route created');
   };
 
   const handleCreate = async () => {
