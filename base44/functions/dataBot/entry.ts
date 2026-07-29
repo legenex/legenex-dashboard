@@ -164,6 +164,117 @@ Deno.serve(async (req) => {
     const sum = (a, f) => a.reduce((acc, x) => acc + (Number(f(x)) || 0), 0);
     const statusMap = (rows) => { const m = {}; for (const l of rows) m[l.final_status] = (m[l.final_status] || 0) + 1; return m; };
 
+    // ---- Accurate, date-aware lead facts -------------------------------------
+    //
+    // The bot used to be handed a 500-row slice and 25 recent rows with no date
+    // buckets at all, then asked questions like "how many sold yesterday". It
+    // could not know, so it answered zero while the Leads page showed 15.
+    //
+    // Counting is done here, not by the model. Three rules matter and all three
+    // match what the UI does:
+    //   1. Archived leads are excluded. They are retired duplicates.
+    //   2. The event date is the supplier's own timestamp where present, NOT
+    //      created_date. created_date is when the row was written, so every
+    //      lead from a bulk import carries the import date.
+    //   3. Days are bucketed in America/Regina, the operating timezone, so
+    //      "yesterday" means yesterday here rather than in UTC.
+    const APP_TZ = 'America/Regina';
+    const dayFmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: APP_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+
+    const parseBag = (l) => {
+      try { return JSON.parse(l?.mapped_fields || '{}') || {}; } catch { return {}; }
+    };
+
+    // Mirrors leadEventInstant in src/lib/reportMetrics.js.
+    const eventDayKey = (l) => {
+      const bag = parseBag(l);
+      const raw = bag.timestamp || bag.received || bag.date_created || null;
+      let d = null;
+      if (raw) {
+        const s = String(raw).trim().replace(' ', 'T');
+        d = new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`);
+      }
+      if (!d || isNaN(d.getTime())) {
+        const c = l?.created_date;
+        if (!c) return null;
+        const s = String(c).trim();
+        d = new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`);
+      }
+      return isNaN(d.getTime()) ? null : dayFmt.format(d);
+    };
+
+    const todayKey = dayFmt.format(new Date());
+    const dayKeyOffset = (n) => dayFmt.format(new Date(Date.now() - n * 86400000));
+    const yesterdayKey = dayKeyOffset(1);
+
+    // Page past the 500-row cap so totals are real totals.
+    const loadAllLeads = async () => {
+      const out = [];
+      const pageSize = 500;
+      for (let p = 0; p < 200; p += 1) {
+        const batch = await svc.entities.Lead
+          .filter({ archived: false }, '-created_date', pageSize, p * pageSize)
+          .catch(() => []);
+        if (!batch || batch.length === 0) break;
+        out.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      return out;
+    };
+
+    // Counts by status for an arbitrary set of day keys.
+    const countsForDays = (allLeads, dayKeys) => {
+      const want = new Set(dayKeys);
+      const rows = allLeads.filter((l) => { const k = eventDayKey(l); return k && want.has(k); });
+      const byStatus = statusMap(rows);
+      return {
+        total: rows.length,
+        sold: byStatus.Sold || 0,
+        unsold: byStatus.Unsold || 0,
+        disqualified: byStatus.Disqualified || 0,
+        returned: byStatus.Returned || 0,
+        rejected: byStatus.Rejected || 0,
+        duplicate: byStatus.Duplicate || 0,
+        revenue: Math.round(sum(rows, (l) => l.revenue)),
+      };
+    };
+
+    const buildLeadFacts = (allLeads) => {
+      const last7 = Array.from({ length: 7 }, (_, i) => dayKeyOffset(i));
+      const last30 = Array.from({ length: 30 }, (_, i) => dayKeyOffset(i));
+      const thisMonthPrefix = todayKey.slice(0, 7);
+      const allKeys = allLeads.map(eventDayKey).filter(Boolean);
+      const thisMonthKeys = [...new Set(allKeys.filter((k) => k.startsWith(thisMonthPrefix)))];
+      const lastMonthDate = new Date();
+      lastMonthDate.setDate(1);
+      lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+      const lastMonthPrefix = dayFmt.format(lastMonthDate).slice(0, 7);
+      const lastMonthKeys = [...new Set(allKeys.filter((k) => k.startsWith(lastMonthPrefix)))];
+
+      // Per-day series so the model can answer "which day was best" without
+      // inventing anything.
+      const perDay = {};
+      for (const k of last30) perDay[k] = countsForDays(allLeads, [k]);
+
+      return {
+        _note: 'Counts are authoritative. They exclude archived leads and bucket by the supplier event timestamp in America/Regina, matching the dashboard. Use these numbers directly; do not recount from recent_leads.',
+        timezone: APP_TZ,
+        today_date: todayKey,
+        yesterday_date: yesterdayKey,
+        all_time_total: allLeads.length,
+        all_time_by_status: statusMap(allLeads),
+        today: countsForDays(allLeads, [todayKey]),
+        yesterday: countsForDays(allLeads, [yesterdayKey]),
+        last_7_days: countsForDays(allLeads, last7),
+        last_30_days: countsForDays(allLeads, last30),
+        this_month: countsForDays(allLeads, thisMonthKeys),
+        last_month: countsForDays(allLeads, lastMonthKeys),
+        per_day_last_30: perDay,
+      };
+    };
+
     let dataSummary = {};
     let kbContext = '';
     let scopeNote = '';
