@@ -209,21 +209,38 @@ export default function CustomCalculations() {
       return base44.entities.CustomCalculation.create(data);
     },
     onSuccess: async () => {
-      // Sync output_token as a Calculated CustomField so it appears in payload builder
+      // Sync output_token as a Calculated CustomField so it appears in payload builder.
+      //
+      // Re-read the field list rather than trusting the cached one: a stale list
+      // is how duplicate Calculated fields got created for the same token.
       try {
-        const existing = customFields.find(f => f.field_name === form.output_token);
+        let current = customFields;
+        try { current = await base44.entities.CustomField.list(); } catch { /* fall back to cache */ }
+        const token = String(form.output_token || '').trim();
+        const matches = (current || []).filter(f => f.field_name === token);
+        const existing = matches[0];
         if (!existing) {
           await base44.entities.CustomField.create({
-            field_name: form.output_token,
-            label: form.output_label || form.output_token,
+            field_name: token,
+            label: form.output_label || token,
             field_type: 'Calculated',
             source: 'inbound',
             include_in_leadbyte: true,
-            leadbyte_field_name: form.output_token,
-            auto_created: true,
+            leadbyte_field_name: token,
+            // NOT auto_created: an operator deliberately created this. Flagging it
+            // Auto put it in the auto-detected review queue, where it read as
+            // something the system guessed rather than something you built.
+            auto_created: false,
           });
-        } else if (existing.field_type !== 'Calculated') {
-          await base44.entities.CustomField.update(existing.id, { field_type: 'Calculated' });
+        } else {
+          const patch = {};
+          if (existing.field_type !== 'Calculated') patch.field_type = 'Calculated';
+          if (existing.auto_created) patch.auto_created = false;
+          if (Object.keys(patch).length) await base44.entities.CustomField.update(existing.id, patch);
+          // Clean up duplicates for the same token created by earlier stale reads.
+          for (const dupe of matches.slice(1)) {
+            try { await base44.entities.CustomField.delete(dupe.id); } catch { /* best effort */ }
+          }
         }
       } catch (e) { /* field may already exist (e.g. created inline) - ignore */ }
       qc.invalidateQueries({ queryKey: ['custom-calculations'] });
@@ -236,9 +253,31 @@ export default function CustomCalculations() {
     },
   });
 
+  // Deleting a calculation used to leave its Calculated CustomField behind. The
+  // orphan still showed in Settings, Custom Fields with type Calculated and no
+  // formula anywhere, so the field looked like it had silently vanished from the
+  // Calculated Fields page. Delete the pair, or the catalogue lies.
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.CustomCalculation.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['custom-calculations']); setDeleteId(null); },
+    mutationFn: async (id) => {
+      const row = (calculations || []).find(c => c.id === id);
+      await base44.entities.CustomCalculation.delete(id);
+      const token = String(row?.output || '').trim();
+      if (!token) return;
+      // Only remove the paired field if nothing else still computes that token.
+      const others = (calculations || []).filter(c => c.id !== id && String(c.output || '').trim() === token);
+      if (others.length > 0) return;
+      try {
+        const fields = await base44.entities.CustomField.list();
+        for (const f of (fields || []).filter(f => f.field_name === token && f.field_type === 'Calculated')) {
+          await base44.entities.CustomField.delete(f.id);
+        }
+      } catch { /* best effort: the calculation is already gone */ }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['custom-calculations'] });
+      qc.invalidateQueries({ queryKey: ['custom-fields'] });
+      setDeleteId(null);
+    },
   });
 
   const toggleMutation = useMutation({
