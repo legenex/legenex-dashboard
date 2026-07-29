@@ -1249,6 +1249,8 @@ Deno.serve(async (req) => {
       payload['X-API-KEY'] ||
       payload['X_KEY'] ||
       payload._supplier_key ||
+      payload.api_key ||
+      payload.apiKey ||
       null;
     if (!supplierKeyRaw) {
       const authHeader = req.headers.get('Authorization') || '';
@@ -1267,6 +1269,8 @@ Deno.serve(async (req) => {
     delete leadPayload._dry_run;
     delete leadPayload._campaign;
     delete leadPayload.phone_verified;
+    delete leadPayload.api_key;
+    delete leadPayload.apiKey;
 
     // ── a. AUTH ──────────────────────────────────────────────────────────
     let apiKeyRecord = null;
