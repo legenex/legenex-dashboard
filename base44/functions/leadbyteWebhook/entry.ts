@@ -318,7 +318,6 @@ Deno.serve(async (req) => {
 
       await svc.entities.InboundWebhookRoute.update(route.id, {
         receipt_count: (Number(route.receipt_count) || 0) + 1,
-        unmatched_count: (Number(route.unmatched_count) || 0) + 1,
         last_received_at: new Date().toISOString(),
       });
       return Response.json({
