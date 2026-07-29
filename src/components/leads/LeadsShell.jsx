@@ -4,6 +4,7 @@ import { PulseDot } from '@/components/settings/settingsUi';
 import { RefreshCw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import ColumnManager from '@/components/leads/ColumnManager';
+import LeadCountsStrip from '@/components/shared/LeadCountsStrip';
 
 // Shared Leads shell. Portals the header (view title + LIVE pill + subtitle,
 // with Refresh / Columns / Export CSV and the "N leads" count) into the section
@@ -19,6 +20,8 @@ export default function LeadsShell({
   availableColumns,
   onColumnChange,
   telemetry,
+  counts,
+  filterBar,
   children,
 }) {
   const [refreshedAt, setRefreshedAt] = useState(Date.now());
@@ -43,7 +46,7 @@ export default function LeadsShell({
     }
   };
 
-  const { total = 0, sold = 0, queued = 0, errors = 0, lastLeadAt = null } = telemetry || {};
+  const { queued = 0, errors = 0, lastLeadAt = null } = telemetry || {};
 
   const Metric = ({ label, value, tone }) => (
     <span className="inline-flex items-center gap-1.5">
@@ -79,17 +82,39 @@ export default function LeadsShell({
         </div>
       </SectionHeader>
 
+      {/* Filter bar, then the counts strip directly beneath it, then the table.
+
+          The strip used to sit in a footer under the table and count the whole
+          period regardless of the filters above, so choosing a supplier changed
+          the rows and left the numbers alone. It now sits with the controls that
+          drive it and is fed the fully filtered set. */}
+      {filterBar}
+
+      {counts && (
+        <LeadCountsStrip
+          counts={counts}
+          className="mt-3 shrink-0"
+          right={(
+            <span className="inline-flex items-center gap-1.5">
+              <PulseDot />
+              <span className="text-[10.5px] text-muted-foreground hidden sm:inline">
+                {lastLeadAt ? `last ${format(new Date(lastLeadAt), 'MMM dd HH:mm')}` : 'live'}
+              </span>
+            </span>
+          )}
+        />
+      )}
+
       {children}
 
-      {/* Telemetry footer */}
+      {/* Pipeline health footer: stream state and anything stuck or failing.
+          Deliberately NOT lead counts any more, those live above the table. */}
       <div className="mt-3 shrink-0 flex items-center gap-4 flex-wrap rounded-lg border border-border bg-card px-4 py-2.5">
         <span className="text-[9.5px] font-semibold tracking-[0.11em] uppercase text-muted-foreground/70">Leads Telemetry</span>
         <span className="inline-flex items-center gap-1.5">
           <PulseDot />
           <span className="text-[10.5px] text-muted-foreground">Live stream connected</span>
         </span>
-        <Metric label="Total" value={total} />
-        <Metric label="Sold" value={sold} tone="status-sold" />
         <Metric label="Queued" value={queued} tone={queued > 0 ? 'status-queued' : 'text-foreground'} />
         <Metric label="Errors" value={errors} tone={errors > 0 ? 'text-primary' : 'text-foreground'} />
         <Metric label="Last Lead" value={lastLeadAt ? format(new Date(lastLeadAt), 'MMM dd HH:mm') : 'none'} />
