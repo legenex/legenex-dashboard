@@ -11,10 +11,13 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Recursive on purpose. Narrow per-directory globs meant a test file added
+    // anywhere else was silently skipped, which is the same class of problem as
+    // a page silently disappearing: green output that proves nothing.
     include: [
-      'src/lib/*.test.js',
-      'src/lib/distribution/**/*.test.js',
-      'src/components/distribution/**/*.test.jsx',
+      'src/lib/**/*.test.js',
+      'src/components/**/*.test.js',
+      'src/components/**/*.test.jsx',
     ],
   },
 });
