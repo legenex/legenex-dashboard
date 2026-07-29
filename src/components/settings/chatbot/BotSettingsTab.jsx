@@ -57,6 +57,39 @@ export default function BotSettingsTab({ botKey }) {
     setSaving(false);
   };
 
+  // ---- Access control -------------------------------------------------------
+  //
+  // Roles and named people share one searchable list. Each option is prefixed
+  // so the two namespaces cannot collide (a person could be called "Manager"),
+  // and the prefix is stripped again when splitting back into the two stored
+  // arrays.
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => base44.entities.User.list(),
+    staleTime: 60_000,
+  });
+
+  const ROLES = ['owner', 'admin', 'manager', 'analyst', 'viewer'];
+
+  const accessOptions = React.useMemo(() => ([
+    ...ROLES.map((r) => ({ value: `role:${r}`, label: `Role: ${r.charAt(0).toUpperCase()}${r.slice(1)}` })),
+    ...users.map((u) => ({
+      value: `user:${u.id}`,
+      label: `${u.full_name || u.email || 'Unnamed user'}${u.email && u.full_name ? ` (${u.email})` : ''}`,
+    })),
+  ]), [users]);
+
+  const accessValue = React.useMemo(() => ([
+    ...(Array.isArray(form?.allowed_roles) ? form.allowed_roles : []).map((r) => `role:${r}`),
+    ...(Array.isArray(form?.allowed_user_ids) ? form.allowed_user_ids : []).map((i) => `user:${i}`),
+  ]), [form?.allowed_roles, form?.allowed_user_ids]);
+
+  const onAccessChange = (next) => {
+    const list = Array.isArray(next) ? next : [];
+    setF('allowed_roles', list.filter((v) => v.startsWith('role:')).map((v) => v.slice(5)));
+    setF('allowed_user_ids', list.filter((v) => v.startsWith('user:')).map((v) => v.slice(5)));
+  };
+
   const uploadAvatar = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
