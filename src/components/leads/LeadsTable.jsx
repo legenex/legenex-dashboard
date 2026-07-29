@@ -648,6 +648,14 @@ export default function LeadsTable({ view }) {
         sourceOptions={sourceOptions}
       />
 
+      {/* Lead counts, directly under the filters that drive them.
+
+          This used to be a footer under the table showing only Total and Sold,
+          and it counted the whole period regardless of the status, supplier,
+          buyer or source filters above, so changing a filter moved the rows and
+          left the numbers alone. It is fed `filtered`, the exact set on screen. */}
+      <LeadCountsStrip counts={counts} className="mt-3" />
+
       <BulkActionBar
         selectedCount={selectedIds.size}
         onResubmit={handleBulkResubmit}
