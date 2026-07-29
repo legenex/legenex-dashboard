@@ -4,7 +4,6 @@ import { PulseDot } from '@/components/settings/settingsUi';
 import { RefreshCw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import ColumnManager from '@/components/leads/ColumnManager';
-import LeadCountsStrip from '@/components/shared/LeadCountsStrip';
 
 // Shared Leads shell. Portals the header (view title + LIVE pill + subtitle,
 // with Refresh / Columns / Export CSV and the "N leads" count) into the section
@@ -20,8 +19,6 @@ export default function LeadsShell({
   availableColumns,
   onColumnChange,
   telemetry,
-  counts,
-  filterBar,
   children,
 }) {
   const [refreshedAt, setRefreshedAt] = useState(Date.now());
@@ -81,29 +78,6 @@ export default function LeadsShell({
           </button>
         </div>
       </SectionHeader>
-
-      {/* Filter bar, then the counts strip directly beneath it, then the table.
-
-          The strip used to sit in a footer under the table and count the whole
-          period regardless of the filters above, so choosing a supplier changed
-          the rows and left the numbers alone. It now sits with the controls that
-          drive it and is fed the fully filtered set. */}
-      {filterBar}
-
-      {counts && (
-        <LeadCountsStrip
-          counts={counts}
-          className="mt-3 shrink-0"
-          right={(
-            <span className="inline-flex items-center gap-1.5">
-              <PulseDot />
-              <span className="text-[10.5px] text-muted-foreground hidden sm:inline">
-                {lastLeadAt ? `last ${format(new Date(lastLeadAt), 'MMM dd HH:mm')}` : 'live'}
-              </span>
-            </span>
-          )}
-        />
-      )}
 
       {children}
 
