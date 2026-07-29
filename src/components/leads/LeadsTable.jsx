@@ -441,6 +441,12 @@ export default function LeadsTable({ view }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, period, customPeriod.from, customPeriod.to]);
 
+  // Counts for the strip above the table. Derived from `filtered`, which has
+  // had EVERY filter applied (period, view, search, status, supplier, source,
+  // vertical and any custom filters), so the numbers always describe exactly
+  // the rows on screen.
+  const counts = useMemo(() => leadCounts(filtered), [filtered]);
+
   const telemetry = useMemo(() => ({
     total: periodLeads.length,
     sold: periodLeads.filter(l => l.final_status === 'Sold').length,
