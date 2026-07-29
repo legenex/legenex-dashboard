@@ -78,7 +78,7 @@ const CONFIG = {
     },
     build: (ref) => ({
       name: ref.name || ref.code,
-      sid: ref.name || ref.code,
+      sid: ref.code || ref.name,
       supplier_type: 'External',
       auto_created: true,
       status: 'new',
