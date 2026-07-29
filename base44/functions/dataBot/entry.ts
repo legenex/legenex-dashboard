@@ -378,19 +378,69 @@ Deno.serve(async (req) => {
       const perDay = {};
       for (const k of last30) perDay[k] = countsForDays(allLeads, [k]);
 
+      // Rows for a period, so dimensional breakdowns can be cut per window.
+      const rowsFor = (keys) => {
+        const want = new Set(keys);
+        return allLeads.filter((l) => { const k = eventDayKey(l); return k && want.has(k); });
+      };
+      const yRows = rowsFor([yesterdayKey]);
+      const tRows = rowsFor([todayKey]);
+      const w7Rows = rowsFor(last7);
+      const mRows = rowsFor(thisMonthKeys);
+      const lmRows = rowsFor(lastMonthKeys);
+
+      // Every dimension, cut by every period that gets asked about. This is
+      // what makes "how many of yesterday's were LeadFlow" answerable.
+      const cuts = (rows) => ({
+        by_supplier: groupBy(rows, dimSupplier),
+        by_buyer: groupBy(rows, dimBuyer),
+        by_source: groupBy(rows, dimSource),
+        by_vertical: groupBy(rows, dimVertical),
+        by_state: groupBy(rows, dimState, 15),
+      });
+
+      // Name <-> code lookups so a question can use either form.
+      const supplierIdentity = {};
+      const buyerIdentity = {};
+      for (const l of allLeads) {
+        const sName = dimSupplier(l); const sId = dimSupplierId(l);
+        if (sId && !supplierIdentity[sName]) supplierIdentity[sName] = sId;
+        const bName = dimBuyer(l); const bId = dimBuyerId(l);
+        if (bId && !buyerIdentity[bName]) buyerIdentity[bName] = bId;
+      }
+
       return {
         _note: 'Counts are authoritative. They exclude archived leads and bucket by the supplier event timestamp in America/Regina, matching the dashboard. Use these numbers directly; do not recount from recent_leads.',
+        _how_to_read: 'Each period has overall figures AND breakdowns. For "how many of yesterday were LeadFlow", read yesterday_breakdown.by_supplier["LeadFlow"]. Every breakdown entry carries total, sold, unsold, disqualified, returned, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct. supplier_identity and buyer_identity map names to their codes so either can be used.',
         timezone: APP_TZ,
         today_date: todayKey,
         yesterday_date: yesterdayKey,
+
+        supplier_identity: supplierIdentity,
+        buyer_identity: buyerIdentity,
+
         all_time_total: allLeads.length,
         all_time_by_status: statusMap(allLeads),
+        all_time: econ(allLeads),
+        all_time_breakdown: cuts(allLeads),
+
         today: countsForDays(allLeads, [todayKey]),
+        today_breakdown: cuts(tRows),
+
         yesterday: countsForDays(allLeads, [yesterdayKey]),
+        yesterday_breakdown: cuts(yRows),
+
         last_7_days: countsForDays(allLeads, last7),
+        last_7_days_breakdown: cuts(w7Rows),
+
         last_30_days: countsForDays(allLeads, last30),
+
         this_month: countsForDays(allLeads, thisMonthKeys),
+        this_month_breakdown: cuts(mRows),
+
         last_month: countsForDays(allLeads, lastMonthKeys),
+        last_month_breakdown: cuts(lmRows),
+
         per_day_last_30: perDay,
       };
     };
