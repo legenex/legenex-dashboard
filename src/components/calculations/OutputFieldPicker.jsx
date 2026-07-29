@@ -106,6 +106,11 @@ export function OutputFieldPicker({ value, onValueChange, fields = [], placehold
         sideOffset={4}
         collisionPadding={8}
         className="p-0"
+        // Rendered inline rather than portalled to document.body. This picker
+        // opens from inside a Dialog, and the dialog's scroll lock cancels
+        // wheel events outside its own DOM subtree, which left this list
+        // draggable by the scrollbar grip but dead to mouse wheel and trackpad.
+        portal={false}
         style={{ width: 'var(--radix-popover-trigger-width)', minWidth: '16rem' }}
         onOpenAutoFocus={(e) => { /* keep focus on input via Command */ }}
       >
