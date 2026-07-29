@@ -106,42 +106,17 @@ Deno.serve(async (req) => {
     };
     const isPartner = user.base_role === 'supplier' || user.base_role === 'buyer' || !!user.linked_supplier_id || !!user.linked_buyer_id;
     const perms = resolvePerms(user);
-    // Baseline permission gate. The per-bot allow list is applied further down,
-    // once the service-role client exists.
-    const canData = !!perms.databot;
-    const canBuild = !isPartner && !!perms.buildbot;
-
-    // Friendly, actionable message instead of a silent 500 when the key is unset.
-    if (!Deno.env.get('OPENAI_API_KEY')) {
-      return Response.json({ type: 'answer', answer: 'This assistant is not configured yet: the OPENAI_API_KEY secret is missing. An admin can add it in the app secrets, then I can answer.' });
-    }
-
-    // BuildBot: draft a single-concern build request for the controlled channel.
-    if (mode === 'build') {
-      if (!canBuild) {
-        return Response.json({ type: 'answer', answer: 'BuildBot is not enabled for your account. An admin can grant the BuildBot permission in Users and Roles.' });
-      }
-      try {
-        const draft = await draftBuildRequest(question, history);
-        if (draft && draft.is_build) return Response.json({ type: 'build_request', build_request: draft });
-      } catch (_) { /* not a build, or draft failed: fall through to an answer */ }
-    }
-
-    if (!canData) {
-      return Response.json({ type: 'answer', answer: 'DataBot access is turned off for your account. An admin can enable it in Users and Roles.' });
-    }
-
     const svc = base44.asServiceRole;
 
     // Per-bot allow list, configured on the bot itself in Settings > ChatBot.
     //
     // When allowed_roles or allowed_user_ids is set, the bot is restricted to
-    // exactly those and nothing else grants access. When both are empty the bot
-    // falls back to the permission flag resolved above, which is how it behaved
-    // before, so an unconfigured bot keeps working for owners and admins.
+    // exactly those and nothing else grants access. When both are empty it
+    // returns null and the permission flag below decides, which is how it
+    // behaved before, so an unconfigured bot keeps working for owners/admins.
     //
-    // Enforced here, server side. The UI hides the launcher too, but hiding a
-    // button is not access control.
+    // Resolved BEFORE any work happens. Enforced server side: the UI hides the
+    // launcher too, but hiding a button is not access control.
     const botAllows = async (botKey: string, u: any) => {
       try {
         const cfgs = await svc.entities.BotConfig.filter({ bot_key: botKey });
@@ -157,16 +132,41 @@ Deno.serve(async (req) => {
       }
     };
 
+    const buildAllow = await botAllows('build', user);
+    const dataAllow = await botAllows('data', user);
+
+    // An explicit allow list overrides the permission flag in both directions.
+    const canData = dataAllow === null ? !!perms.databot : dataAllow;
+    const canBuild = !isPartner && (buildAllow === null ? !!perms.buildbot : buildAllow);
+
+    // Friendly, actionable message instead of a silent 500 when the key is unset.
+    if (!Deno.env.get('OPENAI_API_KEY')) {
+      return Response.json({ type: 'answer', answer: 'This assistant is not configured yet: the OPENAI_API_KEY secret is missing. An admin can add it in the app secrets, then I can answer.' });
+    }
+
+    // BuildBot: draft a single-concern build request for the controlled channel.
     if (mode === 'build') {
-      const buildAllowList = await botAllows('build', user);
-      if (buildAllowList === false) {
-        return Response.json({ type: 'answer', answer: 'BuildBot is restricted to specific roles or people, and your account is not on that list. An admin can change this in Settings > ChatBot > BuildBot.' });
+      if (!canBuild) {
+        return Response.json({
+          type: 'answer',
+          answer: buildAllow === false
+            ? 'BuildBot is restricted to specific roles or people, and your account is not on that list. An admin can change this in Settings > ChatBot > BuildBot.'
+            : 'BuildBot is not enabled for your account. An admin can grant the BuildBot permission in Users and Roles.',
+        });
       }
-    } else {
-      const dataAllowList = await botAllows('data', user);
-      if (dataAllowList === false) {
-        return Response.json({ type: 'answer', answer: 'DataBot is restricted to specific roles or people, and your account is not on that list. An admin can change this in Settings > ChatBot > DataBot.' });
-      }
+      try {
+        const draft = await draftBuildRequest(question, history);
+        if (draft && draft.is_build) return Response.json({ type: 'build_request', build_request: draft });
+      } catch (_) { /* not a build, or draft failed: fall through to an answer */ }
+    }
+
+    if (!canData) {
+      return Response.json({
+        type: 'answer',
+        answer: dataAllow === false
+          ? 'DataBot is restricted to specific roles or people, and your account is not on that list. An admin can change this in Settings > ChatBot > DataBot.'
+          : 'DataBot access is turned off for your account. An admin can enable it in Users and Roles.',
+      });
     }
 
     // --- Load conversation history and memories for context ---
