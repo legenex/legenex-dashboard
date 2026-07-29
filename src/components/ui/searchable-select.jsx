@@ -33,7 +33,11 @@ function useBelowLg() {
  *  - emptyText: text when no options match
  */
 export const SearchableSelect = React.forwardRef(function SearchableSelect(
-  { value, onValueChange, options = [], placeholder = "Select…", className, popoverClassName, disabled, emptyText = "No results found.", renderLabel, renderItem },
+  // `portal` false renders the dropdown inline instead of in document.body.
+  // Needed when this select sits inside a Dialog: the dialog's scroll lock
+  // cancels wheel events outside its own DOM subtree, so a portalled list can
+  // be dragged by its scrollbar but ignores mouse wheel and trackpad.
+  { value, onValueChange, options = [], placeholder = "Select…", className, popoverClassName, disabled, emptyText = "No results found.", renderLabel, renderItem, portal = true },
   ref
 ) {
   const [open, setOpen] = React.useState(false);
