@@ -210,18 +210,22 @@ Deno.serve(async (req) => {
     const canonical = buildCanonical(body);
 
     // Outcome fields shared by update and create.
+    //
+    // Read from `canonical`, not the raw body, so both payload styles work.
+    // Reading body.lead_revenue directly meant a flat-key webhook sending
+    // "revenue" recorded no revenue at all.
     const outcome: Record<string, any> = {};
-    setIf(outcome, 'revenue', num(body.lead_revenue));
-    setIf(outcome, 'supplier_payout', num(body.supplier_payout));
-    setIf(outcome, 'buyer_id', clean(body.buyer_id));
-    setIf(outcome, 'buyer_name', clean(body.buyer_name));
+    setIf(outcome, 'revenue', num(canonical.revenue));
+    setIf(outcome, 'supplier_payout', num(canonical.supplier_payout));
+    setIf(outcome, 'buyer_id', canonical.buyer_id ?? null);
+    setIf(outcome, 'buyer_name', canonical.buyer_name ?? null);
     setIf(outcome, 'buyer_conversion', clean(body.buyer_conversion));
-    setIf(outcome, 'buyer_feedback', clean(body.buyer_feedback));
-    outcome.buyer_returned = toBool(body.buyer_returned);
-    setIf(outcome, 'buyer_return_reason', clean(body.buyer_return_reason));
-    setIf(outcome, 'lead_tier', clean(body.lead_tier));
+    setIf(outcome, 'buyer_feedback', canonical.buyer_feedback ?? null);
+    outcome.buyer_returned = toBool(body.buyer_returned ?? canonical.returned);
+    setIf(outcome, 'buyer_return_reason', canonical.returned_reason ?? null);
+    setIf(outcome, 'lead_tier', canonical.lead_tier ?? null);
     setIf(outcome, 'lead_score', num(body.lead_score));
-    setIf(outcome, 'lead_vertical', clean(body.lead_vertical));
+    setIf(outcome, 'lead_vertical', canonical.vertical ?? null);
     if (finalStatus !== null) outcome.final_status = finalStatus;
     outcome.leadbyte_outcome_at = new Date().toISOString();
     outcome.leadbyte_outcome_payload = rawBody;
