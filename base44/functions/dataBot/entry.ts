@@ -94,11 +94,15 @@ Deno.serve(async (req) => {
     // when the user has any stored, otherwise the role default. Owner always
     // has all permissions (mirrors the frontend usePermissions hook).
     const resolvePerms = (u) => {
-      if (u.role === 'owner') return { databot: true, buildbot: true };
+      const role = u.base_role || u.role;
       let p = {};
       try { p = u.permissions ? (typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions) : {}; } catch { p = {}; }
-      if (p && Object.keys(p).length) return p;
-      return { databot: true, buildbot: u.role === 'owner' || u.role === 'admin' };
+      // databot is on by default for all roles; only off if explicitly set to false
+      const databot = p.databot === false ? false : true;
+      // buildbot: on for owner/admin by default, off for partners
+      const buildbotDefault = (role === 'owner' || role === 'admin');
+      const buildbot = p.buildbot !== undefined ? !!p.buildbot : buildbotDefault;
+      return { databot, buildbot };
     };
     const isPartner = user.base_role === 'supplier' || user.base_role === 'buyer' || !!user.linked_supplier_id || !!user.linked_buyer_id;
     const perms = resolvePerms(user);
@@ -251,7 +255,17 @@ Deno.serve(async (req) => {
       ? pastConversations.map(c => `Conversation "${c.title}":\n${c.recent.join('\n')}`).join('\n\n')
       : '(none)';
 
-    const botName = mode === 'build' ? 'BuildBot' : 'DataBot';
+    // Load bot config for model, temperature, instructions
+    const botKey = mode === 'build' ? 'build' : 'data';
+    let botConfig: any = {};
+    try {
+      const configs = await svc.entities.BotConfig.filter({ bot_key: botKey }).catch(() => []);
+      if (configs.length) botConfig = configs[0];
+    } catch {}
+    const botModel = botConfig.model || 'gpt-4o-mini';
+    const botTemp = botConfig.temperature ?? 0.4;
+    const botInstructions = botConfig.instructions || '';
+    const botName = botConfig.name || (mode === 'build' ? 'BuildBot' : 'DataBot');
     const prompt = `You are ${botName}, an analytics assistant embedded in the Legenex lead-management platform.
 Answer the user's question using ONLY the data and knowledge base below. Be concise, specific, and use numbers from the data. If the data does not contain the answer, say so plainly.
 ${scopeNote ? `SCOPE (strict): ${scopeNote}\n` : ''}When asked where a figure comes from, trace it through any ad_spend breakdowns present and name the date, supplier and account; a number that does not match a total may match a single day. If ad_spend_date_range shows the latest date is well before today, say the spend looks stale and give that date.
@@ -274,7 +288,7 @@ ${convo || '(none)'}
 User: ${question}
 ${botName}:`;
 
-    const answer = await callOpenAI({ prompt });
+    const answer = await callOpenAI({ prompt, model: botModel, temperature: botTemp, system: botInstructions || undefined });
 
     const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
 
