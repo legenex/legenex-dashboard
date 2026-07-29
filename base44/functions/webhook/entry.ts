@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const svc = base44.asServiceRole;
 
-  // ---- Auth on ?key= (header accepted as an alternative) --------------------
+  // == Auth on ?key= (header accepted as an alternative) ==
   const url = new URL(req.url);
   const presented = clean(url.searchParams.get('key'))
     || clean(req.headers.get('x-api-key'))
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  // ---- Optional webhook row -------------------------------------------------
+  // == Optional webhook row ==
   // The key authenticates; `route` is optional and only identifies which
   // InboundWebhookRoute row gets the receipt, and whether that row pins a
   // status instead of reading lead_status off the payload.
@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
     // default: read it from lead_status on the payload.
     const status = mapStatus(route?.event_type) || mapStatus(c.lead_status);
 
-    // ---- Supplier resolution ------------------------------------------------
+    // == Supplier resolution ==
     // A supplier-scoped key pins the supplier. A master key resolves it from
     // the sid on the payload, matched loosely against the Supplier records
     // because a sid (LEADFLOW, INBNDS-SURVEY) and a name (LeadFlow, Inbounds)
@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ---- Match --------------------------------------------------------------
+    // == Match ==
     let existing: any = null;
     const firstOf = (r: unknown) => (Array.isArray(r) ? r : [])[0] || null;
     if (externalId !== null) {
@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
       } catch { /* telemetry only */ }
     };
 
-    // ---- Update -------------------------------------------------------------
+    // == Update ==
     if (existing) {
       const prior = (() => {
         try { return JSON.parse(existing.mapped_fields || '{}') || {}; } catch { return {}; }
@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ---- Create -------------------------------------------------------------
+    // == Create ==
     // lead_type is sid-derived and lives inside mapped_fields, not as a column.
     const sidUpper = String(c.sid || '').trim().toUpperCase();
     const leadType = (sidUpper === 'LEADFLOW' || sidUpper === 'LGNX') ? 'Quiz' : 'Affiliate';
