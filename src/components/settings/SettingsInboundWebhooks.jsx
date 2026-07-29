@@ -153,22 +153,25 @@ export default function SettingsInboundWebhooks() {
         <table className="w-full min-w-[720px] text-[13px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              {['Name', 'Provider', 'Event', 'Enabled', 'Last Received', 'Receipts', 'Errors', 'Token', 'Inbound URL', 'Actions'].map((h) => (
+              {['Name', 'Event', 'Enabled', 'Last Received', 'Receipts', 'Errors', 'Actions'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {routes.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No inbound routes yet</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No inbound routes yet</td></tr>
             )}
             {routes.map((r) => (
               <tr key={r.id} className="hover:bg-accent/40 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{r.name || '-'}</td>
-                <td className="px-4 py-3">
-                  <Badge className="bg-accent text-muted-foreground text-[10px] border border-border">{r.provider || 'leadbyte'}</Badge>
+                {/* Blank event means dynamic: the status is read from lead_status
+                    on the payload rather than pinned per route. */}
+                <td className="px-4 py-3 text-[12px] capitalize">
+                  {r.event_type
+                    ? <span className="text-muted-foreground">{r.event_type}</span>
+                    : <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10.5px] font-medium status-sold">dynamic</span>}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground text-[12px] capitalize">{r.event_type || '-'}</td>
                 <td className="px-4 py-3">
                   <Switch checked={!!r.enabled} onCheckedChange={() => toggleEnabled(r)} />
                 </td>
