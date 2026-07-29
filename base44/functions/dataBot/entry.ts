@@ -381,7 +381,9 @@ Deno.serve(async (req) => {
     const botName = botConfig.name || (mode === 'build' ? 'BuildBot' : 'DataBot');
     const prompt = `You are ${botName}, an analytics assistant embedded in the Legenex lead-management platform.
 Answer the user's question using ONLY the data and knowledge base below. Be concise, specific, and use numbers from the data. If the data does not contain the answer, say so plainly.
-${scopeNote ? `SCOPE (strict): ${scopeNote}\n` : ''}When asked where a figure comes from, trace it through any ad_spend breakdowns present and name the date, supplier and account; a number that does not match a total may match a single day. If ad_spend_date_range shows the latest date is well before today, say the spend looks stale and give that date.
+${scopeNote ? `SCOPE (strict): ${scopeNote}\n` : ''}
+COUNTING LEADS: when the question involves a date or period (today, yesterday, this week, this month, a named day), read the answer from lead_facts. It is pre-computed and authoritative: it excludes archived duplicates, buckets by the supplier's own event timestamp rather than the row's created_date, and uses the America/Regina operating timezone. lead_facts.yesterday.sold is the number of leads sold yesterday. lead_facts.per_day_last_30 is keyed by date for single-day questions. NEVER count rows in recent_leads to answer these: it is a 25-row sample for context only, and answering from it is how this assistant previously reported zero sold leads on a day with fifteen. If lead_facts does not cover the period asked about, say which periods you do have rather than estimating.
+When asked where a figure comes from, trace it through any ad_spend breakdowns present and name the date, supplier and account; a number that does not match a total may match a single day. If ad_spend_date_range shows the latest date is well before today, say the spend looks stale and give that date.
 
 === LEARNED MEMORIES (facts you've learned from past conversations) ===
 ${memoryContext}
