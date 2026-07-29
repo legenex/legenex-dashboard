@@ -97,9 +97,11 @@ describe('AutoCreatedReviewBanner CONFIG contract', () => {
       const build = blockAfter(kindBlocks[kind], 'build:');
       expect(build).toContain('auto_created: true');
       expect(build).toContain('active: false');
-      for (const banned of ['price', 'cpl', 'coverage', 'payout_value', 'credit_limit', 'balance']) {
-        expect(build.toLowerCase()).not.toContain(banned);
-      }
+      // Check the KEYS being written, not the raw text: the notes string
+      // legitimately mentions pricing and coverage as documentation.
+      const written = [...topLevelKeys(build)];
+      const banned = written.filter((k) => /price|pricing|cpl|coverage|payout_value|credit_limit|balance|ipl_fee/i.test(k));
+      expect(banned).toEqual([]);
     }
   });
 });
