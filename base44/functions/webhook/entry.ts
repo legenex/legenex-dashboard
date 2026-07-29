@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
       // return, so this only ever goes false -> true, never back.
       const nowReturned = status === 'Returned' || truthy(c.returned);
       if (nowReturned && existing.buyer_returned !== true) { patch.buyer_returned = true; changed.push('buyer_returned'); }
-      if (c.returned_reason) patch.returned_reason = c.returned_reason;
+      if (c.returned_reason) patch.buyer_return_reason = c.returned_reason;
 
       if (externalId !== null && existing.leadbyte_lead_id !== externalId) patch.leadbyte_lead_id = externalId;
       if (supplierName && !clean(existing.supplier_name)) patch.supplier_name = supplierName;
@@ -321,7 +321,7 @@ Deno.serve(async (req) => {
       buyer_id: c.buyer_id || undefined,
       buyer_feedback: c.buyer_feedback || undefined,
       buyer_returned: status === 'Returned' || truthy(c.returned),
-      returned_reason: c.returned_reason || undefined,
+      buyer_return_reason: c.returned_reason || undefined,
       final_status: status || undefined,
       leadbyte_lead_id: externalId ?? undefined,
       mapped_fields: JSON.stringify({
