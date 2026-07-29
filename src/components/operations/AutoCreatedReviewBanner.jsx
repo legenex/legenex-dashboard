@@ -9,6 +9,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Sparkles, Check, Trash2, Plus } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 // Review banner for buyers and suppliers that inbound leads reference but that
@@ -164,65 +167,86 @@ export default function AutoCreatedReviewBanner({ kind }) {
   };
 
   const total = pending.length + unregistered.length;
+  if (total === 0) return null;
+
+  const rows = (
+    <div className="rounded-md border border-border overflow-hidden">
+      {pending.map((r) => (
+        <div key={r.id} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 px-3 py-2 hover:bg-accent">
+          <div className="min-w-0">
+            <div className="text-[13px] text-foreground truncate">{cfg.nameOf(r)}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {cfg.codeOf(r) ? <span className="font-mono">{cfg.codeOf(r)}</span> : null}
+              <span className="ml-1">auto-created by the webhook</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 text-primary"
+              disabled={busyId === r.id} onClick={() => accept(r)}>
+              <Check className="w-3 h-3" /> Keep
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+              disabled={busyId === r.id} onClick={() => setDiscardTarget(r)} title="Discard">
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {unregistered.map(({ ref, count }) => (
+        <div key={ref} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 px-3 py-2 hover:bg-accent">
+          <div className="min-w-0">
+            <div className="text-[13px] text-foreground truncate font-mono">{ref}</div>
+            <div className="text-[11px] text-muted-foreground">
+              on {count} {count === 1 ? 'lead' : 'leads'}, no {cfg.label} record
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 text-primary"
+              disabled={busyId === ref} onClick={() => create(ref)}>
+              <Plus className="w-3 h-3" /> Create
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-muted-foreground"
+              onClick={() => setDismissed((p) => new Set(p).add(ref))}>
+              Ignore
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="bg-card border border-primary/40 rounded-lg p-4 space-y-3">
-      <div className="flex items-start gap-2">
-        <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-        <div>
-          <div className="text-[13px] font-semibold text-primary">
-            {total} {total === 1 ? cfg.label : cfg.labelPlural} referenced by inbound leads need review
-          </div>
-          <p className="text-[12px] text-muted-foreground leading-relaxed mt-0.5">
-            Leads name {total === 1 ? `a ${cfg.label}` : cfg.labelPlural} with no record behind {total === 1 ? 'it' : 'them'}, so reports point at something that does not exist. Anything created here stays inactive with no pricing until you finish the setup.
-          </p>
-        </div>
-      </div>
+    <>
+      {/* One-line notification bar. The list lives in the dialog: rendered inline
+          it pushed the actual buyer table off the page. Mirrors the auto-detected
+          fields bar in Settings, Custom Fields. */}
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/15 transition-colors text-left"
+      >
+        <Sparkles className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-[13px] text-primary">
+          {total} {total === 1 ? cfg.label : cfg.labelPlural} referenced by inbound leads need review
+        </span>
+        <span className="text-[12px] text-primary/70 ml-auto shrink-0">Review &rarr;</span>
+      </button>
 
-      <div className="rounded-md border border-border overflow-hidden">
-        {pending.map((r) => (
-          <div key={r.id} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 px-3 py-2 hover:bg-accent">
-            <div className="min-w-0">
-              <div className="text-[13px] text-foreground truncate">{cfg.nameOf(r)}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {cfg.codeOf(r) ? <span className="font-mono">{cfg.codeOf(r)}</span> : null}
-                <span className="ml-1">auto-created by the webhook</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 text-primary"
-                disabled={busyId === r.id} onClick={() => accept(r)}>
-                <Check className="w-3 h-3" /> Keep
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                disabled={busyId === r.id} onClick={() => setDiscardTarget(r)} title="Discard">
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-popover border-border max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>
+              {total} {total === 1 ? cfg.label : cfg.labelPlural} need review
+            </DialogTitle>
+            <DialogDescription className="text-[12px] leading-relaxed">
+              Leads name {total === 1 ? `a ${cfg.label}` : cfg.labelPlural} with no record behind {total === 1 ? 'it' : 'them'}, so reports point at something that does not exist. Anything created here stays inactive with no pricing until you finish the setup.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1">
+            {rows}
           </div>
-        ))}
-
-        {unregistered.map(({ ref, count }) => (
-          <div key={ref} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 px-3 py-2 hover:bg-accent">
-            <div className="min-w-0">
-              <div className="text-[13px] text-foreground truncate font-mono">{ref}</div>
-              <div className="text-[11px] text-muted-foreground">
-                on {count} {count === 1 ? 'lead' : 'leads'}, no {cfg.label} record
-              </div>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 text-primary"
-                disabled={busyId === ref} onClick={() => create(ref)}>
-                <Plus className="w-3 h-3" /> Create
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-muted-foreground"
-                onClick={() => setDismissed((p) => new Set(p).add(ref))}>
-                Ignore
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!discardTarget} onOpenChange={(v) => { if (!v) setDiscardTarget(null); }}>
         <AlertDialogContent className="bg-popover border-border">
@@ -238,6 +262,6 @@ export default function AutoCreatedReviewBanner({ kind }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
