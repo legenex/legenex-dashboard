@@ -262,6 +262,88 @@ Deno.serve(async (req) => {
       return out;
     };
 
+    // ---- Dimension resolvers -------------------------------------------------
+    //
+    // Supplier, buyer, source and vertical all live in the mapped_fields bag
+    // rather than as lead columns (only supplier_name is a real column). Reading
+    // the column directly is why every dimensional question came back as "the
+    // data does not specify": the fields were there, just not where the bot was
+    // looking.
+    const dimSupplier = (l) => {
+      const bag = parseBag(l);
+      return String(l?.supplier_name || bag.supplier_name || bag.sid || '').trim() || '(unattributed)';
+    };
+    const dimSupplierId = (l) => {
+      const bag = parseBag(l);
+      return String(bag.sid || bag.ssid || '').trim() || null;
+    };
+    const dimBuyer = (l) => {
+      const bag = parseBag(l);
+      return String(bag.buyer_name || bag.buyer || l?.buyer_name || '').trim() || '(unsold or unassigned)';
+    };
+    const dimBuyerId = (l) => {
+      const bag = parseBag(l);
+      return String(bag.buyer_id || bag.buyer || '').trim() || null;
+    };
+    const dimSource = (l) => {
+      const bag = parseBag(l);
+      return String(bag.utm_source || bag.source || bag['Supplier Source'] || bag.lead_source || '').trim() || '(unknown source)';
+    };
+    const dimVertical = (l) => {
+      const bag = parseBag(l);
+      return String(bag.vertical || bag.lead_vertical || '').trim() || '(unset)';
+    };
+    const dimState = (l) => {
+      const bag = parseBag(l);
+      return String(l?.state || bag.accident_state || bag.geoip_state || '').trim().toUpperCase() || '(unknown)';
+    };
+    const leadCostOf = (l) => {
+      const bag = parseBag(l);
+      const v = bag.cpl ?? bag.cost ?? null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    // Full economics for a set of leads. Same definitions as the dashboard:
+    // CPL is cost per SOLD lead, conversion is sold over total received.
+    const econ = (rows) => {
+      const byStatus = statusMap(rows);
+      const sold = byStatus.Sold || 0;
+      const revenue = Math.round(sum(rows, (l) => l.revenue));
+      const cost = Math.round(sum(rows, leadCostOf));
+      return {
+        total: rows.length,
+        sold,
+        unsold: byStatus.Unsold || 0,
+        disqualified: byStatus.Disqualified || 0,
+        returned: byStatus.Returned || 0,
+        rejected: byStatus.Rejected || 0,
+        duplicate: byStatus.Duplicate || 0,
+        revenue,
+        lead_cost: cost,
+        profit: revenue - cost,
+        margin_pct: revenue > 0 ? Math.round(((revenue - cost) / revenue) * 1000) / 10 : 0,
+        cpl: sold > 0 ? Math.round((cost / sold) * 100) / 100 : 0,
+        rev_per_sold: sold > 0 ? Math.round((revenue / sold) * 100) / 100 : 0,
+        conv_rate_pct: rows.length > 0 ? Math.round((sold / rows.length) * 1000) / 10 : 0,
+      };
+    };
+
+    // Group a set of leads by a dimension and return economics per key, largest
+    // first, capped so the payload stays a reasonable size.
+    const groupBy = (rows, keyFn, limit = 25) => {
+      const buckets = {};
+      for (const l of rows) {
+        const k = keyFn(l);
+        if (!buckets[k]) buckets[k] = [];
+        buckets[k].push(l);
+      }
+      return Object.entries(buckets)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, limit)
+        .reduce((acc, [k, v]) => { acc[k] = econ(v); return acc; }, {});
+    };
+
     // Counts by status for an arbitrary set of day keys.
     const countsForDays = (allLeads, dayKeys) => {
       const want = new Set(dayKeys);
