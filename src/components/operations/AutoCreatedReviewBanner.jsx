@@ -161,12 +161,13 @@ export default function AutoCreatedReviewBanner({ kind }) {
     } finally { setBusyId(null); }
   };
 
-  const create = async (ref) => {
-    setBusyId(ref);
+  const create = async (key, ref) => {
+    setBusyId(key);
     try {
       await base44.entities[cfg.entity].create(cfg.build(ref));
       refresh();
-      toast.success(`${ref} created as a draft. ${cfg.finishHint}`);
+      const shown = ref.name || ref.code;
+      toast.success(`${shown} created as a draft. ${cfg.finishHint}`);
     } catch (e) {
       toast.error(e?.message || 'Could not create');
     } finally { setBusyId(null); }
@@ -210,21 +211,26 @@ export default function AutoCreatedReviewBanner({ kind }) {
         </div>
       ))}
 
-      {unregistered.map(({ ref, count }) => (
-        <div key={ref} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 px-3 py-2 hover:bg-accent">
+      {unregistered.map(({ key, ref, count }) => (
+        <div key={key} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 px-3 py-2 hover:bg-accent">
           <div className="min-w-0">
-            <div className="text-[13px] text-foreground truncate font-mono">{ref}</div>
+            {/* Name is the headline when the payload carried one, with the code
+                beneath it, so a bare code is never mistaken for a company name. */}
+            <div className="text-[13px] text-foreground truncate">{ref.name || ref.code}</div>
             <div className="text-[11px] text-muted-foreground">
-              on {count} {count === 1 ? 'lead' : 'leads'}, no {cfg.label} record
+              {ref.code && ref.name ? <span className="font-mono">{ref.code}</span> : null}
+              <span className={ref.code && ref.name ? 'ml-1' : ''}>
+                on {count} {count === 1 ? 'lead' : 'leads'}, no {cfg.label} record
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 text-primary"
-              disabled={busyId === ref} onClick={() => create(ref)}>
+              disabled={busyId === key} onClick={() => create(key, ref)}>
               <Plus className="w-3 h-3" /> Create
             </Button>
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-muted-foreground"
-              onClick={() => setDismissed((p) => new Set(p).add(ref))}>
+              onClick={() => setDismissed((p) => new Set(p).add(key))}>
               Ignore
             </Button>
           </div>
