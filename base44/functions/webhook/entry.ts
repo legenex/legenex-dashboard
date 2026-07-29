@@ -237,19 +237,26 @@ Deno.serve(async (req) => {
     // the sid on the payload, matched loosely against the Supplier records
     // because a sid (LEADFLOW, INBNDS-SURVEY) and a name (LeadFlow, Inbounds)
     // differ in case and suffix.
-    let supplierName: string | null = clean(apiKey.supplier_name) || clean(route?.supplier_name);
+    // A supplier-scoped key or the webhook row can supply a default. The sid on
+    // the payload wins when it resolves, because that is the per-lead truth.
+    const fallbackSupplier = clean(apiKey.supplier_name) || clean(route?.supplier_name);
+    let supplierName: string | null = fallbackSupplier;
     if (c.sid) {
-      supplierName = c.sid;
+      let resolved: string | null = null;
       try {
         const sups = await svc.entities.Supplier.list();
         const n = (v: unknown) => String(v ?? '').trim().toLowerCase();
         const s = n(c.sid);
         const hit = (Array.isArray(sups) ? sups : []).find((x: any) => {
           const name = n(x.name);
+          const sid = n(x.sid);
+          if (sid && s && sid === s) return true;
           return name && s && (name === s || s.includes(name) || name.includes(s));
         });
-        if (hit?.name) supplierName = hit.name;
-      } catch { /* keep the sid as the attribution */ }
+        if (hit?.name) resolved = hit.name;
+      } catch { /* fall through to the raw sid below */ }
+      // Only fall back to the raw sid when there is nothing better to use.
+      supplierName = resolved || fallbackSupplier || c.sid;
     }
 
     // Everything that reaches a lead write counts as a receipt on the row.
