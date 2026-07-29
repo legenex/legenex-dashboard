@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
 
     if (scope.kind === 'operator') {
       const [leads, suppliers, buyers, adSpend, txns, kbDocs] = await Promise.all([
-        svc.entities.Lead.list('-created_date', 500).catch(() => []),
+        loadAllLeads(),
         svc.entities.Supplier.list().catch(() => []),
         svc.entities.Buyer.list().catch(() => []),
         svc.entities.AdSpend.list('-date', 500).catch(() => []),
@@ -289,6 +289,8 @@ Deno.serve(async (req) => {
         svc.entities.KnowledgeDoc.filter({ active: true }, 'sort_order').catch(() => []),
       ]);
       dataSummary = {
+        // Authoritative, date-bucketed counts. Answer date questions from here.
+        lead_facts: buildLeadFacts(leads),
         leads_total: leads.length,
         leads_by_status: statusMap(leads),
         revenue_total: Math.round(sum(leads, (l) => l.revenue)),
@@ -305,7 +307,7 @@ Deno.serve(async (req) => {
         bank_money_in: Math.round(sum(txns.filter((t) => t.amount > 0), (t) => t.amount)),
         bank_money_out: Math.round(sum(txns.filter((t) => t.amount < 0), (t) => t.amount)),
         bank_unmatched: txns.filter((t) => !t.reconciled).length,
-        recent_leads: leads.slice(0, 25).map((l) => ({ supplier: l.supplier_name, status: l.final_status, revenue: l.revenue, email_valid: l.email_valid, created: l.created_date })),
+        recent_leads: leads.slice(0, 25).map((l) => ({ supplier: l.supplier_name, status: l.final_status, revenue: l.revenue, email_valid: l.email_valid, created: l.created_date, event_day: eventDayKey(l) })),
       };
       kbContext = kbDocs.map((d) => { const head = d.kind === 'glossary' ? `${d.term || d.title}` : d.title; return `[${d.kind}] ${head}: ${d.content || ''}`; }).join('\n');
     } else if (scope.kind === 'supplier') {
