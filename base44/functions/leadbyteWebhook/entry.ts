@@ -227,8 +227,8 @@ Deno.serve(async (req) => {
     outcome.leadbyte_outcome_payload = rawBody;
 
     // Contact fields (used to fill blanks on update, and to seed a create).
-    const contactFirst = clean(body.contact_first_name);
-    const contactLast = clean(body.contact_last_name);
+    const contactFirst = canonical.first_name || null;
+    const contactLast = canonical.last_name || null;
     // Identity fields, read from the canonical object rather than the raw body
     // so both payload styles work. Reading body.contact_email directly is why a
     // flat-key webhook matched nothing.
