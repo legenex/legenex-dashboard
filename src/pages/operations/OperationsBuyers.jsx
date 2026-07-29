@@ -24,6 +24,7 @@ import { useRecomputeCoverage } from '@/components/operations/buyers/useRecomput
 import RecomputingIndicator from '@/components/operations/buyers/RecomputingIndicator';
 import AutoCreatedReviewBanner from '@/components/operations/AutoCreatedReviewBanner';
 import {
+import { verticalFilterOptions } from '@/lib/verticalOptions';
   BUYER_AVAILABLE_COLUMNS, loadBuyerColumnConfig, saveBuyerColumnConfig, getBuyerColumnDef,
 } from '@/components/operations/buyers/buyerColumns';
 
@@ -334,7 +335,7 @@ export default function OperationsBuyers() {
               <MultiSelect
                 value={verticalFilter}
                 onValueChange={setVerticalFilter}
-                options={verticals.map((v) => ({ value: v.code, label: v.name || v.code }))}
+                options={verticalFilterOptions(verticals)}
                 placeholder="All Verticals"
                 className={`h-9 w-[170px] text-[12px] bg-card ${verticalFilter.length > 0 ? 'border-primary' : 'border-border'}`}
               />

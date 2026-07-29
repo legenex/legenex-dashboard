@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import ImportExportDialog from '@/components/shared/ImportExportDialog';
 import { motion } from 'framer-motion';
 import { Panel, rise } from '@/components/campaigns/campaignTable';
+import { verticalFilterOptions } from '@/lib/verticalOptions';
 
 const DEFAULT_TEST_PAYLOAD = {
   campid: "LEGAL-MVA-USA",
@@ -228,7 +229,7 @@ export default function SettingsLeadByte() {
     queryKey: ['verticals'],
     queryFn: () => base44.entities.Vertical.list(),
   });
-  const verticalFilterOptions = verticalList.map(v => ({ value: v.code, label: v.name }));
+  const verticalFilterOpts = verticalFilterOptions(verticalList);
   const supplierOptions = suppliers.map(s => ({ value: s.name, label: s.name }));
   const supplierTypeOptions = [
     { value: 'Internal', label: 'Internal' },
