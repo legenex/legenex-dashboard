@@ -36,7 +36,7 @@ const DEFAULT_DATE_BUCKETS = [
 const BLANK_FORM = {
   output_token: '',
   output_label: '',
-  transform_type: 'date_age_bucket',
+  transform_type: 'value_map',
   vertical: '',
   input_field: '',
   enabled: true,
@@ -493,12 +493,13 @@ export default function CustomCalculations() {
 
       {/* Edit/Create Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-border">
             <DialogTitle>{editId ? 'Edit Calculated Field' : 'New Calculated Field'}</DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-2">
+          <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 px-6 py-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 space-y-4">
             <div className="space-y-1.5">
               <Label>Calculated Field Type</Label>
@@ -506,9 +507,9 @@ export default function CustomCalculations() {
                 value={form.transform_type}
                 onValueChange={v => setF('transform_type', v)}
                 options={[
+                  { value: 'value_map', label: 'Value Map' },
                   { value: 'date_age_bucket', label: 'Date Transformer' },
                   { value: 'conditional', label: 'Conditional' },
-                  { value: 'value_map', label: 'Value Map' },
                   { value: 'clone', label: 'Clone' },
                   { value: 'script', label: 'Script' },
                 ]}
@@ -681,8 +682,9 @@ export default function CustomCalculations() {
             </div>
           </div>
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 shrink-0 border-t border-border">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate(formToRecord(form))} disabled={
               !form.output_token ||
