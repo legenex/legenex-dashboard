@@ -329,6 +329,8 @@ Deno.serve(async (req) => {
 
       // lead_type is derived from the supplier id, matching backfillLeadType:
       // LEADFLOW and LGNX are Quiz leads, every other sid is Affiliate.
+      // It lives INSIDE mapped_fields, not as a Lead column, so setting it
+      // top-level would be silently dropped.
       const sidUpper = String(canonical.sid || '').trim().toUpperCase();
       const leadType = (sidUpper === 'LEADFLOW' || sidUpper === 'LGNX') ? 'Quiz' : 'Affiliate';
 
@@ -356,7 +358,13 @@ Deno.serve(async (req) => {
         email: contactEmail || undefined,
         mobile: contactPhone || undefined,
         supplier_name: supplierName || undefined,
-        lead_type: leadType,
+        // The whole canonical payload, plus lead_type and a provenance marker so
+        // a lead that arrived this way is identifiable later.
+        mapped_fields: JSON.stringify({
+          ...canonical,
+          lead_type: leadType,
+          ingest_channel: 'leadbyte_webhook',
+        }),
       });
 
       leadId = created?.id || null;
