@@ -106,36 +106,10 @@ Deno.serve(async (req) => {
     };
     const isPartner = user.base_role === 'supplier' || user.base_role === 'buyer' || !!user.linked_supplier_id || !!user.linked_buyer_id;
     const perms = resolvePerms(user);
-
-    // Per-bot allow list, configured on the bot itself in Settings > ChatBot.
-    //
-    // When allowed_roles or allowed_user_ids is set, the bot is restricted to
-    // exactly those and nothing else grants access. When both are empty the bot
-    // falls back to the permission flag above, which is how it behaved before,
-    // so an unconfigured bot keeps working for owners and admins.
-    //
-    // Enforced here, server side. The UI hides the launcher too, but hiding a
-    // button is not access control.
-    const botAllows = async (botKey, u) => {
-      try {
-        const cfgs = await svc.entities.BotConfig.filter({ bot_key: botKey });
-        const cfg = (Array.isArray(cfgs) ? cfgs : [])[0] || null;
-        if (!cfg) return null;
-        const roles = Array.isArray(cfg.allowed_roles) ? cfg.allowed_roles.filter(Boolean) : [];
-        const ids = Array.isArray(cfg.allowed_user_ids) ? cfg.allowed_user_ids.filter(Boolean) : [];
-        if (roles.length === 0 && ids.length === 0) return null; // not configured
-        const role = String(u.base_role || u.role || '').toLowerCase();
-        return roles.map((r) => String(r).toLowerCase()).includes(role) || ids.includes(u.id);
-      } catch {
-        return null; // never lock the operator out because a lookup failed
-      }
-    };
-
-    const buildAllowList = await botAllows('build', user);
-    const dataAllowList = await botAllows('data', user);
-
-    const canData = dataAllowList === null ? !!perms.databot : dataAllowList;
-    const canBuild = !isPartner && (buildAllowList === null ? !!perms.buildbot : buildAllowList);
+    // Baseline permission gate. The per-bot allow list is applied further down,
+    // once the service-role client exists.
+    const canData = !!perms.databot;
+    const canBuild = !isPartner && !!perms.buildbot;
 
     // Friendly, actionable message instead of a silent 500 when the key is unset.
     if (!Deno.env.get('OPENAI_API_KEY')) {
@@ -158,6 +132,42 @@ Deno.serve(async (req) => {
     }
 
     const svc = base44.asServiceRole;
+
+    // Per-bot allow list, configured on the bot itself in Settings > ChatBot.
+    //
+    // When allowed_roles or allowed_user_ids is set, the bot is restricted to
+    // exactly those and nothing else grants access. When both are empty the bot
+    // falls back to the permission flag resolved above, which is how it behaved
+    // before, so an unconfigured bot keeps working for owners and admins.
+    //
+    // Enforced here, server side. The UI hides the launcher too, but hiding a
+    // button is not access control.
+    const botAllows = async (botKey: string, u: any) => {
+      try {
+        const cfgs = await svc.entities.BotConfig.filter({ bot_key: botKey });
+        const cfg = (Array.isArray(cfgs) ? cfgs : [])[0] || null;
+        if (!cfg) return null;
+        const roles = Array.isArray(cfg.allowed_roles) ? cfg.allowed_roles.filter(Boolean) : [];
+        const ids = Array.isArray(cfg.allowed_user_ids) ? cfg.allowed_user_ids.filter(Boolean) : [];
+        if (roles.length === 0 && ids.length === 0) return null; // not configured
+        const role = String(u.base_role || u.role || '').toLowerCase();
+        return roles.map((r: string) => String(r).toLowerCase()).includes(role) || ids.includes(u.id);
+      } catch {
+        return null; // never lock an operator out because a lookup failed
+      }
+    };
+
+    if (mode === 'build') {
+      const buildAllowList = await botAllows('build', user);
+      if (buildAllowList === false) {
+        return Response.json({ type: 'answer', answer: 'BuildBot is restricted to specific roles or people, and your account is not on that list. An admin can change this in Settings > ChatBot > BuildBot.' });
+      }
+    } else {
+      const dataAllowList = await botAllows('data', user);
+      if (dataAllowList === false) {
+        return Response.json({ type: 'answer', answer: 'DataBot is restricted to specific roles or people, and your account is not on that list. An admin can change this in Settings > ChatBot > DataBot.' });
+      }
+    }
 
     // --- Load conversation history and memories for context ---
     let pastConversations: any[] = [];
