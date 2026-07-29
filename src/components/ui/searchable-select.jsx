@@ -124,6 +124,7 @@ export const SearchableSelect = React.forwardRef(function SearchableSelect(
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(""); }}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
+        portal={portal}
         className={cn("p-0", popoverClassName)}
         align="start"
         sideOffset={4}

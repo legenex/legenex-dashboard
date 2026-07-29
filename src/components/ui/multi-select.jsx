@@ -64,6 +64,7 @@ export const MultiSelect = React.forwardRef(function MultiSelect(
         </button>
       </PopoverTrigger>
       <PopoverContent
+        portal={portal}
         align="start"
         style={{ width: "var(--radix-popover-trigger-width)", minWidth: "12rem" }}
       >
