@@ -951,18 +951,37 @@ function applyOperator(actual, operator, expected) {
   if (typeof act === 'object') act = JSON.stringify(act);
   else act = String(act);
   const exp = expected || '';
+  // Case-insensitive comparison for all string operators. This ensures
+  // delivery/connector conditions match regardless of how the supplier
+  // formatted the value (e.g. "yes" matches "Yes", "loss of life" matches
+  // "Loss Of Life"). Numeric operators (gt, lt) are unaffected.
+  const actLower = act.trim().toLowerCase();
+  const expLower = exp.trim().toLowerCase();
   switch (operator) {
-    case 'equals': return act === exp;
-    case 'not_equals': return act !== exp;
-    case 'contains': return act.includes(exp);
-    case 'not_contains': return !act.includes(exp);
-    case 'starts_with': return act.startsWith(exp);
-    case 'ends_with': return act.endsWith(exp);
+    case 'equals':
+      if (actLower === expLower) return true;
+      // For non-trivial values (> 3 chars), allow bidirectional contains so
+      // "Loss of Life." matches "Loss Of Life" etc. Skip for very short
+      // values to avoid false positives like "No" matching "Not at all".
+      if (expLower.length > 3 && actLower.length > 3) {
+        return actLower.includes(expLower) || expLower.includes(actLower);
+      }
+      return false;
+    case 'not_equals':
+      if (actLower === expLower) return false;
+      if (expLower.length > 3 && actLower.length > 3) {
+        return !(actLower.includes(expLower) || expLower.includes(actLower));
+      }
+      return true;
+    case 'contains': return actLower.includes(expLower);
+    case 'not_contains': return !actLower.includes(expLower);
+    case 'starts_with': return actLower.startsWith(expLower);
+    case 'ends_with': return actLower.endsWith(expLower);
     case 'is_empty': return act === '';
     case 'is_not_empty': return act !== '';
     case 'gt': return parseFloat(act) > parseFloat(exp);
     case 'lt': return parseFloat(act) < parseFloat(exp);
-    default: return act.includes(exp);
+    default: return actLower.includes(expLower);
   }
 }
 
@@ -1015,6 +1034,66 @@ function checkRequiredFields(customFields, leadData) {
     }
   }
   return missing;
+}
+
+// Normalize incoming dropdown field values to their canonical option labels.
+// Progressive matching: case-insensitive exact → bidirectional contains →
+// token overlap. Prevents leads from being rejected by LeadByte or missing
+// delivery conditions just because a supplier sent "yes" instead of "Yes" or
+// "Loss of Life" instead of "Loss Of Life".
+function normalizeDropdownValues(customFields, leadData) {
+  const enriched = { ...leadData };
+  for (const f of customFields) {
+    if (!['system', 'dropdown'].includes(f.field_type)) continue;
+    if (f.system_role) continue; // skip HLR/email-derived system fields
+    let opts = [];
+    if (Array.isArray(f.options)) opts = f.options;
+    else if (typeof f.options === 'string') {
+      try { const p = JSON.parse(f.options); if (Array.isArray(p)) opts = p; } catch {}
+    }
+    if (opts.length === 0) continue;
+
+    const raw = enriched[f.field_name];
+    if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+
+    const incoming = String(raw).trim().toLowerCase().replace(/[.\,!;:]+$/, '');
+    if (!incoming) continue;
+
+    // 1. Case-insensitive exact match (handles "yes" → "Yes", "loss of life" → "Loss Of Life")
+    let match = opts.find(opt => String(opt).trim().toLowerCase().replace(/[.\,!;:]+$/, '') === incoming);
+
+    // 2. Bidirectional contains: option contains incoming OR incoming contains option
+    //    (handles "Loss of Life." → "Loss Of Life", "broken bones fracture" → "Broken Bones")
+    if (!match) {
+      match = opts.find(opt => {
+        const optNorm = String(opt).trim().toLowerCase().replace(/[.\,!;:]+$/, '');
+        if (optNorm.length < 2) return false;
+        return optNorm.includes(incoming) || incoming.includes(optNorm);
+      });
+    }
+
+    // 3. Token overlap: split both into word tokens, check if any token from
+    //    the incoming value appears in any option (handles "bone fracture" → "Broken Bones"
+    //    via the shared "bone" token, "spine injury" → "Back Or Neck Pain" won't match but
+    //    "back pain" → "Back Or Neck Pain" will via "back" + "pain").
+    if (!match) {
+      const incomingTokens = incoming.split(/[\s,\/\-|]+/).filter(t => t.length > 2);
+      if (incomingTokens.length > 0) {
+        match = opts.find(opt => {
+          const optTokens = String(opt).trim().toLowerCase().replace(/[.\,!;:]+$/, '')
+            .split(/[\s,\/\-|]+/).filter(t => t.length > 2);
+          return optTokens.some(ot => incomingTokens.some(it =>
+            it === ot || it.includes(ot) || ot.includes(it)
+          ));
+        });
+      }
+    }
+
+    if (match) {
+      enriched[f.field_name] = String(match).trim();
+    }
+  }
+  return enriched;
 }
 
 // Evaluate a single dry-run qualification condition (advisory only). Supports a
@@ -1659,7 +1738,7 @@ Deno.serve(async (req) => {
 
     // ── Run custom calculations ──────────────────────────────────────────
     const phoneVerifiedSource = hlrSettings?.phone_verified_source || 'lh_hlr_response';
-    const enrichedData = runCalculations(calcs, leadPayload, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName, supplierRecord?.supplier_type);
+    let enrichedData = runCalculations(calcs, leadPayload, hlrResult, phoneVerifiedSource, phoneVerifiedFieldName, supplierRecord?.supplier_type);
     if (hlrResult) {
       enrichedData.hlr_status = hlrResult.lh_hlr_response || '';
       enrichedData.hlr_score = hlrResult.summary_score != null ? String(hlrResult.summary_score) : '';
@@ -1676,6 +1755,12 @@ Deno.serve(async (req) => {
     if (emailValidResult !== null) {
       enrichedData[emailValidFieldName] = emailValidResult;
     }
+
+    // Normalize dropdown field values to their canonical option labels so
+    // downstream systems (LeadByte, deliveries, conditions) receive the exact
+    // values defined in the Custom Fields catalog, preventing rejections from
+    // case differences, extra punctuation, or phrasing variations.
+    enrichedData = normalizeDropdownValues(customFields, enrichedData);
 
     // Persist the enriched payload back to mapped_fields so calculated fields
     // (lead_type, Supplier Source, accident_date buckets, state maps, etc.) are
