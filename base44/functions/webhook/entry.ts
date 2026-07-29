@@ -89,7 +89,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   buyer_id: ['buyer_id', 'buyer'],
   buyer_feedback: ['buyer_feedback'],
   returned: ['buyer_returned', 'returned'],
-  returned_reason: ['buyer_return_reason', 'returned_reason'],
+  returned_reason: ['return_reason', 'buyer_return_reason', 'returned_reason', 'returnreason'],
   accident_state: ['accident_state'],
   accident_type: ['accident_type'],
   accident_details: ['accident_details'],
@@ -144,6 +144,19 @@ const mapStatus = (v: unknown): string | null => {
   const s = clean(v);
   return s ? (STATUS_MAP[s.toLowerCase()] || null) : null;
 };
+
+// Fields an outcome post is allowed to CHANGE inside mapped_fields. Anything
+// outside this set is only ever filled when blank.
+const MUTABLE_OUTCOME_FIELDS = new Set([
+  'lead_status',
+  'revenue',
+  'buyer_name',
+  'buyer_id',
+  'buyer_feedback',
+  'returned',
+  'returned_reason',
+  'supplier_payout',
+]);
 
 const reply = (status: number, payload: Record<string, unknown>) =>
   Response.json(payload, { status });
@@ -309,7 +322,7 @@ Deno.serve(async (req) => {
 
       if (c.buyer_name && c.buyer_name !== existing.buyer_name) { patch.buyer_name = c.buyer_name; changed.push('buyer_name'); }
       if (c.buyer_id && c.buyer_id !== existing.buyer_id) { patch.buyer_id = c.buyer_id; changed.push('buyer_id'); }
-      if (c.buyer_feedback) patch.buyer_feedback = c.buyer_feedback;
+      if (c.buyer_feedback && c.buyer_feedback !== existing.buyer_feedback) { patch.buyer_feedback = c.buyer_feedback; changed.push('buyer_feedback'); }
 
       if (status && status !== existing.final_status) { patch.final_status = status; changed.push('final_status'); }
 
@@ -317,19 +330,32 @@ Deno.serve(async (req) => {
       // return, so this only ever goes false -> true, never back.
       const nowReturned = status === 'Returned' || truthy(c.returned);
       if (nowReturned && existing.buyer_returned !== true) { patch.buyer_returned = true; changed.push('buyer_returned'); }
-      if (c.returned_reason) patch.buyer_return_reason = c.returned_reason;
+      if (c.returned_reason && c.returned_reason !== existing.buyer_return_reason) {
+        patch.buyer_return_reason = c.returned_reason;
+        changed.push('returned_reason');
+      }
 
       if (externalId !== null && existing.leadbyte_lead_id !== externalId) patch.leadbyte_lead_id = externalId;
       if (supplierName && !clean(existing.supplier_name)) patch.supplier_name = supplierName;
 
-      // Merge the payload into mapped_fields without overwriting values already
-      // present: the stored lead is the fuller record for anything the outcome
-      // does not carry.
+      // Merge the payload into mapped_fields. Outcome fields are MUTABLE: a lead
+      // resold to a new buyer carries a new buyer, revenue and status, and the bag
+      // must not keep the previous buyer or the dashboard reads a stale value while
+      // the column reads the new one. Everything else stays fill-only, because the
+      // stored lead is the fuller record for anything the outcome does not carry.
       const merged = { ...prior };
       let mergedChanged = false;
       for (const [k, v] of Object.entries(c)) {
-        if (clean(merged[k]) === null && clean(v) !== null) { merged[k] = v; mergedChanged = true; }
+        const incoming = clean(v);
+        if (incoming === null) continue;
+        if (MUTABLE_OUTCOME_FIELDS.has(k)) {
+          if (clean(merged[k]) !== incoming) { merged[k] = incoming; mergedChanged = true; }
+        } else if (clean(merged[k]) === null) {
+          merged[k] = incoming; mergedChanged = true;
+        }
       }
+      // Keep the bag's status aligned with the column so the two never disagree.
+      if (status && clean(merged.lead_status) !== status) { merged.lead_status = status; mergedChanged = true; }
       merged.last_outcome_at = new Date().toISOString();
       if (status) merged.last_outcome_status = status;
       if (mergedChanged || status) patch.mapped_fields = JSON.stringify(merged);
@@ -343,7 +369,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      await svc.entities.Lead.update(existing.id, patch);
+      await svc.entities.Lead.update(existing.id, { ...patch, leadbyte_outcome_at: new Date().toISOString() });
       await touchKey();
       return reply(200, {
         ok: true, outcome: 'updated', lead_id: existing.id,
@@ -375,6 +401,7 @@ Deno.serve(async (req) => {
       buyer_return_reason: c.returned_reason || undefined,
       final_status: status || undefined,
       leadbyte_lead_id: externalId ?? undefined,
+      leadbyte_outcome_at: new Date().toISOString(),
       mapped_fields: JSON.stringify({
         ...c,
         lead_type: leadType,
