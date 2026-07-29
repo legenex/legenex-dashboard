@@ -60,8 +60,13 @@ Deno.serve(async (req) => {
       returns = allReturns.filter((r: any) => leadIds.has(r.lead_id));
     } catch { returns = []; }
 
-    // Trim lead payloads to supplier-safe fields. Never expose buyer identity,
-    // other suppliers' data, raw payloads, or operator-only traces.
+    // Trim lead payloads to supplier-safe fields.
+    //
+    // BUYER IDENTITY: the buyer CODE is exposed, the buyer NAME never is. A
+    // supplier needs a stable handle to dispute or reconcile a specific lead
+    // ("the one you sold to T2"), but the company name would let them approach
+    // our client directly. Never add buyer_name, and never derive the name from
+    // the code on this projection.
     const safeLeads = leads.map((l: any) => ({
       id: l.id,
       lead_id: l.lead_id,
@@ -71,6 +76,7 @@ Deno.serve(async (req) => {
       email: l.email,
       final_status: l.final_status,
       response_reason: l.response_reason,
+      buyer_id: l.buyer_id || null,
       created_date: l.created_date,
     }));
 
