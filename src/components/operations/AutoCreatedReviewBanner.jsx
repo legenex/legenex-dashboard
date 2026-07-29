@@ -91,12 +91,10 @@ export default function AutoCreatedReviewBanner({ kind }) {
     queryFn: () => base44.entities[cfg.entity].list('-created_date', 500),
   });
 
-  // Leads are only read to find names with no record behind them. Limited fields.
+  // Leads are only read to find names with no record behind them.
   const { data: leads = [] } = useQuery({
     queryKey: [`unregistered-refs-${kind}`],
-    queryFn: () => fetchAll((opts) => base44.entities.Lead.list('-created_date', opts.limit, opts.skip), {
-      fields: undefined,
-    }),
+    queryFn: () => fetchAll((limit, skip) => base44.entities.Lead.list('-created_date', limit, skip)),
     staleTime: 60_000,
   });
 
