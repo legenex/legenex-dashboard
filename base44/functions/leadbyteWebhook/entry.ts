@@ -268,10 +268,57 @@ Deno.serve(async (req) => {
     } else {
       // No matching lead. This is an outcome/postback webhook: it records the
       // buyer outcome onto a lead that already exists in our system. It must
-      // NEVER create a new lead — doing so produced phantom "Processing"
-      // duplicates for direct-route leads. Acknowledge and skip.
+      // NEVER create a new lead, because doing so produced phantom "Processing"
+      // duplicates for direct-route leads.
+      //
+      // But it must not vanish either. Returning a bare 200 told LeadByte the
+      // outcome was accepted, so it never retried, and the Sold status was
+      // dropped on the floor with nothing on screen to show for it. That is the
+      // slippage: LeadByte reports a lead as Sold, this system never hears it,
+      // and the counts drift apart with no trace of why.
+      //
+      // Record it as a resolvable error instead. It surfaces on the Settings
+      // dashboard with an unresolved count, carries the whole payload so the
+      // lead can be reconciled by hand, and is idempotent on repeat delivery.
+      const identity = [
+        leadbyteId ? `leadbyte_id=${leadbyteId}` : null,
+        contactEmail ? `email=${contactEmail}` : null,
+        contactPhone ? `phone=${contactPhone}` : null,
+      ].filter(Boolean).join(' ') || 'no identifying fields on payload';
+
+      try {
+        // Do not pile up a new row every time LeadByte re-sends the same
+        // outcome: look for an open one first.
+        const priorArr = await svc.entities.ErrorLog.filter({
+          stage: 'leadbyte',
+          resolved: false,
+          message: `Unmatched outcome: ${identity}`,
+        });
+        const prior = (Array.isArray(priorArr) ? priorArr : [])[0] || null;
+        if (!prior) {
+          await svc.entities.ErrorLog.create({
+            stage: 'leadbyte',
+            severity: 'warning',
+            message: `Unmatched outcome: ${identity}`,
+            supplier_name: clean(body.supplier_sid) || null,
+            detail: JSON.stringify({
+              reason: 'Outcome webhook arrived for a lead that is not in this system.',
+              consequence: 'Status was NOT applied. This lead will read differently here than in LeadByte until reconciled.',
+              lead_status: clean(body.lead_status) || null,
+              lead_revenue: body.lead_revenue ?? null,
+              buyer_name: clean(body.buyer_name) || null,
+              received_at: new Date().toISOString(),
+              payload: body,
+            }),
+          });
+        }
+      } catch {
+        // Never let the audit write mask the acknowledgement below.
+      }
+
       await svc.entities.InboundWebhookRoute.update(route.id, {
         receipt_count: (Number(route.receipt_count) || 0) + 1,
+        unmatched_count: (Number(route.unmatched_count) || 0) + 1,
         last_received_at: new Date().toISOString(),
       });
       return Response.json({
@@ -279,7 +326,7 @@ Deno.serve(async (req) => {
         matched: false,
         lead_id: null,
         final_status: null,
-        message: 'No matching lead found; outcome ignored (no lead created).',
+        message: 'No matching lead found; outcome recorded for reconciliation (no lead created).',
       }, { status: 200 });
     }
 
