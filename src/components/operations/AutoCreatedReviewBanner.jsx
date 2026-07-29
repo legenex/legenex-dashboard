@@ -37,19 +37,24 @@ const CONFIG = {
     // Accepting clears the flag and leaves the record inactive on purpose.
     accept: { status: 'draft', active: false, auto_created: false },
     finishHint: 'Set pricing and state coverage before making it active.',
-    // How a lead names this kind of record.
-    refsFromLead: (l) => [
-      l.buyer_id || leadField(l, 'buyer_id'),
-      l.buyer_name || leadField(l, 'buyer'),
-    ],
+    // How a lead names this kind of record. Code and name come back as ONE pair
+    // per lead, not two loose strings: a lead carrying buyer_id LF24 and
+    // buyer_name "KP Injury Law" is one buyer, and treating them independently
+    // both split it into two review rows and lost the name on create.
+    refFromLead: (l) => ({
+      code: l.buyer_id || leadField(l, 'buyer_id') || '',
+      name: l.buyer_name || leadField(l, 'buyer') || '',
+    }),
     matches: (r, ref) => {
       const n = (v) => String(v ?? '').trim().toLowerCase();
-      return (n(r.buyer_code) && n(r.buyer_code) === n(ref))
-        || (n(r.company_name) && n(r.company_name) === n(ref));
+      const rc = n(r.buyer_code); const rn = n(r.company_name);
+      const c = n(ref.code); const nm = n(ref.name);
+      return (rc && (rc === c || rc === nm)) || (rn && (rn === c || rn === nm));
     },
     build: (ref) => ({
-      company_name: ref,
-      buyer_code: ref.length <= 8 ? ref : undefined,
+      // The real name when the payload carried one, the code otherwise.
+      company_name: ref.name || ref.code,
+      buyer_code: ref.code || undefined,
       auto_created: true,
       status: 'draft',
       active: false,
