@@ -504,6 +504,7 @@ export default function CustomCalculations() {
             <div className="space-y-1.5">
               <Label>Calculated Field Type</Label>
               <SearchableSelect
+                portal={false}
                 value={form.transform_type}
                 onValueChange={v => setF('transform_type', v)}
                 options={[
@@ -519,6 +520,7 @@ export default function CustomCalculations() {
             <div className="space-y-1.5">
               <Label>Vertical</Label>
               <SearchableSelect
+                portal={false}
                 value={form.vertical || '__all__'}
                 onValueChange={v => setF('vertical', v === '__all__' ? '' : v)}
                 options={[
@@ -534,6 +536,7 @@ export default function CustomCalculations() {
               <div className="space-y-1.5">
                 <Label>Input Field</Label>
                 <SearchableSelect
+                portal={false}
                   value={form.input_field}
                   onValueChange={v => setF('input_field', v)}
                   options={inboundFields.map(f => ({ value: f.field_name, label: f.label || f.field_name, field_type: f.field_type, required: f.required }))}
