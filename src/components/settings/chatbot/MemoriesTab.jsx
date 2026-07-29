@@ -18,11 +18,12 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' },
 ];
 
+// Semantic status tokens, not raw palette utilities. See DESIGN-SYSTEM.md.
 const categoryColor = {
-  preference: 'bg-blue-500/10 text-blue-400',
+  preference: 'bg-status-duplicate status-duplicate',
   business_rule: 'bg-primary/10 text-primary',
-  data_insight: 'bg-emerald-500/10 text-emerald-400',
-  definition: 'bg-purple-500/10 text-purple-400',
+  data_insight: 'bg-status-sold status-sold',
+  definition: 'bg-status-queued status-queued',
   other: 'bg-muted text-muted-foreground',
 };
 
