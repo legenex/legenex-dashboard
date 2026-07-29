@@ -433,6 +433,7 @@ Deno.serve(async (req) => {
         return reply(200, {
           ok: true, outcome: 'duplicate', lead_id: existing.id,
           final_status: existing.final_status || null, supplier: existing.supplier_name || supplierName,
+          auto_created: autoCreated,
           message: 'Lead already recorded with these values. Nothing changed.',
         });
       }
@@ -444,6 +445,7 @@ Deno.serve(async (req) => {
         final_status: patch.final_status || existing.final_status || null,
         supplier: patch.supplier_name || existing.supplier_name || supplierName,
         changed,
+        auto_created: autoCreated,
         message: `Matched an existing lead and updated ${changed.join(', ')}.`,
       });
     }
@@ -484,6 +486,7 @@ Deno.serve(async (req) => {
     return reply(200, {
       ok: true, outcome: 'created', lead_id: created?.id || null,
       final_status: status || null, supplier: supplierName,
+      auto_created: autoCreated,
       message: 'Lead was not in this system and has been created from the payload.',
     });
   } catch (error) {
