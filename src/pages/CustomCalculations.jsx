@@ -156,7 +156,9 @@ export default function CustomCalculations() {
 
   const { data: calcs = [] } = useQuery({
     queryKey: ['custom-calculations'],
-    queryFn: () => base44.entities.CustomCalculation.list('sort_order', 50),
+    // No 50-row cap: a silent truncation here reads as a calculated field having
+    // disappeared from the page.
+    queryFn: () => base44.entities.CustomCalculation.list('sort_order', 500),
   });
 
   const { data: customFields = [] } = useQuery({
@@ -259,12 +261,12 @@ export default function CustomCalculations() {
   // Calculated Fields page. Delete the pair, or the catalogue lies.
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      const row = (calculations || []).find(c => c.id === id);
+      const row = (calcs || []).find(c => c.id === id);
       await base44.entities.CustomCalculation.delete(id);
-      const token = String(row?.output || '').trim();
+      const token = String(row?.output_token || '').trim();
       if (!token) return;
       // Only remove the paired field if nothing else still computes that token.
-      const others = (calculations || []).filter(c => c.id !== id && String(c.output || '').trim() === token);
+      const others = (calcs || []).filter(c => c.id !== id && String(c.output_token || '').trim() === token);
       if (others.length > 0) return;
       try {
         const fields = await base44.entities.CustomField.list();
