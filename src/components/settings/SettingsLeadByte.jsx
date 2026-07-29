@@ -449,7 +449,7 @@ export default function SettingsLeadByte() {
                         onValueChange={v => setF('filter_verticals', v ? JSON.stringify([v]) : '[]')}
                         className="mt-1 bg-background"
                         placeholder="All verticals"
-                        options={[{ value: '', label: 'All verticals' }, ...verticalFilterOptions]}
+                        options={[{ value: '', label: 'All verticals' }, ...verticalFilterOpts]}
                       />
                     </div>
                   </div>
@@ -653,7 +653,7 @@ export default function SettingsLeadByte() {
                 value={verticalFilter}
                 onValueChange={setVerticalFilter}
                 className="w-[200px] bg-background"
-                options={[{ value: 'all', label: 'All Verticals' }, ...verticalFilterOptions]}
+                options={[{ value: 'all', label: 'All Verticals' }, ...verticalFilterOpts]}
               />
             </div>
             <div className="flex items-center gap-2">
