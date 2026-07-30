@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T22:51:05.081Z",
+  "generated_at": "2026-07-30T22:55:41.185Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "902a0a9faa3f5647945a1d600070b55e4c52bf19",
+  "app_commit": "37f8f4fc98acc9788e7ba3156339ef5339aabb0b",
   "sources": [
     "src/App.jsx",
     "src/AppRoutes.jsx",
@@ -7000,6 +7000,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/captureTargets.js",
         "src/lib/progress/mask.js",
         "src/lib/progress/readiness.js",
         "src/lib/query-client.js",
@@ -17408,6 +17409,9 @@
       "progress-review"
     ],
     "src/components/progress/VisualReview.jsx": [
+      "progress-review"
+    ],
+    "src/lib/progress/captureTargets.js": [
       "progress-review"
     ],
     "src/lib/query-client.js": [
