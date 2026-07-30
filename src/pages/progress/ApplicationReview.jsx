@@ -11,7 +11,8 @@ import {
 } from '@/components/progress/useProgress';
 import VisualReview from '@/components/progress/VisualReview';
 import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
-import { useOffscreenCapture, ALL_VIEWPORTS } from '@/components/progress/OffscreenCapture';
+import { useOffscreenCapture } from '@/components/progress/OffscreenCapture';
+import { capturable, ALL_VIEWPORTS } from '@/lib/progress/captureTargets';
 import { sortSections } from '@/components/progress/progressNav';
 import {
   ProgressPageHeader, Card, CardBody, Badge, EmptyState,

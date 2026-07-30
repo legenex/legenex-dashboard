@@ -6,6 +6,12 @@ import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider } from '@/lib/AuthContext';
 import { capturePageElement } from '@/lib/progress/capture';
 import { setCaptureMode, CaptureModeProvider } from '@/lib/progress/captureMode';
+import {
+  CAPTURE_WIDTHS, ALL_VIEWPORTS, widthFor, parseProps, visualLayouts,
+} from '@/lib/progress/captureTargets';
+
+// Re-exported so callers have one obvious place to import capture constants from.
+export { CAPTURE_WIDTHS, ALL_VIEWPORTS };
 
 // Offscreen capture.
 //
@@ -246,7 +252,8 @@ export async function captureOffscreen(page, {
 
     await new Promise((resolve) => {
       root.render(
-        <AuthProvider>
+        <CaptureModeProvider>
+          <AuthProvider>
           <QueryClientProvider client={queryClientInstance}>
             <MemoryRouter initialEntries={[page.route || '/']}>
               <CaptureBoundary onError={(e) => { renderError = e; }}>
@@ -254,7 +261,8 @@ export async function captureOffscreen(page, {
               </CaptureBoundary>
             </MemoryRouter>
           </QueryClientProvider>
-        </AuthProvider>,
+          </AuthProvider>
+        </CaptureModeProvider>,
       );
       setTimeout(resolve, 80);
     });

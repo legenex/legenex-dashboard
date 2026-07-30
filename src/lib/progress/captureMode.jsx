@@ -1,55 +1,53 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
 
-// Capture mode: "this tree is being rendered offscreen purely to photograph it".
+// "We are rendering a page offscreen purely to photograph it."
 //
-// The Progress Control Center mounts real application chrome offscreen so the
-// screenshot includes the sidebar and section sub-navigation, which is the whole
-// point: those are part of what is being reviewed. But mounting real chrome also
-// mounts real side effects, once per page per viewport. Across 60 pages and
-// three sizes that is nearly 200 mounts in a few minutes.
+// The offscreen capturer mounts the real application shell so the screenshot
+// includes the sidebar and sub-navigation, which is the point: those are part of
+// the page being reviewed. But mounting the real shell also mounts its side
+// effects, and a screenshot must never cause the app to DO anything. The Meta
+// auto-sync in particular writes ad spend records on an interval.
 //
-// Left alone, useMetaAutoSync would fire syncMetaSpend on each of those mounts
-// and write ad spend rows. Taking a screenshot must never cause the app to DO
-// anything.
-//
-// The rule: in capture mode, render exactly as normal and nothing else. No
-// timers, no background syncs, no mutations, no writes.
-//
-// Two mechanisms, deliberately, because there are two kinds of caller:
-//
-//   * The module flag, for plain hooks and helpers that have no React context
-//     to read. It is global, so a batch also stands the live page's background
-//     upkeep down for the duration, which is what we want anyway.
-//   * The context, for components that want to know whether THEIR tree is the
-//     offscreen one rather than whether a capture is happening somewhere.
-//
-// These were previously two separate files, one .js and one .jsx, with the same
-// import specifier. Vite resolved the .js and the .jsx exports vanished, which
-// broke the production build. One file now.
+// Three ways to read it, because different callers need different things:
+//   isCaptureMode()      plain read, for hooks that only need the value now
+//   useCaptureMode()     subscribed, so a mounted component re-renders on change
+//   CaptureModeProvider  wraps the offscreen tree, for components that would
+//                        rather take it from context than from a module global
 
 let capturing = false;
+const listeners = new Set();
 
 export function setCaptureMode(on) {
-  capturing = Boolean(on);
+  const next = Boolean(on);
+  if (next === capturing) return;
+  capturing = next;
+  listeners.forEach((fn) => {
+    try { fn(); } catch { /* a bad listener must not break a capture */ }
+  });
 }
 
 export function isCaptureMode() {
   return capturing;
 }
 
-const CaptureModeContext = createContext(false);
+function subscribe(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
 
-export function CaptureModeProvider({ children }) {
+const CaptureModeContext = createContext(null);
+
+export function useCaptureMode() {
+  const fromContext = useContext(CaptureModeContext);
+  const fromStore = useSyncExternalStore(subscribe, isCaptureMode, () => false);
+  return fromContext === null ? fromStore : fromContext;
+}
+
+export function CaptureModeProvider({ value = true, children }) {
+  const resolved = useMemo(() => Boolean(value), [value]);
   return (
-    <CaptureModeContext.Provider value>
+    <CaptureModeContext.Provider value={resolved}>
       {children}
     </CaptureModeContext.Provider>
   );
-}
-
-// Falls back to the module flag so a component still stands down during a batch
-// even if it happens to sit outside the provider.
-export function useCaptureMode() {
-  const inTree = useContext(CaptureModeContext);
-  return inTree || capturing;
 }

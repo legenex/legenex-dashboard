@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { usePermissions, useAuth } from '@/lib/AuthContext';
 import { cropAndUpload } from '@/lib/progress/capture';
-import { ALL_VIEWPORTS } from '@/components/progress/OffscreenCapture';
+import { ALL_VIEWPORTS } from '@/lib/progress/captureTargets';
 import { maskEnabled, setMaskEnabled } from '@/components/progress/CaptureController';
 import { useProgressMutation } from '@/components/progress/useProgress';
 import {
