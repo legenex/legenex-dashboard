@@ -91,7 +91,76 @@ Deno.serve(async (req) => {
 
     const svc = base44.asServiceRole.entities;
     const existing = await loadAll(svc.ProgressPage);
-    const byKey = new Map(existing.map((p: any) => [p.page_key, p]));
+
+    // ---- de-duplication pass ----
+    // Two writers racing on the same page_key (a sync while records are being
+    // seeded, or two operators pressing Sync at once) can leave more than one
+    // record per key. The UI would then pick an arbitrary one and show the wrong
+    // assessment. Collapse them here rather than leaving it to discipline:
+    // keep the OLDEST record as canonical, fold any human field that is set on a
+    // duplicate but empty on the canonical one, then remove the duplicates.
+    const HUMAN_MERGE_FIELDS = HUMAN_OWNED_FIELDS;
+    const groups = new Map<string, any[]>();
+    existing.forEach((rec: any) => {
+      const list = groups.get(rec.page_key) || [];
+      list.push(rec);
+      groups.set(rec.page_key, list);
+    });
+
+    const deduped: string[] = [];
+    const dedupeFailures: string[] = [];
+    for (const [key, list] of groups) {
+      if (list.length < 2) continue;
+      list.sort((a: any, b: any) => String(a.created_date || '').localeCompare(String(b.created_date || '')));
+      const canonical = list[0];
+      const extras = list.slice(1);
+
+      const merge: Record<string, any> = {};
+      for (const field of HUMAN_MERGE_FIELDS) {
+        const currentValue = canonical[field];
+        const isEmpty = currentValue == null || currentValue === '' || currentValue === false
+          || (field === 'criticality' && currentValue === 'normal')
+          || (field === 'lifecycle_status' && currentValue === 'not_started')
+          || (field === 'leadbyte_parity' && currentValue === 'not_assessed');
+        if (!isEmpty) continue;
+        const donor = extras.find((e: any) => {
+          const v = e[field];
+          if (v == null || v === '') return false;
+          if (field === 'criticality' && v === 'normal') return false;
+          if (field === 'lifecycle_status' && v === 'not_started') return false;
+          if (field === 'leadbyte_parity' && v === 'not_assessed') return false;
+          return true;
+        });
+        if (donor) merge[field] = donor[field];
+      }
+
+      if (!dryRun && Object.keys(merge).length > 0) {
+        await svc.ProgressPage.update(canonical.id, merge);
+        Object.assign(canonical, merge);
+      }
+      for (const extra of extras) {
+        if (dryRun) { deduped.push(key); continue; }
+        try {
+          await svc.ProgressPage.delete(extra.id);
+          deduped.push(key);
+        } catch (e) {
+          // Never leave a silent duplicate. If the delete is not permitted,
+          // park the record loudly so it is visible rather than confusing.
+          await svc.ProgressPage.update(extra.id, {
+            page_key: `${extra.page_key}__duplicate_${extra.id.slice(-6)}`,
+            lifecycle_status: 'blocked',
+            blocked_reason: `Duplicate of ${key}. Could not be deleted automatically: ${String(e?.message || e)}. Delete it by hand.`,
+            needs_human_review: true,
+          });
+          dedupeFailures.push(key);
+        }
+      }
+    }
+
+    const live = dryRun
+      ? existing
+      : await loadAll(svc.ProgressPage);
+    const byKey = new Map(live.map((p: any) => [p.page_key, p]));
 
     const now = new Date().toISOString();
     const created: string[] = [];
