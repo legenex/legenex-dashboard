@@ -2,7 +2,32 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 // DataBot: answers questions about the app's own data + a curated Knowledge Base.
 // Uses OpenAI (OPENAI_API_KEY secret).
-// Remembers past conversations and learns facts from each exchange.
+//
+// ARCHITECTURE (rewritten 30 July 2026)
+// -------------------------------------
+// The previous version pre-computed every dimension against every period and
+// stringified the lot into a single prompt. That payload ran well past 100k
+// characters, so the model was doing needle-in-a-haystack retrieval and hedged
+// with "the data does not specify" even when the number was present. Adding
+// more instruction text could not fix a retrieval problem.
+//
+// This version is a two-pass query tool:
+//   1. PLAN    a small model call turns the question into a structured query
+//              spec (entity refs, group_by, period, top_n). No data in scope.
+//   2. EXECUTE the spec runs deterministically here in TypeScript. Counting is
+//              never done by the model.
+//   3. NARRATE a second model call sees the question plus a small result object
+//              (typically well under 4k characters) and writes the answer.
+//
+// Entity resolution is a real index: every supplier and buyer is registered
+// under all of its aliases (name, sid, ssid, buyer_code, buyer id) and matched
+// on word boundaries, so "Inbounds" no longer fires on the word "inbound".
+//
+// Counting rules, unchanged and matching the dashboard:
+//   1. Archived leads are excluded. They are retired duplicates.
+//   2. The event date is the supplier's own timestamp where present, NOT
+//      created_date, which is only when the row was written.
+//   3. Days bucket in America/Regina, the operating timezone.
 
 async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, jsonSchema = null }) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
@@ -76,6 +101,56 @@ async function extractMemories(question, answer, existingMemory) {
   } catch { return []; }
 }
 
+// ---- Query planner -------------------------------------------------------
+//
+// Turns a natural-language question into a structured spec. Sees only the
+// entity directory and the list of valid options, never the lead data, so the
+// prompt stays tiny and the call stays fast.
+async function planQuery(question, history, directory) {
+  const schema = {
+    type: 'object',
+    properties: {
+      intent: {
+        type: 'string',
+        enum: ['aggregate', 'timeseries', 'compare', 'directory', 'finance', 'general'],
+        description: 'aggregate for counts/economics, timeseries for per-day trends, compare for two or more named entities side by side, directory to list known suppliers/buyers, finance for ad spend or bank questions, general for knowledge-base or non-data questions',
+      },
+      entity_refs: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Any supplier or buyer the question names, exactly as written by the user. Can be a name, sid, ssid, buyer_code or id. Empty if the question is not about specific entities.',
+      },
+      group_by: {
+        type: 'string',
+        enum: ['supplier', 'buyer', 'source', 'vertical', 'state', 'status', 'lead_type', 'day', 'none'],
+        description: 'The dimension to break results down by. Use none for a single total.',
+      },
+      period: {
+        type: 'string',
+        enum: ['today', 'yesterday', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'all_time', 'custom'],
+      },
+      start_date: { type: 'string', description: 'YYYY-MM-DD, only when period is custom' },
+      end_date: { type: 'string', description: 'YYYY-MM-DD, only when period is custom' },
+      top_n: { type: 'integer', description: 'How many groups to return, default 15' },
+      needs_finance: { type: 'boolean', description: 'True if the question touches ad spend, bank transactions, or where a money figure came from' },
+    },
+    required: ['intent', 'entity_refs', 'group_by', 'period'],
+  };
+  const convo = history.slice(-4).map((m) => `${m.role === 'user' ? 'User' : 'DataBot'}: ${String(m.content).slice(0, 300)}`).join('\n');
+  const system = `You convert questions about a lead-management platform into a structured query spec. You never answer the question yourself and you never invent numbers.
+
+Period mapping: "today"=today, "yesterday"=yesterday, "this week"/"past week"/"last 7 days"=last_7_days, "last 30 days"=last_30_days, "this month"/"month to date"=this_month, "last month"=last_month, "overall"/"ever"/"in total"/"all time"=all_time. A specific date or date range is custom. When no period is stated, use all_time.
+
+entity_refs: copy the supplier or buyer token exactly as the user typed it. Do not correct spelling or casing, the resolver handles that. Only include tokens that plausibly name a supplier or buyer from the directory.
+
+group_by: use the dimension the user is slicing by. "which supplier"/"by supplier"/"per supplier" is supplier. "best day"/"per day"/"trend" is day with intent timeseries. A plain count for one entity or overall is none.
+
+Known suppliers and buyers:
+${directory}`;
+  const prompt = `Conversation so far:\n${convo || '(none)'}\n\nQuestion: ${question}\n\nReturn JSON only.`;
+  return await callOpenAI({ system, prompt, jsonSchema: schema, temperature: 0 });
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -89,6 +164,9 @@ Deno.serve(async (req) => {
 
     const isAdmin = user.role === 'admin' || user.role === 'owner';
     const mode = body.mode === 'build' ? 'build' : 'data';
+
+    // list() returns null for empty entities, so never trust the shape.
+    const arr = (x) => (Array.isArray(x) ? x : []);
 
     // Resolve DataBot/BuildBot access from the permission model: explicit perms
     // when the user has any stored, otherwise the role default. Owner always
@@ -120,10 +198,10 @@ Deno.serve(async (req) => {
     const botAllows = async (botKey: string, u: any) => {
       try {
         const cfgs = await svc.entities.BotConfig.filter({ bot_key: botKey });
-        const cfg = (Array.isArray(cfgs) ? cfgs : [])[0] || null;
+        const cfg = arr(cfgs)[0] || null;
         if (!cfg) return null;
-        const roles = Array.isArray(cfg.allowed_roles) ? cfg.allowed_roles.filter(Boolean) : [];
-        const ids = Array.isArray(cfg.allowed_user_ids) ? cfg.allowed_user_ids.filter(Boolean) : [];
+        const roles = arr(cfg.allowed_roles).filter(Boolean);
+        const ids = arr(cfg.allowed_user_ids).filter(Boolean);
         if (roles.length === 0 && ids.length === 0) return null; // not configured
         const role = String(u.base_role || u.role || '').toLowerCase();
         return roles.map((r: string) => String(r).toLowerCase()).includes(role) || ids.includes(u.id);
@@ -176,31 +254,21 @@ Deno.serve(async (req) => {
 
     try {
       // Load recent active memories (learned facts) for this user.
-      memories = await svc.entities.ChatMemory.filter(
+      memories = arr(await svc.entities.ChatMemory.filter(
         { user_id: user.id, active: true },
         '-created_date', 30
-      ).catch(() => []);
+      ).catch(() => []));
       // Load recent conversations for continuity (titles + last few messages).
-      const recentConvs = await svc.entities.ChatConversation.filter(
+      const recentConvs = arr(await svc.entities.ChatConversation.filter(
         { user_id: user.id, mode, active: true },
         '-last_message_at', 5
-      ).catch(() => []);
-      pastConversations = recentConvs
-        .map(c => {
-          let msgs = [];
-          try { msgs = JSON.parse(c.messages || '[]'); } catch {}
-          const lastMsgs = msgs.slice(-4);
-          return { title: c.title, recent: lastMsgs.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : ''}`) };
-        })
-        // Drop conversations whose messages are just the current question
-        // repeated (the LLM would echo its own stale answer) and any that
-        // contain obsolete "data does not specify" replies to the same
-        // question — those were from before resolved_entities existed.
-        .filter(c => {
-          const text = c.recent.join(' ').toLowerCase();
-          if (text.includes('data does not specify') && text.includes(question.toLowerCase().slice(0, 30))) return false;
-          return true;
-        });
+      ).catch(() => []));
+      pastConversations = recentConvs.map(c => {
+        let msgs = [];
+        try { msgs = JSON.parse(c.messages || '[]'); } catch { /* malformed history is not fatal */ }
+        const lastMsgs = msgs.slice(-4);
+        return { title: c.title, recent: lastMsgs.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : ''}`) };
+      });
     } catch { /* memory entities may not exist yet */ }
 
     // --- Resolve caller scope (deny-by-default), then gather only what they may see ---
@@ -212,20 +280,6 @@ Deno.serve(async (req) => {
     const sum = (a, f) => a.reduce((acc, x) => acc + (Number(f(x)) || 0), 0);
     const statusMap = (rows) => { const m = {}; for (const l of rows) m[l.final_status] = (m[l.final_status] || 0) + 1; return m; };
 
-    // ---- Accurate, date-aware lead facts -------------------------------------
-    //
-    // The bot used to be handed a 500-row slice and 25 recent rows with no date
-    // buckets at all, then asked questions like "how many sold yesterday". It
-    // could not know, so it answered zero while the Leads page showed 15.
-    //
-    // Counting is done here, not by the model. Three rules matter and all three
-    // match what the UI does:
-    //   1. Archived leads are excluded. They are retired duplicates.
-    //   2. The event date is the supplier's own timestamp where present, NOT
-    //      created_date. created_date is when the row was written, so every
-    //      lead from a bulk import carries the import date.
-    //   3. Days are bucketed in America/Regina, the operating timezone, so
-    //      "yesterday" means yesterday here rather than in UTC.
     const APP_TZ = 'America/Regina';
     const dayFmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: APP_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -261,52 +315,17 @@ Deno.serve(async (req) => {
     const loadAllLeads = async () => {
       const out = [];
       const pageSize = 500;
-      for (let p = 0; p < 200; p += 1) {
-        const batch = await svc.entities.Lead
+      for (let p = 0; p < 400; p += 1) {
+        const batch = arr(await svc.entities.Lead
           .filter({ archived: false }, '-created_date', pageSize, p * pageSize)
-          .catch(() => []);
-        if (!batch || batch.length === 0) break;
+          .catch(() => []));
+        if (batch.length === 0) break;
         out.push(...batch);
         if (batch.length < pageSize) break;
       }
       return out;
     };
 
-    // ---- Dimension resolvers -------------------------------------------------
-    //
-    // Supplier, buyer, source and vertical all live in the mapped_fields bag
-    // rather than as lead columns (only supplier_name is a real column). Reading
-    // the column directly is why every dimensional question came back as "the
-    // data does not specify": the fields were there, just not where the bot was
-    // looking.
-    const dimSupplier = (l) => {
-      const bag = parseBag(l);
-      return String(l?.supplier_name || bag.supplier_name || bag.sid || '').trim() || '(unattributed)';
-    };
-    const dimSupplierId = (l) => {
-      const bag = parseBag(l);
-      return String(bag.sid || bag.ssid || '').trim() || null;
-    };
-    const dimBuyer = (l) => {
-      const bag = parseBag(l);
-      return String(bag.buyer_name || bag.buyer || l?.buyer_name || '').trim() || '(unsold or unassigned)';
-    };
-    const dimBuyerId = (l) => {
-      const bag = parseBag(l);
-      return String(bag.buyer_id || bag.buyer || '').trim() || null;
-    };
-    const dimSource = (l) => {
-      const bag = parseBag(l);
-      return String(bag.utm_source || bag.source || bag['Supplier Source'] || bag.lead_source || '').trim() || '(unknown source)';
-    };
-    const dimVertical = (l) => {
-      const bag = parseBag(l);
-      return String(bag.vertical || bag.lead_vertical || '').trim() || '(unset)';
-    };
-    const dimState = (l) => {
-      const bag = parseBag(l);
-      return String(l?.state || bag.accident_state || bag.geoip_state || '').trim().toUpperCase() || '(unknown)';
-    };
     const leadCostOf = (l) => {
       const bag = parseBag(l);
       const v = bag.cpl ?? bag.cost ?? null;
@@ -339,128 +358,13 @@ Deno.serve(async (req) => {
       };
     };
 
-    // Group a set of leads by a dimension and return economics per key, largest
-    // first, capped so the payload stays a reasonable size.
-    const groupBy = (rows, keyFn, limit = 25) => {
-      const buckets = {};
-      for (const l of rows) {
-        const k = keyFn(l);
-        if (!buckets[k]) buckets[k] = [];
-        buckets[k].push(l);
-      }
-      return Object.entries(buckets)
-        .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, limit)
-        .reduce((acc, [k, v]) => { acc[k] = econ(v); return acc; }, {});
-    };
-
-    // Counts by status for an arbitrary set of day keys.
-    const countsForDays = (allLeads, dayKeys) => {
-      const want = new Set(dayKeys);
-      const rows = allLeads.filter((l) => { const k = eventDayKey(l); return k && want.has(k); });
-      const byStatus = statusMap(rows);
-      return {
-        total: rows.length,
-        sold: byStatus.Sold || 0,
-        unsold: byStatus.Unsold || 0,
-        disqualified: byStatus.Disqualified || 0,
-        returned: byStatus.Returned || 0,
-        rejected: byStatus.Rejected || 0,
-        duplicate: byStatus.Duplicate || 0,
-        revenue: Math.round(sum(rows, (l) => l.revenue)),
-      };
-    };
-
-    const buildLeadFacts = (allLeads) => {
-      const last7 = Array.from({ length: 7 }, (_, i) => dayKeyOffset(i));
-      const last30 = Array.from({ length: 30 }, (_, i) => dayKeyOffset(i));
-      const thisMonthPrefix = todayKey.slice(0, 7);
-      const allKeys = allLeads.map(eventDayKey).filter(Boolean);
-      const thisMonthKeys = [...new Set(allKeys.filter((k) => k.startsWith(thisMonthPrefix)))];
-      const lastMonthDate = new Date();
-      lastMonthDate.setDate(1);
-      lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-      const lastMonthPrefix = dayFmt.format(lastMonthDate).slice(0, 7);
-      const lastMonthKeys = [...new Set(allKeys.filter((k) => k.startsWith(lastMonthPrefix)))];
-
-      // Per-day series so the model can answer "which day was best" without
-      // inventing anything.
-      const perDay = {};
-      for (const k of last30) perDay[k] = countsForDays(allLeads, [k]);
-
-      // Rows for a period, so dimensional breakdowns can be cut per window.
-      const rowsFor = (keys) => {
-        const want = new Set(keys);
-        return allLeads.filter((l) => { const k = eventDayKey(l); return k && want.has(k); });
-      };
-      const yRows = rowsFor([yesterdayKey]);
-      const tRows = rowsFor([todayKey]);
-      const w7Rows = rowsFor(last7);
-      const mRows = rowsFor(thisMonthKeys);
-      const lmRows = rowsFor(lastMonthKeys);
-
-      // Every dimension, cut by every period that gets asked about. This is
-      // what makes "how many of yesterday's were LeadFlow" answerable.
-      const cuts = (rows) => ({
-        by_supplier: groupBy(rows, dimSupplier),
-        by_buyer: groupBy(rows, dimBuyer),
-        by_source: groupBy(rows, dimSource),
-        by_vertical: groupBy(rows, dimVertical),
-        by_state: groupBy(rows, dimState, 15),
-      });
-
-      // Name <-> code lookups so a question can use either form.
-      const supplierIdentity = {};
-      const buyerIdentity = {};
-      for (const l of allLeads) {
-        const sName = dimSupplier(l); const sId = dimSupplierId(l);
-        if (sId && !supplierIdentity[sName]) supplierIdentity[sName] = sId;
-        const bName = dimBuyer(l); const bId = dimBuyerId(l);
-        if (bId && !buyerIdentity[bName]) buyerIdentity[bName] = bId;
-      }
-
-      return {
-        _note: 'Counts are authoritative. They exclude archived leads and bucket by the supplier event timestamp in America/Regina, matching the dashboard. Use these numbers directly; do not recount from recent_leads.',
-        _how_to_read: 'Each period has overall figures AND breakdowns. For "how many of yesterday were LeadFlow", read yesterday_breakdown.by_supplier["LeadFlow"]. Every breakdown entry carries total, sold, unsold, disqualified, returned, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct. supplier_identity and buyer_identity map names to their codes so either can be used.',
-        timezone: APP_TZ,
-        today_date: todayKey,
-        yesterday_date: yesterdayKey,
-
-        supplier_identity: supplierIdentity,
-        buyer_identity: buyerIdentity,
-
-        all_time_total: allLeads.length,
-        all_time_by_status: statusMap(allLeads),
-        all_time: econ(allLeads),
-        all_time_breakdown: cuts(allLeads),
-
-        today: countsForDays(allLeads, [todayKey]),
-        today_breakdown: cuts(tRows),
-
-        yesterday: countsForDays(allLeads, [yesterdayKey]),
-        yesterday_breakdown: cuts(yRows),
-
-        last_7_days: countsForDays(allLeads, last7),
-        last_7_days_breakdown: cuts(w7Rows),
-
-        last_30_days: countsForDays(allLeads, last30),
-
-        this_month: countsForDays(allLeads, thisMonthKeys),
-        this_month_breakdown: cuts(mRows),
-
-        last_month: countsForDays(allLeads, lastMonthKeys),
-        last_month_breakdown: cuts(lmRows),
-
-        per_day_last_30: perDay,
-      };
-    };
-
-    let dataSummary = {};
+    let payload: any = {};
     let kbContext = '';
     let scopeNote = '';
+    let planNote = '';
 
     if (scope.kind === 'operator') {
-      const [leads, suppliers, buyers, adSpend, txns, kbDocs] = await Promise.all([
+      const [leads, suppliersRaw, buyersRaw, adSpendRaw, txnsRaw, kbDocsRaw] = await Promise.all([
         loadAllLeads(),
         svc.entities.Supplier.list().catch(() => []),
         svc.entities.Buyer.list().catch(() => []),
@@ -468,106 +372,313 @@ Deno.serve(async (req) => {
         svc.entities.BankTransaction.list('-date', 300).catch(() => []),
         svc.entities.KnowledgeDoc.filter({ active: true }, 'sort_order').catch(() => []),
       ]);
+      const suppliers = arr(suppliersRaw);
+      const buyers = arr(buyersRaw);
+      const adSpend = arr(adSpendRaw);
+      const txns = arr(txnsRaw);
+      const kbDocs = arr(kbDocsRaw);
 
-      // --- Resolve specific suppliers/buyers mentioned in the question ---
-      // Pre-computes per-entity stats so the LLM gets the answer directly
-      // instead of having to find the right key in a large breakdown object.
-      // This is what makes "how many sold for Leadflow yesterday" answerable
-      // regardless of how the supplier name is cased in the lead data.
-      const last7Keys = Array.from({ length: 7 }, (_, i) => dayKeyOffset(i));
-      const qLower = question.toLowerCase();
-      const matchedSuppliers = suppliers.filter((s) => {
-        const name = String(s.name || '').toLowerCase();
-        const sid = String(s.sid || '').toLowerCase();
-        if (name.length >= 3 && qLower.includes(name)) return true;
-        if (sid.length >= 3 && qLower.includes(sid)) return true;
-        const tokens = name.split(/\s+/).filter((t) => t.length >= 4);
-        if (tokens.length >= 1 && tokens.every((t) => qLower.includes(t))) return true;
-        return false;
-      });
-      const matchedBuyers = buyers.filter((b) => {
-        const name = String(b.company_name || b.name || '').toLowerCase();
-        const code = String(b.buyer_code || '').toLowerCase();
-        if (name.length >= 3 && qLower.includes(name)) return true;
-        if (code.length >= 3 && qLower.includes(code)) return true;
-        const tokens = name.split(/\s+/).filter((t) => t.length >= 4);
-        if (tokens.length >= 1 && tokens.every((t) => qLower.includes(t))) return true;
-        return false;
-      });
-      const resolvedSuppliers = matchedSuppliers.slice(0, 5).map((s) => {
-        const sName = String(s.name || '').trim().toLowerCase();
-        const sSid = String(s.sid || '').trim().toLowerCase();
-        const sRows = leads.filter((l) => {
-          const d = dimSupplier(l).toLowerCase();
-          return d === sName || (sSid && d === sSid);
-        });
-        return {
-          name: s.name,
-          sid: s.sid || null,
-          total: sRows.length,
-          by_status: statusMap(sRows),
-          all_time: econ(sRows),
-          yesterday: countsForDays(sRows, [yesterdayKey]),
-          today: countsForDays(sRows, [todayKey]),
-          last_7_days: countsForDays(sRows, last7Keys),
-          this_week: countsForDays(sRows, last7Keys),
-        };
-      });
-      const resolvedBuyers = matchedBuyers.slice(0, 5).map((b) => {
-        const bName = String(b.company_name || b.name || '').trim().toLowerCase();
-        const bCode = String(b.buyer_code || '').trim().toLowerCase();
-        const bRows = leads.filter((l) => {
-          const dName = dimBuyer(l).toLowerCase();
-          const dId = dimBuyerId(l);
-          return dName === bName || (bCode && dName === bCode) || (b.id && l.buyer_id === b.id) || (dId && dId === b.id);
-        });
-        return {
-          name: b.company_name || b.name,
-          buyer_code: b.buyer_code || null,
-          buyer_id: b.id,
-          total: bRows.length,
-          by_status: statusMap(bRows),
-          all_time: econ(bRows),
-          yesterday: countsForDays(bRows, [yesterdayKey]),
-          today: countsForDays(bRows, [todayKey]),
-          last_7_days: countsForDays(bRows, last7Keys),
-          this_week: countsForDays(bRows, last7Keys),
-        };
-      });
+      // ---- Entity index --------------------------------------------------
+      //
+      // Every supplier and buyer is registered under all of its aliases, so a
+      // question can use a name, a sid, an ssid, a buyer_code or a raw id and
+      // land on the same record. Matching is normalized (case and punctuation
+      // insensitive) and, when scanning free text, anchored on word boundaries
+      // so a short alias cannot fire on a substring of an unrelated word.
+      const norm = (s) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const aliasIndex = new Map<string, any>();
+      const registry: any[] = [];
 
-      dataSummary = {
-        // Authoritative, date-bucketed counts. Answer date questions from here.
-        lead_facts: buildLeadFacts(leads),
-        leads_total: leads.length,
-        leads_by_status: statusMap(leads),
-        revenue_total: Math.round(sum(leads, (l) => l.revenue)),
-        suppliers_count: suppliers.length,
-        supplier_directory: suppliers.slice(0, 50).map((s) => ({ name: s.name, sid: s.sid || null })),
-        buyers_count: buyers.length,
-        buyer_directory: buyers.slice(0, 50).map((b) => ({ name: b.company_name, buyer_code: b.buyer_code || null, id: b.id })),
-        ad_spend_total: Math.round(sum(adSpend, (a) => a.spend)),
-        ad_spend_by_supplier: (() => { const m = {}; for (const r of adSpend) { if (r.level && r.level !== 'account') continue; const k = r.supplier_name || '(unattributed)'; m[k] = Math.round(((m[k] || 0) + (Number(r.spend) || 0)) * 100) / 100; } return m; })(),
-        ad_spend_by_account: (() => { const m = {}; for (const r of adSpend) { if (r.level && r.level !== 'account') continue; const k = r.cost_source || r.ad_account_id || '(unknown account)'; m[k] = Math.round(((m[k] || 0) + (Number(r.spend) || 0)) * 100) / 100; } return m; })(),
-        ad_spend_by_month: (() => { const m = {}; for (const r of adSpend) { if (r.level && r.level !== 'account') continue; const k = String(r.date || '').slice(0, 7); if (!k) continue; m[k] = Math.round(((m[k] || 0) + (Number(r.spend) || 0)) * 100) / 100; } return m; })(),
-        ad_spend_date_range: (() => { const ds = adSpend.map((r) => r.date).filter(Boolean).sort(); return ds.length ? { earliest: ds[0], latest: ds[ds.length - 1], days: ds.length } : null; })(),
-        ad_spend_recent_days: adSpend.filter((r) => !r.level || r.level === 'account').slice(0, 45).map((r) => ({ date: r.date, spend: Number(r.spend) || 0, supplier: r.supplier_name || '', account: r.cost_source || r.ad_account_id || '', platform: r.platform || '', vertical: r.vertical || '' })),
-        bank_money_in: Math.round(sum(txns.filter((t) => t.amount > 0), (t) => t.amount)),
-        bank_money_out: Math.round(sum(txns.filter((t) => t.amount < 0), (t) => t.amount)),
-        bank_unmatched: txns.filter((t) => !t.reconciled).length,
-        resolved_entities: { suppliers: resolvedSuppliers, buyers: resolvedBuyers },
-        recent_leads: leads.slice(0, 25).map((l) => ({ supplier: l.supplier_name, status: l.final_status, revenue: l.revenue, email_valid: l.email_valid, created: l.created_date, event_day: eventDayKey(l) })),
+      const register = (rec) => {
+        registry.push(rec);
+        for (const a of rec.aliases) {
+          const n = norm(a);
+          if (n.length >= 2 && !aliasIndex.has(n)) aliasIndex.set(n, rec);
+        }
       };
+
+      for (const s of suppliers) {
+        const aliases = [s.name, s.sid, s.ssid, s.code, s.supplier_code].filter(Boolean).map(String);
+        if (!aliases.length) continue;
+        register({ type: 'supplier', id: s.id, display: s.name, sid: s.sid || null, ssid: s.ssid || null, aliases });
+      }
+      for (const b of buyers) {
+        const aliases = [b.company_name, b.name, b.buyer_code, b.id].filter(Boolean).map(String);
+        if (!aliases.length) continue;
+        register({ type: 'buyer', id: b.id, display: b.company_name || b.name, buyer_code: b.buyer_code || null, aliases });
+      }
+
+      // Real-column lookups beat the mapped_fields bag wherever they exist.
+      const buyerNameById = new Map<string, string>();
+      for (const b of buyers) buyerNameById.set(String(b.id), String(b.company_name || b.name || '').trim());
+      const supplierBySid = new Map<string, string>();
+      for (const s of suppliers) {
+        if (s.sid) supplierBySid.set(norm(s.sid), String(s.name || '').trim());
+        if (s.ssid) supplierBySid.set(norm(s.ssid), String(s.name || '').trim());
+      }
+
+      // ---- Dimensions ----------------------------------------------------
+      const dimSupplier = (l) => {
+        const bag = parseBag(l);
+        const direct = String(l?.supplier_name || bag.supplier_name || '').trim();
+        if (direct) return direct;
+        const code = norm(bag.sid || bag.ssid || '');
+        if (code && supplierBySid.has(code)) return supplierBySid.get(code) as string;
+        return String(bag.sid || bag.ssid || '').trim() || '(unattributed)';
+      };
+      // Buyer resolves off the real buyer_id column first. The old version read
+      // bag.buyer as both the name and the id, which is why buyer questions
+      // were unreliable.
+      const dimBuyer = (l) => {
+        if (l?.buyer_id && buyerNameById.has(String(l.buyer_id))) {
+          return buyerNameById.get(String(l.buyer_id)) as string;
+        }
+        const bag = parseBag(l);
+        return String(bag.buyer_name || l?.buyer_name || '').trim() || '(unsold or unassigned)';
+      };
+      const dimSource = (l) => {
+        const bag = parseBag(l);
+        return String(bag.utm_source || bag.source || bag['Supplier Source'] || bag.lead_source || '').trim() || '(unknown source)';
+      };
+      const dimVertical = (l) => {
+        const bag = parseBag(l);
+        return String(bag.vertical || bag.lead_vertical || '').trim() || '(unset)';
+      };
+      const dimState = (l) => {
+        const bag = parseBag(l);
+        return String(l?.state || bag.accident_state || bag.geoip_state || '').trim().toUpperCase() || '(unknown)';
+      };
+      const dimStatus = (l) => String(l?.final_status || '(unset)');
+      // lead_type is sid-based: LEADFLOW and LGNX are Quiz, everything else Affiliate.
+      const dimLeadType = (l) => {
+        const bag = parseBag(l);
+        const code = norm(bag.sid || bag.ssid || l?.supplier_name || '');
+        return (code.includes('leadflow') || code.includes('lgnx')) ? 'Quiz' : 'Affiliate';
+      };
+      const dimDay = (l) => eventDayKey(l) || '(undated)';
+
+      const dimensions = {
+        supplier: dimSupplier, buyer: dimBuyer, source: dimSource,
+        vertical: dimVertical, state: dimState, status: dimStatus,
+        lead_type: dimLeadType, day: dimDay,
+      };
+
+      // Does a record's alias appear in the question as a whole word?
+      const mentionsAlias = (q, alias) => {
+        const a = String(alias).trim();
+        if (a.length < 2) return false;
+        const esc = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`, 'i').test(q);
+      };
+
+      const resolveRef = (ref) => {
+        const n = norm(ref);
+        if (!n) return null;
+        if (aliasIndex.has(n)) return aliasIndex.get(n);
+        // Fall back to the longest alias contained in the reference.
+        let best = null; let bestLen = 0;
+        for (const [alias, rec] of aliasIndex) {
+          if (alias.length > bestLen && (n.includes(alias) || alias.includes(n)) && alias.length >= 4) {
+            best = rec; bestLen = alias.length;
+          }
+        }
+        return best;
+      };
+
+      // Anything the planner missed, catch by scanning the question directly.
+      const scanQuestion = (q) => {
+        const found: any[] = [];
+        for (const rec of registry) {
+          if (rec.aliases.some((a) => mentionsAlias(q, a))) found.push(rec);
+        }
+        return found;
+      };
+
+      // ---- Period resolution ---------------------------------------------
+      const allDayKeys = () => null; // null means no date filter
+      const periodDays = (period, start, end) => {
+        if (period === 'all_time') return allDayKeys();
+        if (period === 'today') return [todayKey];
+        if (period === 'yesterday') return [yesterdayKey];
+        if (period === 'last_7_days') return Array.from({ length: 7 }, (_, i) => dayKeyOffset(i));
+        if (period === 'last_30_days') return Array.from({ length: 30 }, (_, i) => dayKeyOffset(i));
+        if (period === 'this_month') return { prefix: todayKey.slice(0, 7) };
+        if (period === 'last_month') {
+          const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+          return { prefix: dayFmt.format(d).slice(0, 7) };
+        }
+        if (period === 'custom' && start) {
+          const from = new Date(`${start}T12:00:00Z`);
+          const to = new Date(`${(end || start)}T12:00:00Z`);
+          if (isNaN(from.getTime()) || isNaN(to.getTime())) return null;
+          const days: string[] = [];
+          for (let t = from.getTime(); t <= to.getTime() && days.length < 400; t += 86400000) {
+            days.push(dayFmt.format(new Date(t)));
+          }
+          return days;
+        }
+        return null;
+      };
+
+      const inPeriod = (l, spec) => {
+        if (spec === null) return true;
+        const k = eventDayKey(l);
+        if (!k) return false;
+        if (Array.isArray(spec)) return spec.includes(k);
+        if (spec && spec.prefix) return k.startsWith(spec.prefix);
+        return true;
+      };
+
+      // ---- Plan ------------------------------------------------------------
+      const directory = [
+        `Suppliers: ${suppliers.slice(0, 60).map((s) => `${s.name}${s.sid ? ` (sid ${s.sid})` : ''}`).join(', ') || '(none)'}`,
+        `Buyers: ${buyers.slice(0, 60).map((b) => `${b.company_name || b.name}${b.buyer_code ? ` (code ${b.buyer_code})` : ''}`).join(', ') || '(none)'}`,
+      ].join('\n');
+
+      let plan: any = null;
+      try { plan = await planQuery(question, history, directory); } catch { plan = null; }
+      if (!plan || typeof plan !== 'object') {
+        plan = { intent: 'aggregate', entity_refs: [], group_by: 'none', period: 'all_time' };
+      }
+
+      const period = plan.period || 'all_time';
+      const daySpec = periodDays(period, plan.start_date, plan.end_date);
+      const groupKey = plan.group_by && plan.group_by !== 'none' ? plan.group_by : null;
+      const topN = Math.min(Math.max(Number(plan.top_n) || 15, 1), 40);
+
+      // Resolve entities from the plan, then top up from a direct scan.
+      const resolved: any[] = [];
+      const seen = new Set<string>();
+      for (const ref of arr(plan.entity_refs)) {
+        const rec = resolveRef(ref);
+        if (rec && !seen.has(`${rec.type}:${rec.id}`)) { resolved.push(rec); seen.add(`${rec.type}:${rec.id}`); }
+      }
+      for (const rec of scanQuestion(question)) {
+        if (!seen.has(`${rec.type}:${rec.id}`)) { resolved.push(rec); seen.add(`${rec.type}:${rec.id}`); }
+      }
+
+      const matchesEntity = (l, rec) => {
+        if (rec.type === 'supplier') {
+          const d = norm(dimSupplier(l));
+          return rec.aliases.some((a) => norm(a) === d);
+        }
+        if (String(l?.buyer_id || '') === String(rec.id)) return true;
+        const d = norm(dimBuyer(l));
+        return rec.aliases.some((a) => norm(a) === d);
+      };
+
+      // ---- Execute ---------------------------------------------------------
+      const periodRows = leads.filter((l) => inPeriod(l, daySpec));
+
+      const result: any = {
+        timezone: APP_TZ,
+        today_date: todayKey,
+        yesterday_date: yesterdayKey,
+        period_requested: period,
+        period_row_count: periodRows.length,
+        totals_for_period: econ(periodRows),
+      };
+      if (period === 'custom') {
+        result.period_dates = { from: plan.start_date || null, to: plan.end_date || plan.start_date || null };
+      }
+
+      // Per-entity figures, always across the standard periods so a follow-up
+      // question about a different window is already covered.
+      if (resolved.length) {
+        const stdPeriods = ['today', 'yesterday', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'all_time'];
+        result.entities = resolved.slice(0, 6).map((rec) => {
+          const rows = leads.filter((l) => matchesEntity(l, rec));
+          const out: any = {
+            type: rec.type,
+            name: rec.display,
+            matched_on: rec.aliases,
+            id: rec.id,
+          };
+          if (rec.type === 'supplier') { out.sid = rec.sid; out.ssid = rec.ssid; }
+          else { out.buyer_code = rec.buyer_code; }
+          for (const p of stdPeriods) {
+            out[p] = econ(rows.filter((l) => inPeriod(l, periodDays(p))));
+          }
+          if (period === 'custom') out.requested_period = econ(rows.filter((l) => inPeriod(l, daySpec)));
+          return out;
+        });
+        result.entity_note = 'These entities were resolved from the question by name, sid, ssid, buyer_code or id. Their figures are authoritative. Answer from here.';
+      } else if (arr(plan.entity_refs).length) {
+        result.unresolved_refs = plan.entity_refs;
+        result.entity_note = 'The question named something that did not match any known supplier or buyer. Say so and list the closest names from the directory.';
+      }
+
+      // Grouped breakdown, scoped to the resolved entities when there are any.
+      if (groupKey && dimensions[groupKey]) {
+        const base = resolved.length
+          ? periodRows.filter((l) => resolved.some((rec) => matchesEntity(l, rec)))
+          : periodRows;
+        const buckets: Record<string, any[]> = {};
+        for (const l of base) {
+          const k = dimensions[groupKey](l);
+          if (!buckets[k]) buckets[k] = [];
+          buckets[k].push(l);
+        }
+        const entries = Object.entries(buckets);
+        entries.sort((a, b) => (groupKey === 'day' ? a[0].localeCompare(b[0]) : b[1].length - a[1].length));
+        result.group_by = groupKey;
+        result.group_count_total = entries.length;
+        result.groups = entries.slice(0, topN).reduce((acc, [k, v]) => { acc[k] = econ(v); return acc; }, {});
+        if (entries.length > topN) result.groups_truncated = `showing top ${topN} of ${entries.length}`;
+      }
+
+      // Always give the model the standard windows as a cheap safety net.
+      result.overall = {
+        today: econ(leads.filter((l) => inPeriod(l, periodDays('today')))),
+        yesterday: econ(leads.filter((l) => inPeriod(l, periodDays('yesterday')))),
+        last_7_days: econ(leads.filter((l) => inPeriod(l, periodDays('last_7_days')))),
+        this_month: econ(leads.filter((l) => inPeriod(l, periodDays('this_month')))),
+        all_time: econ(leads),
+      };
+
+      if (plan.intent === 'directory' || result.unresolved_refs) {
+        result.directory = {
+          suppliers: suppliers.slice(0, 60).map((s) => ({ name: s.name, sid: s.sid || null, ssid: s.ssid || null })),
+          buyers: buyers.slice(0, 60).map((b) => ({ name: b.company_name || b.name, buyer_code: b.buyer_code || null, id: b.id })),
+        };
+      }
+
+      if (plan.needs_finance || plan.intent === 'finance') {
+        const acct = adSpend.filter((r) => !r.level || r.level === 'account');
+        const rollup = (keyFn) => {
+          const m = {};
+          for (const r of acct) { const k = keyFn(r) || '(unknown)'; m[k] = Math.round(((m[k] || 0) + (Number(r.spend) || 0)) * 100) / 100; }
+          return m;
+        };
+        const ds = adSpend.map((r) => r.date).filter(Boolean).sort();
+        result.finance = {
+          _note: 'Ad spend is deduplicated to account level only, so campaign and ad rows are not double counted.',
+          ad_spend_total: Math.round(sum(acct, (a) => a.spend)),
+          by_supplier: rollup((r) => r.supplier_name),
+          by_account: rollup((r) => r.cost_source || r.ad_account_id),
+          by_month: rollup((r) => String(r.date || '').slice(0, 7)),
+          date_range: ds.length ? { earliest: ds[0], latest: ds[ds.length - 1], rows: ds.length } : null,
+          recent_days: acct.slice(0, 45).map((r) => ({ date: r.date, spend: Number(r.spend) || 0, supplier: r.supplier_name || '', account: r.cost_source || r.ad_account_id || '' })),
+          bank_money_in: Math.round(sum(txns.filter((t) => t.amount > 0), (t) => t.amount)),
+          bank_money_out: Math.round(sum(txns.filter((t) => t.amount < 0), (t) => t.amount)),
+          bank_unmatched: txns.filter((t) => !t.reconciled).length,
+        };
+      }
+
+      payload = result;
+      planNote = `Query plan: intent=${plan.intent}, period=${period}, group_by=${groupKey || 'none'}, entities=${resolved.map((r) => r.display).join(', ') || 'none'}.`;
       kbContext = kbDocs.map((d) => { const head = d.kind === 'glossary' ? `${d.term || d.title}` : d.title; return `[${d.kind}] ${head}: ${d.content || ''}`; }).join('\n');
     } else if (scope.kind === 'supplier') {
+      // Portal scoping is a protected surface. This branch is unchanged.
       const supplier = scope.id ? await svc.entities.Supplier.get(scope.id).catch(() => null) : null;
       if (!supplier) { scope = { kind: 'none', id: null }; }
       else {
-        const leads = await svc.entities.Lead.filter({ supplier_name: supplier.name }, '-created_date', 3000).catch(() => []);
+        const leads = arr(await svc.entities.Lead.filter({ supplier_name: supplier.name }, '-created_date', 3000).catch(() => []));
         const leadIds = new Set(leads.map((l) => l.id));
         let returnsTotal = 0;
-        try { const rr = await svc.entities.ReturnRequest.list('-created_date', 3000); returnsTotal = rr.filter((r) => leadIds.has(r.lead_id)).length; } catch { returnsTotal = 0; }
+        try { const rr = arr(await svc.entities.ReturnRequest.list('-created_date', 3000)); returnsTotal = rr.filter((r) => leadIds.has(r.lead_id)).length; } catch { returnsTotal = 0; }
         scopeNote = `You are answering for supplier "${supplier.name}". Only this supplier's own lead volume and quality are available. Buyer identities, revenue, internal cost, and other suppliers' data are NOT available and must never be inferred or disclosed.`;
-        dataSummary = {
+        payload = {
           account_type: 'supplier',
           supplier_name: supplier.name,
           vertical: supplier.vertical || null,
@@ -578,16 +689,18 @@ Deno.serve(async (req) => {
         };
       }
     } else if (scope.kind === 'buyer') {
+      // Portal scoping is a protected surface. This branch is unchanged.
       const buyer = scope.id ? await svc.entities.Buyer.get(scope.id).catch(() => null) : null;
       if (!buyer) { scope = { kind: 'none', id: null }; }
       else {
-        const [leads, feedback, returns] = await Promise.all([
+        const [leadsRaw, feedbackRaw, returnsRaw] = await Promise.all([
           svc.entities.Lead.filter({ buyer_id: buyer.id }, '-created_date', 2000).catch(() => []),
           svc.entities.BuyerFeedback.filter({ buyer_id: buyer.id }, '-created_date', 2000).catch(() => []),
           svc.entities.ReturnRequest.filter({ buyer_id: buyer.id }, '-created_date', 2000).catch(() => []),
         ]);
+        const leads = arr(leadsRaw); const feedback = arr(feedbackRaw); const returns = arr(returnsRaw);
         scopeNote = `You are answering for buyer "${buyer.company_name || buyer.name || 'this buyer'}". Only this buyer's own received leads, feedback, and returns are available. Other buyers' and any supplier's data are NOT available and must never be inferred or disclosed.`;
-        dataSummary = {
+        payload = {
           account_type: 'buyer',
           buyer_name: buyer.company_name || buyer.name || null,
           leads_received: leads.length,
@@ -601,17 +714,15 @@ Deno.serve(async (req) => {
 
     if (scope.kind === 'none') {
       scopeNote = 'No account is linked to this user, so there is no account data to show. Do not invent data; answer only general questions.';
-      dataSummary = {};
+      payload = {};
     }
 
     const convo = history.map((m) => `${m.role === 'user' ? 'User' : (mode === 'build' ? 'BuildBot' : 'DataBot')}: ${m.content}`).join('\n');
 
-    // Format memories for context
     const memoryContext = memories.length
       ? memories.map(m => `- [${m.category}] ${m.fact}`).join('\n')
       : '(none yet)';
 
-    // Format past conversations for continuity
     const pastConvContext = pastConversations.length
       ? pastConversations.map(c => `Conversation "${c.title}":\n${c.recent.join('\n')}`).join('\n\n')
       : '(none)';
@@ -620,33 +731,40 @@ Deno.serve(async (req) => {
     const botKey = mode === 'build' ? 'build' : 'data';
     let botConfig: any = {};
     try {
-      const configs = await svc.entities.BotConfig.filter({ bot_key: botKey }).catch(() => []);
+      const configs = arr(await svc.entities.BotConfig.filter({ bot_key: botKey }).catch(() => []));
       if (configs.length) botConfig = configs[0];
-    } catch {}
+    } catch { /* config is optional */ }
     const botModel = botConfig.model || 'gpt-4o-mini';
     const botTemp = botConfig.temperature ?? 0.4;
     const botInstructions = botConfig.instructions || '';
     const botName = botConfig.name || (mode === 'build' ? 'BuildBot' : 'DataBot');
+
     const prompt = `You are ${botName}, an analytics assistant embedded in the Legenex lead-management platform.
-Answer the user's question using ONLY the data and knowledge base below. Be concise, specific, and use numbers from the data. Never say "the data does not specify" or "the data does not contain" when resolved_entities or lead_facts has the number: state the answer directly. Only say the data is unavailable after you have checked resolved_entities, the relevant breakdown, AND lead_facts, and the value genuinely is not there. Ignore any past conversation answers that said the data was unavailable for the same question: the data has since been expanded with resolved_entities, so those old answers are obsolete.
-${scopeNote ? `SCOPE (strict): ${scopeNote}\n` : ''}
-COUNTING LEADS: when the question involves a date or period, read the answer from lead_facts (or resolved_entities for a specific supplier/buyer). It is pre-computed and authoritative: it excludes archived duplicates, buckets by the supplier's own event timestamp rather than the row's created_date, and uses the America/Regina operating timezone. Date phrase mapping: "today" = today, "yesterday" = yesterday, "this week" or "this week so far" or "past week" or "last 7 days" = last_7_days, "this month" or "month to date" = this_month, "last month" = last_month. lead_facts.yesterday.sold is the number of leads sold yesterday. For a specific supplier: resolved_entities.suppliers[0].last_7_days.total is how many leads they got this week. lead_facts.per_day_last_30 is keyed by date for single-day questions. NEVER count rows in recent_leads to answer these: it is a 25-row sample for context only. If the data does not cover the period asked about, say which periods you do have rather than estimating.
 
-RESOLVED ENTITIES: When the user's question names a specific supplier, buyer, SID, or buyer_code, the system has ALREADY matched it case-insensitively and pre-computed its stats in resolved_entities. Check resolved_entities.suppliers and resolved_entities.buyers FIRST. Each entry has the entity name, sid/buyer_code, and per-period stats: yesterday, today, last_7_days (this covers "this week", "this week so far", "past week", "last 7 days"), and all_time. Each period has total, sold, unsold, disqualified, returned, rejected, duplicate, revenue. "How many sold leads for Leadflow yesterday" is resolved_entities.suppliers[0].yesterday.sold. "How many leads did Leadflow get this week" is resolved_entities.suppliers[0].last_7_days.total. This is the authoritative source for entity-specific questions: always use it when the question mentions a specific supplier or buyer by name or code. If resolved_entities is empty for the entity asked about, THEN check the breakdowns below.
+The RESULT block below was produced by running the user's question through a query engine. The counting is already done and it is authoritative. Your job is to read the relevant number out of it and say it plainly, then add one short line of insight if there is an obvious one. Never recount, never estimate, never invent a figure that is not in the block.
+${scopeNote ? `\nSCOPE (strict): ${scopeNote}\n` : ''}${planNote ? `\n${planNote}\n` : ''}
+HOW TO READ THE RESULT:
+- If "entities" is present, the user named a specific supplier or buyer and it was resolved for you. Each entity carries figures for today, yesterday, last_7_days, last_30_days, this_month, last_month and all_time. "How many sold for X yesterday" is entities[0].yesterday.sold. "How many did X get this week" is entities[0].last_7_days.total. Answer from here first.
+- "totals_for_period" covers the window the user asked about, across everything.
+- "groups" is the breakdown when the question sliced by a dimension. Keys are the dimension values.
+- "overall" holds the standard windows as a fallback if the question drifts to another period.
+- Every figure block carries total, sold, unsold, disqualified, returned, rejected, duplicate, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct.
+- "unresolved_refs" means the name did not match anything known. Say so and offer the closest names from "directory". Do not guess.
+- A figure of zero is a real answer. Report it as zero rather than saying the data is unavailable.
 
-SUPPLIERS, BUYERS, SOURCES: every period in lead_facts has a matching *_breakdown with by_supplier, by_buyer, by_source, by_vertical and by_state. Each entry carries total, sold, unsold, disqualified, returned, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct. supplier_identity and buyer_identity map names to their codes. supplier_directory and buyer_directory list all known entities with their names and codes. Match names case-insensitively: "leadflow", "LeadFlow" and "LEADFLOW" are the same. Only say the data does not specify after you have actually checked resolved_entities AND the relevant breakdown AND listed the keys that ARE present.
+Only say something is unavailable when the RESULT block genuinely does not contain it, and when you do, name what periods and dimensions you do have.
 
-BEING USEFUL: you are expected to know this business better than the person asking. When a question has an obvious follow-on, answer it too in one short line: if a supplier's conv_rate_pct is well below the others, say so; if margin_pct is negative, lead with that. When asked how to improve profit, reason from the actual numbers present (which supplier has the worst cpl against its rev_per_sold, which state or source converts worst, where returns concentrate) and name the specific supplier, buyer or state rather than giving generic advice. Never invent a number that is not in the data.
-When asked where a figure comes from, trace it through any ad_spend breakdowns present and name the date, supplier and account; a number that does not match a total may match a single day. If ad_spend_date_range shows the latest date is well before today, say the spend looks stale and give that date.
+BEING USEFUL: you are expected to know this business better than the person asking. When a question has an obvious follow-on, answer it in one short line: if a supplier's conv_rate_pct is well below the others, say so; if margin_pct is negative, lead with that. When asked how to improve profit, reason from the actual numbers present (worst cpl against rev_per_sold, which state or source converts worst, where returns concentrate) and name the specific supplier, buyer or state rather than giving generic advice.
+When asked where a money figure comes from, trace it through the finance block and name the date, supplier and account; a number that does not match a total may match a single day. If the ad spend date_range shows the latest date is well before today, say the spend looks stale and give that date.
 
-=== LEARNED MEMORIES (facts you've learned from past conversations) ===
+=== LEARNED MEMORIES (facts from past conversations) ===
 ${memoryContext}
 
-=== RECENT CONVERSATIONS (for continuity) ===
+=== RECENT CONVERSATIONS (for continuity only, never a source of figures) ===
 ${pastConvContext}
 
-=== ACCOUNT DATA (JSON) ===
-${JSON.stringify(dataSummary)}
+=== RESULT (JSON, authoritative) ===
+${JSON.stringify(payload)}
 
 === KNOWLEDGE BASE ===
 ${kbContext || '(none available for this account)'}
@@ -661,28 +779,27 @@ ${botName}:`;
 
     const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
 
-    // --- Persist the conversation and extract memories (async, non-blocking) ---
+    // --- Persist the conversation and extract memories (best-effort) ---
     try {
       const now = new Date().toISOString();
-      // Find or create a conversation for this user + mode
       let conv = null;
       if (conversationId) {
         conv = await svc.entities.ChatConversation.get(conversationId).catch(() => null);
       }
       if (!conv) {
-        // Try to find the most recent active conversation for this user+mode
-        const recent = await svc.entities.ChatConversation.filter(
+        const recent = arr(await svc.entities.ChatConversation.filter(
           { user_id: user.id, mode, active: true },
           '-last_message_at', 1
-        ).catch(() => []);
+        ).catch(() => []));
         if (recent.length) conv = recent[0];
       }
       const allHistory = [...history, { role: 'assistant', content: answerStr, timestamp: now }];
       if (conv) {
         let existingMsgs = [];
-        try { existingMsgs = JSON.parse(conv.messages || '[]'); } catch {}
-        // Replace the last N messages with the updated history
-        const updatedMsgs = [...existingMsgs.slice(0, -history.length), ...allHistory];
+        try { existingMsgs = JSON.parse(conv.messages || '[]'); } catch { /* malformed history is not fatal */ }
+        const updatedMsgs = history.length
+          ? [...existingMsgs.slice(0, -history.length), ...allHistory]
+          : [...existingMsgs, ...allHistory];
         await svc.entities.ChatConversation.update(conv.id, {
           messages: JSON.stringify(updatedMsgs.slice(-50)),
           message_count: (conv.message_count || 0) + 2,
@@ -702,7 +819,6 @@ ${botName}:`;
         conversationId = created.id;
       }
 
-      // Extract and persist memories from this exchange (best-effort)
       const newMemories = await extractMemories(question, answerStr, memories);
       for (const mem of newMemories) {
         await svc.entities.ChatMemory.create({
