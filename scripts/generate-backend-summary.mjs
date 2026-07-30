@@ -50,26 +50,34 @@ const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : '');
 
 // Pull the leading block of // comments that sits above the first statement.
 // That is where this codebase puts its explanation of what a function is for.
+//
+// Imports are stripped first, including multi-line ones. A line-by-line scan that
+// only recognises lines beginning with "import" mistakes the continuation lines of
+// a braced import for code and gives up, which made well documented functions
+// report as undocumented.
 function headerComment(code) {
-  const lines = code.split('\n');
+  const withoutImports = code
+    .replace(/^\s*import\s+[\s\S]*?from\s+['"][^'"]+['"];?/gm, '')
+    .replace(/^\s*import\s+['"][^'"]+['"];?/gm, '');
+
   const collected = [];
-  let started = false;
-  for (const raw of lines) {
+  for (const raw of withoutImports.split('\n')) {
     const line = raw.trim();
     if (!line) {
-      if (started && collected.length) break;
+      // A blank line before any comment is just spacing; after one, it is a
+      // paragraph break inside the block.
+      if (collected.length) collected.push('');
       continue;
     }
-    if (line.startsWith('import ')) { if (started) break; continue; }
     if (line.startsWith('//')) {
-      started = true;
       collected.push(line.replace(/^\/\/\s?/, ''));
       continue;
     }
-    if (started) break;
-    // A non-import, non-comment statement before any comment means there is none.
-    if (!line.startsWith('/*')) break;
+    // First real statement ends the header.
+    break;
   }
+  // Trim trailing blanks left by the paragraph handling.
+  while (collected.length && collected[collected.length - 1] === '') collected.pop();
   return collected;
 }
 
@@ -125,9 +133,22 @@ function analyseFunction(name) {
 
   const red = RED_PATTERNS.filter((r) => r.re.test(name) || r.re.test(code)).map((r) => r.key);
 
-  // Does it check who is calling before it reads anything?
+  // How the function establishes who is calling. Descriptive, not a verdict:
+  // an inbound endpoint authenticated by supplier API key is correct, and calling
+  // that a caller-model gap would be a false finding. The real caller-model check
+  // with self-verification lives in scripts/audit-agent.mjs; this only reports the
+  // style so a reader knows what to expect.
   const usesServiceRole = /asServiceRole/.test(code);
-  const checksCaller = /auth\.me\(\)/.test(code) && /(base_role|permissions|role\s*!==\s*'admin')/.test(code);
+  const hasSession = /auth\.me\(\)/.test(code);
+  const checksRole = /(base_role|linked_buyer_id|permissions\[|role\s*!==\s*'admin')/.test(code);
+  const usesApiKey = /x-api-key|apiKey|api_key|entities\.ApiKey|ReferenceKey/i.test(code);
+  const usesRouteToken = /route_token|inbound_token|webhook_token|\btoken\b/i.test(code);
+
+  let authStyle = 'none_detected';
+  if (hasSession && checksRole) authStyle = 'operator_session';
+  else if (hasSession) authStyle = 'session_only';
+  else if (usesApiKey) authStyle = 'api_key';
+  else if (usesRouteToken) authStyle = 'route_token';
 
   const externalCalls = [];
   const fetchRe = /fetch\(\s*[`'"]?(https?:\/\/[^`'")\s]+)/g;
@@ -146,9 +167,7 @@ function analyseFunction(name) {
     writes: [...writes].sort(),
     read_only: writes.size === 0,
     uses_service_role: usesServiceRole,
-    enforces_caller_model: checksCaller,
-    // A service-role function that never checks its caller is a real finding.
-    caller_model_gap: usesServiceRole && !checksCaller,
+    auth_style: authStyle,
     external_hosts: [...new Set(externalCalls)].sort(),
     red_surfaces: red,
   };
@@ -205,7 +224,7 @@ const payload = {
     documented: functions.filter((f) => f.documented).length,
     undocumented: functions.filter((f) => !f.documented).length,
     read_only: functions.filter((f) => f.read_only).length,
-    caller_model_gaps: functions.filter((f) => f.caller_model_gap).length,
+    no_auth_detected: functions.filter((f) => f.auth_style === 'none_detected').length,
     entities: entities.length,
     entities_without_rls: entities.filter((e) => !e.has_rls).length,
   },
@@ -233,5 +252,5 @@ writeFileSync(OUT, next);
 const c = payload.counts;
 console.log(`backend summary written: ${OUT.replace(`${ROOT}/`, '')}`);
 console.log(`  ${c.functions} functions (${c.documented} documented, ${c.undocumented} with no header comment)`);
-console.log(`  ${c.read_only} read only, ${c.caller_model_gaps} service-role functions with no visible caller check`);
+console.log(`  ${c.read_only} read only, ${c.no_auth_detected} with no authentication style detected (heuristic, see audit-agent for the real check)`);
 console.log(`  ${c.entities} entities, ${c.entities_without_rls} without row level security`);
