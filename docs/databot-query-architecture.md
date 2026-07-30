@@ -95,6 +95,28 @@ Roughly 605 of 1,335 non-archived leads were written in a single batch on 19 Jul
 
 This is why `all_time` is far larger than the sum of the dated windows, and why `last_month` legitimately reads zero. It is correct behaviour, not a bug, but any all-time figure should not be read as current trading. A comparison against an empty window is not evidence of improvement.
 
+## Screenshots
+
+Both bots accept attached images. Paste anywhere while the panel is open, or use the attach button. Up to four per message, 5MB each.
+
+The widget sends `images: [{ media_type, data }]` with `data` base64 encoded, and the function passes them to the model as `image_url` parts using a data URL. Nothing is uploaded or stored anywhere: the bytes travel with the request and the preview data URL stays in the browser.
+
+Two details that matter:
+
+- Previews are stripped out of `history` before sending. They are large data URLs and only the current message's images are needed, so leaving them in would grow every subsequent request.
+- Vision needs a multimodal model. If `BotConfig.model` is set to something that does not look multimodal, the call falls back to `gpt-4o-mini` for that request rather than silently dropping the screenshot.
+
+A message with an image and no text is valid. For BuildBot it is treated as "scope the change this screenshot implies".
+
+## BuildBot
+
+BuildBot drafts change requests and never executes them. Two failures were found in live testing on 30 July 2026 and both are fixed:
+
+- **It refused to draft RED work.** Asked to disable a LeadByte connector, it set `is_build: false` and fell through to the analytics path, replying that it only handles analytics. The old system prompt said RED surfaces "must not be edited casually" and the model read that as a refusal instruction. It now must draft RED requests, mark them `risk: red`, and put an approval gate as the first line of `ready_prompt`. Refusing to draft is defined as a failure: drafting is not doing, and the operator needs the scoped request in order to decide.
+- **It invented filenames and returned empty exclusion lists.** A schema change came back green with `Do Not Touch: None` and a target of `BuyerEntitySchema.json`, which does not exist. BuildBot now receives a real inventory of pages, component folders, backend functions and shared libs, and is told to prefix anything it is unsure about with `confirm: ` rather than guess. Schema changes are amber and `do_not_touch` is never empty unless the change is genuinely one isolated file.
+
+The inventory is a static string in `entry.ts` and will drift as the app grows. The build channel confirms paths regardless.
+
 ## Counting rules
 
 Unchanged and matching the dashboard. Archived leads are excluded, they are retired duplicates. CPL is cost per SOLD lead. Conversion is sold over total received. Ad spend is deduplicated to account level so campaign and ad rows are not double counted.
