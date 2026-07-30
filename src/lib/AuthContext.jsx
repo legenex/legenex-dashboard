@@ -4,7 +4,11 @@ import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { ROLE_PRESETS, sanitizePermissions } from '@/lib/permissions';
 
-const AuthContext = createContext();
+// Exported so the Progress Control Center's offscreen capture can render pages
+// in a separate React root using the auth value this tree has already resolved.
+// Mounting a second AuthProvider there would re-run the network auth check once
+// per captured page and race the sidebar's permissions.
+export const AuthContext = createContext();
 
 // Resolve the effective permission map for a user record.
 // Falls back to their base_role preset when no explicit permissions object is stored.
