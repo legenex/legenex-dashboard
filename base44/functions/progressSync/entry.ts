@@ -256,6 +256,7 @@ Deno.serve(async (req) => {
     const manifestKeys = new Set(MANIFEST.pages.map((p: any) => p.page_key));
     for (const rec of existing) {
       if (manifestKeys.has(rec.page_key)) continue;
+      if (rec.page_key?.includes('__duplicate_')) continue;
       if (rec.lifecycle_status === 'blocked' && rec.blocked_reason?.startsWith('Route removed')) continue;
       if (!dryRun) {
         await svc.ProgressPage.update(rec.id, {
@@ -280,11 +281,15 @@ Deno.serve(async (req) => {
         unchanged: unchanged.length,
         marked_stale: staleMarked.length,
         retired: retired.length,
+        duplicates_removed: deduped.length,
+        duplicates_parked: dedupeFailures.length,
       },
       created,
       updated,
       marked_stale: staleMarked,
       retired,
+      duplicates_removed: deduped,
+      duplicates_parked: dedupeFailures,
     });
   } catch (err) {
     return Response.json({ error: String(err?.message || err) }, { status: 500 });
