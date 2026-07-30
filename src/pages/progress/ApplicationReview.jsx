@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ChevronRight, ChevronDown, Search, FileCode, EyeOff, Camera, CheckCircle2, XCircle, Loader2,
@@ -12,6 +12,7 @@ import {
 import VisualReview from '@/components/progress/VisualReview';
 import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
 import { useOffscreenCapture } from '@/components/progress/OffscreenCapture';
+import { planDailyRefresh, reginaDayKey } from '@/lib/progress/captureSchedule';
 import { capturable, ALL_VIEWPORTS } from '@/lib/progress/captureTargets';
 import { sortSections } from '@/components/progress/progressNav';
 import {
@@ -118,6 +119,42 @@ export default function ApplicationReview() {
 
 
 
+  // Daily structural refresh.
+  //
+  // Once per Regina day, retake anything MISSING a size or captured against an
+  // older build. Data changes are deliberately ignored: a new lead must not
+  // trigger hundreds of screenshots. It cannot literally fire at midnight with
+  // nobody here, because rendering needs a browser, so it runs on the first
+  // visit of each new day instead.
+  const autoRan = useRef(false);
+  const [autoPlan, setAutoPlan] = useState(null);
+  const [autoOn, setAutoOn] = useState(() => {
+    try { return localStorage.getItem('progress_capture_auto') !== '0'; } catch { return true; }
+  });
+
+  useEffect(() => {
+    if (autoRan.current || capture.running) return;
+    if (pagesQ.isLoading || snapsQ.isLoading) return;
+    if (!(can('progress_write') || can('progress_admin'))) return;
+
+    let lastRunDay = null;
+    try { lastRunDay = localStorage.getItem('progress_capture_last_day'); } catch { lastRunDay = null; }
+
+    const plan = planDailyRefresh({
+      pages: capturable(pages),
+      snapshots: snapsQ.data || [],
+      currentCommit: manifest.app_commit,
+      lastRunDay,
+      enabled: autoOn,
+    });
+
+    if (!plan.shouldRun) return;
+    autoRan.current = true;
+    try { localStorage.setItem('progress_capture_last_day', plan.today); } catch { /* private mode */ }
+    setAutoPlan(plan);
+    capture.run(plan.targets, { label: `today's refresh, ${plan.reason}` });
+  }, [pagesQ.isLoading, snapsQ.isLoading, snapsQ.data, pages, autoOn, capture, can, manifest]);
+
   if (pagesQ.isLoading) {
     return (
       <>
@@ -134,6 +171,16 @@ export default function ApplicationReview() {
         description={`${pages.length} surfaces derived from the router, nav and permission config. Select one to review it.`}
         actions={(can('progress_write') || can('progress_admin')) ? (
           <div className="flex flex-wrap items-center gap-2">
+            <SecondaryButton
+              onClick={() => {
+                const next = !autoOn;
+                setAutoOn(next);
+                try { localStorage.setItem('progress_capture_auto', next ? '1' : '0'); } catch { /* private mode */ }
+              }}
+              title="Retake missing sizes and pages changed by a new build, once a day"
+            >
+              {autoOn ? 'Daily refresh on' : 'Daily refresh off'}
+            </SecondaryButton>
             <SecondaryButton onClick={() => setTreeOpen(!treeOpen)}>
               {treeOpen ? 'Hide list' : 'Show list'}
             </SecondaryButton>
