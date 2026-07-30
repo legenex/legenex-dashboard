@@ -596,7 +596,31 @@ Deno.serve(async (req) => {
         plan = { intent: 'aggregate', entity_refs: [], group_by: 'none', period: 'all_time' };
       }
 
-      const period = plan.period || 'all_time';
+      const qLower = question.toLowerCase();
+
+      // Deterministic period inference, and it OVERRIDES the planner.
+      //
+      // The planner has been observed returning all_time for a question that
+      // said "this month", after which the narrator reported a June date as
+      // this month's best day. The date was real, the window was not. When the
+      // question names a window in plain words, that wording is authoritative.
+      const inferPeriod = () => {
+        const pats: Array<[RegExp, string]> = [
+          [/\blast month\b|\bprevious month\b/, 'last_month'],
+          [/\bthis month\b|\bmonth to date\b|\bmtd\b|\bcurrent month\b/, 'this_month'],
+          [/\blast week\b|\bprevious week\b/, 'last_week'],
+          [/\bthis week\b|\bweek to date\b|\bso far this week\b/, 'this_week'],
+          [/\blast 30 days\b|\bpast 30 days\b|\blast thirty days\b/, 'last_30_days'],
+          [/\blast 7 days\b|\bpast 7 days\b|\blast seven days\b/, 'last_7_days'],
+          [/\byesterday\b/, 'yesterday'],
+          [/\btoday\b/, 'today'],
+          [/\ball ?time\b|\boverall\b|\bever\b|\bin total\b|\bto date\b/, 'all_time'],
+        ];
+        for (const [re, p] of pats) if (re.test(qLower)) return p;
+        return null;
+      };
+      const textPeriod = inferPeriod();
+      const period = textPeriod || plan.period || 'all_time';
       const daySpec = periodDays(period, plan.start_date, plan.end_date);
       const topN = Math.min(Math.max(Number(plan.top_n) || 15, 1), 40);
 
@@ -606,7 +630,6 @@ Deno.serve(async (req) => {
       // loses the breakdown and the answer degrades to a bare period total. The
       // question text itself is unambiguous in these cases, so it is read
       // directly. This only ever fills a gap: an explicit planner choice wins.
-      const qLower = question.toLowerCase();
       const inferGroup = () => {
         const pats: Array<[RegExp, string]> = [
           [/\b(?:by|per|across|each)\s+states?\b|\bwhich states?\b|\btop states?\b|\bstate breakdown\b/, 'state'],
@@ -656,14 +679,24 @@ Deno.serve(async (req) => {
       // ---- Execute ---------------------------------------------------------
       const periodRows = leads.filter((l) => inPeriod(l, daySpec));
 
+      // The actual day range covered, so no answer can name a date outside it.
+      const coveredKeys = periodRows.map(eventDayKey).filter(Boolean).sort();
+      const undatedInPeriod = leads.filter((l) => !eventDayKey(l)).length;
+
       const result: any = {
         timezone: APP_TZ,
         today_date: todayKey,
         yesterday_date: yesterdayKey,
         week_convention: 'this_week is the calendar week running Sunday through today. last_7_days is a rolling seven day window ending today. They are deliberately different.',
         period_requested: period,
+        period_source: textPeriod ? 'taken from the words used in the question' : 'chosen by the planner',
+        period_bounds: coveredKeys.length
+          ? { earliest_day: coveredKeys[0], latest_day: coveredKeys[coveredKeys.length - 1] }
+          : null,
         period_row_count: periodRows.length,
         totals_for_period: econ(periodRows),
+        cost_basis: 'lead_cost, profit, margin_pct and cpl are built from per-lead cost fields ONLY. Internal suppliers (LeadFlow, Legenex) never carry a per-lead price: their real cost is ad spend, and LeadFlow settles as a 30 percent profit share of window revenue minus window cost. So any margin, profit or CPL figure covering internal supply EXCLUDES the real cost base and overstates profitability, often severely. Never present those figures as settled without saying what they exclude.',
+        leads_with_no_event_date: undatedInPeriod,
       };
       if (period === 'custom') {
         result.period_dates = { from: plan.start_date || null, to: plan.end_date || plan.start_date || null };
@@ -723,6 +756,25 @@ Deno.serve(async (req) => {
         result.group_keys_present = entries.map(([k]) => k);
         result.groups = picked.reduce((acc, [k, v]) => { acc[k] = econ(v); return acc; }, {});
         if (entries.length > effTopN) result.groups_truncated = `showing ${effTopN} of ${entries.length}, ranked by volume`;
+      }
+
+      // Data quality probe, answered directly rather than left to a breakdown.
+      if (/\bunattributed\b|\bno supplier\b|\bmissing supplier\b|\bno state\b|\bmissing state\b|\bunknown state\b|\bblank\b|\bdata quality\b|\bunassigned\b/.test(qLower)) {
+        const noSupplier = periodRows.filter((l) => dimSupplier(l) === '(unattributed)');
+        const noState = periodRows.filter((l) => dimState(l) === '(unknown)');
+        const noBuyer = periodRows.filter((l) => dimBuyer(l) === '(unsold or unassigned)');
+        const srcOf = (rows) => {
+          const m: Record<string, number> = {};
+          for (const l of rows) { const k = dimSource(l); m[k] = (m[k] || 0) + 1; }
+          return m;
+        };
+        result.data_quality = {
+          no_supplier_attribution: { count: noSupplier.length, by_source: srcOf(noSupplier) },
+          no_state: { count: noState.length, by_supplier: (() => { const m: Record<string, number> = {}; for (const l of noState) { const k = dimSupplier(l); m[k] = (m[k] || 0) + 1; } return m; })() },
+          no_buyer_assigned: { count: noBuyer.length },
+          no_event_date: undatedInPeriod,
+          _note: 'Counts are within the requested period. Zero is a real answer and means the field is fully populated.',
+        };
       }
 
       // Always give the model the standard windows as a cheap safety net.
