@@ -85,27 +85,58 @@ class CaptureBoundary extends React.Component {
   }
 }
 
-function makeHost(width) {
-  const host = document.createElement('div');
-  host.setAttribute('data-progress-capture-ui', 'true');
-  host.setAttribute('data-offscreen-capture', 'true');
-  Object.assign(host.style, {
+// The capture surface is an IFRAME, not a div.
+//
+// This matters and it is not a detail. Tailwind's responsive classes are viewport
+// media queries, so a 390px wide div inside a 1900px window still renders the
+// desktop layout squeezed into 390px. Every "mobile" capture taken that way is a
+// lie about what a phone shows.
+//
+// A same-origin iframe created in JavaScript has its OWN viewport, so media
+// queries evaluate against the capture width and the real mobile layout appears.
+// x-frame-options blocks LOADING a url in a frame; it does not apply here,
+// because nothing is loaded: the document is built in place and React renders
+// into it.
+function makeFrame(width) {
+  const frame = document.createElement('iframe');
+  frame.setAttribute('data-progress-capture-ui', 'true');
+  frame.setAttribute('data-offscreen-capture', 'true');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.setAttribute('tabindex', '-1');
+  Object.assign(frame.style, {
     position: 'fixed',
-    // At the document origin, not pushed off to the left: html2canvas crops
-    // relative to the document, so an element parked outside it captures nothing.
-    // Invisible via opacity and a deep negative z-index instead, which still
-    // gives it real layout. The clone is made opaque again before rasterising.
     top: '0',
     left: '0',
     width: `${width}px`,
-    background: getComputedStyle(document.body).backgroundColor || '#0A0E15',
+    height: '1200px',
+    border: '0',
     opacity: '0',
     zIndex: '-2147483647',
     pointerEvents: 'none',
-    overflow: 'visible',
   });
-  document.body.appendChild(host);
-  return host;
+  document.body.appendChild(frame);
+
+  const doc = frame.contentDocument;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body></body></html>');
+  doc.close();
+
+  // Carry the stylesheets across, or the capture is unstyled markup.
+  document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
+    if (node.id === 'progress-capture-unclip') return;
+    doc.head.appendChild(node.cloneNode(true));
+  });
+  // The theme lives as a class on <html>, and the app's base styles hang off body.
+  doc.documentElement.className = document.documentElement.className;
+  doc.body.className = document.body.className;
+  doc.body.style.background = getComputedStyle(document.body).backgroundColor || '#0A0E15';
+  doc.body.style.margin = '0';
+
+  const unclip = doc.createElement('style');
+  unclip.textContent = UNCLIP_CSS;
+  doc.head.appendChild(unclip);
+
+  return frame;
 }
 
 function injectUnclipStyle() {
