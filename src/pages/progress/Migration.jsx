@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowRightLeft, ChevronDown, ChevronRight, Search, AlertTriangle, CheckCircle2,
+  ArrowRightLeft, ChevronDown, ChevronRight, Search, AlertTriangle,
 } from 'lucide-react';
 import { usePermissions } from '@/lib/AuthContext';
 import { migrationReadiness, RISK_WEIGHTS } from '@/lib/progress/readiness';
@@ -8,7 +8,7 @@ import {
   useMigrationRequirements, useProgressMutation,
 } from '@/components/progress/useProgress';
 import {
-  ProgressPageHeader, Card, CardHeader, CardBody, Badge, EmptyState,
+  ProgressPageHeader, Card, CardBody, Badge, EmptyState,
   LoadingBlock, ReadinessBar, toneForReadiness, StatCard, PrimaryButton, EvidenceBadge,
 } from '@/components/progress/progressUi';
 
