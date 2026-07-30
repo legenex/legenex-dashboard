@@ -12,7 +12,7 @@ import {
 import VisualReview from '@/components/progress/VisualReview';
 import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
 import { useOffscreenCapture } from '@/components/progress/OffscreenCapture';
-import { planDailyRefresh, reginaDayKey } from '@/lib/progress/captureSchedule';
+import { planDailyRefresh } from '@/lib/progress/captureSchedule';
 import { capturable, ALL_VIEWPORTS } from '@/lib/progress/captureTargets';
 import { sortSections } from '@/components/progress/progressNav';
 import {
@@ -218,6 +218,11 @@ export default function ApplicationReview() {
               </span>
               {capture.progress.current && (
                 <span className="text-[11px] text-muted-foreground">{capture.progress.current}</span>
+              )}
+              {autoPlan && (
+                <span className="text-[11px] text-muted-foreground">
+                  automatic daily pass
+                </span>
               )}
             </div>
             {!capture.running && (
