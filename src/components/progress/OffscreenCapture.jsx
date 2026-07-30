@@ -1,9 +1,9 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useContext, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
-import { AuthProvider } from '@/lib/AuthContext';
+import { AuthContext } from '@/lib/AuthContext';
 import { capturePageElement } from '@/lib/progress/capture';
 import CaptureShell from './CaptureShell';
 
@@ -156,6 +156,7 @@ export async function captureOffscreen(page, {
   mask = true,
   role,
   capturedBy,
+  authValue,
 } = {}) {
   const width = CAPTURE_WIDTHS[viewport] || CAPTURE_WIDTHS.desktop;
   let host = null;
@@ -189,7 +190,11 @@ export async function captureOffscreen(page, {
 
     await new Promise((resolve) => {
       root.render(
-        <AuthProvider>
+        // The already-resolved auth value is handed in rather than mounting a
+        // second AuthProvider, which would re-run the network auth check for
+        // every page and viewport and leave the sidebar rendering its
+        // unauthenticated state while the capture was taken.
+        <AuthContext.Provider value={authValue}>
           <QueryClientProvider client={queryClientInstance}>
             <MemoryRouter initialEntries={[page.route || '/']}>
               <Routes>
@@ -205,7 +210,7 @@ export async function captureOffscreen(page, {
               </Routes>
             </MemoryRouter>
           </QueryClientProvider>
-        </AuthProvider>,
+        </AuthContext.Provider>,
       );
       setTimeout(resolve, 80);
     });
@@ -257,6 +262,8 @@ export async function captureOffscreen(page, {
  * Reports progress as it goes and can be stopped.
  */
 export function useOffscreenCapture({ role, capturedBy, mask = true, onDone } = {}) {
+  // Snapshot of the live auth context, reused for every offscreen render.
+  const authValue = useContext(AuthContext);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(null);
   const cancelRef = useRef(false);
@@ -278,7 +285,7 @@ export function useOffscreenCapture({ role, capturedBy, mask = true, onDone } = 
         if (cancelRef.current) break;
         setProgress({ done, total, failed, current: page.title, viewport, label });
         // eslint-disable-next-line no-await-in-loop
-        const snap = await captureOffscreen(page, { viewport, mask, role, capturedBy });
+        const snap = await captureOffscreen(page, { viewport, mask, role, capturedBy, authValue });
         if (snap?.capture_status === 'failed') failed += 1;
         done += 1;
       }
@@ -288,7 +295,7 @@ export function useOffscreenCapture({ role, capturedBy, mask = true, onDone } = 
     setProgress({ done, total, failed, current: null, label, finished: true, cancelled: cancelRef.current });
     setRunning(false);
     onDone?.({ done, total, failed, cancelled: cancelRef.current });
-  }, [mask, role, capturedBy, onDone]);
+  }, [mask, role, capturedBy, onDone, authValue]);
 
   return { run, cancel, running, progress, clear: () => setProgress(null) };
 }
