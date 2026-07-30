@@ -1351,6 +1351,84 @@
       "human_notes": "",
       "route": "/verification",
       "title": "Verification"
+    },
+    "forgot-password-dashboard-1": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/forgot-password",
+      "title": "Forgot Password"
+    },
+    "login-dashboard-1": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/login",
+      "title": "Login"
+    },
+    "reset-password-dashboard-1": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/reset-password",
+      "title": "Reset Password"
+    },
+    "not-found-dashboard-3": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "*",
+      "title": "Not found"
+    },
+    "progress": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress",
+      "title": "Command Center"
+    },
+    "progress-review": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/review",
+      "title": "Application Review"
     }
   }
 }

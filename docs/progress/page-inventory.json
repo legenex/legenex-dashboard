@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T09:35:16.459Z",
+  "generated_at": "2026-07-30T11:08:14.950Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "2a859947f7ea84f09b0cccbcc7e2c2b0f80c4ad7",
+  "app_commit": "7e4e9f906cd2b9aa0942c60571be8e26d66cf956",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -9,39 +9,41 @@
     "src/components/docs/docsConfig.jsx"
   ],
   "counts": {
-    "total": 103,
+    "total": 109,
     "by_type": {
-      "page": 60,
+      "page": 65,
       "catchall": 2,
-      "redirect": 10,
+      "redirect": 11,
       "tab": 29,
       "detail": 2
     },
     "by_section": {
       "ad-manager": 4,
-      "authentication": 4,
+      "authentication": 7,
       "buyer-onboarding": 1,
       "buyer-portal": 5,
       "documentation": 11,
-      "error-states": 3,
+      "error-states": 4,
       "finances": 9,
       "lead-distribution": 9,
       "leads": 7,
       "operations": 7,
       "other": 7,
       "overview": 2,
+      "progress-control-center": 2,
       "reports": 8,
       "settings": 15,
       "supplier-portal": 6,
       "tools": 5
     },
     "by_portal_scope": {
-      "operator": 76,
-      "public": 16,
+      "operator": 77,
+      "public": 19,
       "buyer_portal": 5,
+      "progress": 2,
       "supplier_portal": 6
     },
-    "hidden_from_nav": 33
+    "hidden_from_nav": 39
   },
   "pages": [
     {
@@ -527,7 +529,90 @@
       "layout_files": []
     },
     {
+      "page_key": "forgot-password-dashboard-1",
+      "section_key": "authentication",
+      "section_label": "Authentication",
+      "title": "Forgot Password",
+      "route": "/forgot-password",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "dashboard",
+      "portal_scope": "public",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "ForgotPassword",
+      "component_props": null,
+      "component_path": "src/pages/ForgotPassword.jsx",
+      "layouts": [],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": null,
+      "roles": [
+        "owner",
+        "admin",
+        "manager",
+        "supplier",
+        "buyer"
+      ],
+      "entity_dependencies": [],
+      "function_dependencies": [],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/AuthLayout.jsx",
+        "src/components/ui/button.jsx",
+        "src/components/ui/input.jsx",
+        "src/components/ui/label.jsx",
+        "src/lib/app-params.js",
+        "src/pages/ForgotPassword.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": []
+    },
+    {
       "page_key": "login",
+      "section_key": "authentication",
+      "section_label": "Authentication",
+      "title": "Login",
+      "route": "/login",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "dashboard",
+      "portal_scope": "public",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "Login",
+      "component_props": null,
+      "component_path": "src/pages/Login.jsx",
+      "layouts": [],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": null,
+      "roles": [
+        "owner",
+        "admin",
+        "manager",
+        "supplier",
+        "buyer"
+      ],
+      "entity_dependencies": [],
+      "function_dependencies": [],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/AuthLayout.jsx",
+        "src/components/GoogleIcon.jsx",
+        "src/components/ui/button.jsx",
+        "src/components/ui/input.jsx",
+        "src/components/ui/label.jsx",
+        "src/lib/app-params.js",
+        "src/pages/Login.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": []
+    },
+    {
+      "page_key": "login-dashboard-1",
       "section_key": "authentication",
       "section_label": "Authentication",
       "title": "Login",
@@ -614,6 +699,47 @@
     },
     {
       "page_key": "reset-password",
+      "section_key": "authentication",
+      "section_label": "Authentication",
+      "title": "Reset Password",
+      "route": "/reset-password",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "dashboard",
+      "portal_scope": "public",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "ResetPassword",
+      "component_props": null,
+      "component_path": "src/pages/ResetPassword.jsx",
+      "layouts": [],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": null,
+      "roles": [
+        "owner",
+        "admin",
+        "manager",
+        "supplier",
+        "buyer"
+      ],
+      "entity_dependencies": [],
+      "function_dependencies": [],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/AuthLayout.jsx",
+        "src/components/ui/button.jsx",
+        "src/components/ui/input.jsx",
+        "src/components/ui/label.jsx",
+        "src/lib/app-params.js",
+        "src/pages/ResetPassword.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": []
+    },
+    {
+      "page_key": "reset-password-dashboard-1",
       "section_key": "authentication",
       "section_label": "Authentication",
       "title": "Reset Password",
@@ -1504,6 +1630,39 @@
     },
     {
       "page_key": "not-found-dashboard-2",
+      "section_key": "error-states",
+      "section_label": "Error and empty states",
+      "title": "Not found",
+      "route": "*",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "dashboard",
+      "portal_scope": "operator",
+      "route_type": "redirect",
+      "redirect_to": "/progress",
+      "component": "Navigate",
+      "component_props": "to=\"/progress\" replace",
+      "component_path": "",
+      "layouts": [],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": null,
+      "roles": [
+        "owner",
+        "admin",
+        "manager",
+        "supplier",
+        "buyer"
+      ],
+      "entity_dependencies": [],
+      "function_dependencies": [],
+      "component_dependencies": [],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": []
+    },
+    {
+      "page_key": "not-found-dashboard-3",
       "section_key": "error-states",
       "section_label": "Error and empty states",
       "title": "Not found",
@@ -6169,6 +6328,119 @@
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
+      ]
+    },
+    {
+      "page_key": "progress",
+      "section_key": "progress-control-center",
+      "section_label": "Progress Control Center",
+      "title": "Command Center",
+      "route": "/progress",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "progress+dashboard",
+      "portal_scope": "progress",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "CommandCenter",
+      "component_props": null,
+      "component_path": "src/pages/progress/CommandCenter.jsx",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": "progress_access",
+      "roles": [
+        "owner",
+        "admin",
+        "manager"
+      ],
+      "entity_dependencies": [
+        "AdSpend"
+      ],
+      "function_dependencies": [
+        "progressPrompt",
+        "progressReadiness",
+        "progressSync"
+      ],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/progress/progressUi.jsx",
+        "src/components/progress/useProgress.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/fetchAll.js",
+        "src/lib/permissions.js",
+        "src/lib/progress/readiness.js",
+        "src/pages/progress/CommandCenter.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": [
+        "src/api/base44Client.js",
+        "src/components/progress/ProgressLayout.jsx",
+        "src/components/progress/progressNav.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/permissions.js"
+      ]
+    },
+    {
+      "page_key": "progress-review",
+      "section_key": "progress-control-center",
+      "section_label": "Progress Control Center",
+      "title": "Application Review",
+      "route": "/progress/review",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "progress+dashboard",
+      "portal_scope": "progress",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "ApplicationReview",
+      "component_props": null,
+      "component_path": "src/pages/progress/ApplicationReview.jsx",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": "progress_access",
+      "roles": [
+        "owner",
+        "admin",
+        "manager"
+      ],
+      "entity_dependencies": [
+        "AdSpend"
+      ],
+      "function_dependencies": [
+        "progressPrompt",
+        "progressReadiness",
+        "progressSync"
+      ],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/progress/progressNav.js",
+        "src/components/progress/progressUi.jsx",
+        "src/components/progress/useProgress.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/fetchAll.js",
+        "src/lib/permissions.js",
+        "src/lib/progress/readiness.js",
+        "src/pages/progress/ApplicationReview.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": [
+        "src/api/base44Client.js",
+        "src/components/progress/ProgressLayout.jsx",
+        "src/components/progress/progressNav.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/permissions.js"
       ]
     },
     {
@@ -10964,6 +11236,7 @@
       "finances-tab-profit",
       "finances-tab-settings",
       "forgot-password",
+      "forgot-password-dashboard-1",
       "lead-distribution",
       "leads",
       "leads-disqualified",
@@ -10973,8 +11246,9 @@
       "leads-sold",
       "leads-unsold",
       "login",
+      "login-dashboard-1",
       "not-found",
-      "not-found-dashboard-2",
+      "not-found-dashboard-3",
       "notifications",
       "operations",
       "operations-active-states",
@@ -10990,6 +11264,8 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
+      "progress",
+      "progress-review",
       "queue-recovery",
       "register",
       "reports",
@@ -11001,6 +11277,7 @@
       "reports-tab-pnl",
       "reports-tab-supplier",
       "reset-password",
+      "reset-password-dashboard-1",
       "settings",
       "settings-tab-apikeys",
       "settings-tab-billing",
@@ -11249,6 +11526,7 @@
       "finances-tab-profit",
       "finances-tab-settings",
       "forgot-password",
+      "forgot-password-dashboard-1",
       "lead-distribution",
       "leads",
       "leads-disqualified",
@@ -11258,8 +11536,9 @@
       "leads-sold",
       "leads-unsold",
       "login",
+      "login-dashboard-1",
       "not-found",
-      "not-found-dashboard-2",
+      "not-found-dashboard-3",
       "notifications",
       "operations",
       "operations-active-states",
@@ -11275,6 +11554,8 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
+      "progress",
+      "progress-review",
       "queue-recovery",
       "register",
       "reports",
@@ -11286,6 +11567,7 @@
       "reports-tab-pnl",
       "reports-tab-supplier",
       "reset-password",
+      "reset-password-dashboard-1",
       "settings",
       "settings-tab-apikeys",
       "settings-tab-billing",
@@ -11373,6 +11655,8 @@
       "operations-buyers",
       "operations-suppliers",
       "overview-root-dashboard-1",
+      "progress",
+      "progress-review",
       "reports",
       "reports-tab-ad",
       "reports-tab-buyer",
@@ -12921,6 +13205,7 @@
       "finances-tab-profit",
       "finances-tab-settings",
       "forgot-password",
+      "forgot-password-dashboard-1",
       "lead-distribution",
       "leads",
       "leads-disqualified",
@@ -12930,6 +13215,7 @@
       "leads-sold",
       "leads-unsold",
       "login",
+      "login-dashboard-1",
       "notifications",
       "operations",
       "operations-active-states",
@@ -12956,6 +13242,7 @@
       "reports-tab-pnl",
       "reports-tab-supplier",
       "reset-password",
+      "reset-password-dashboard-1",
       "settings",
       "settings-tab-apikeys",
       "settings-tab-billing",
@@ -13180,6 +13467,7 @@
       "finances-tab-profit",
       "finances-tab-settings",
       "forgot-password",
+      "forgot-password-dashboard-1",
       "lead-distribution",
       "leads",
       "leads-disqualified",
@@ -13189,6 +13477,7 @@
       "leads-sold",
       "leads-unsold",
       "login",
+      "login-dashboard-1",
       "notifications",
       "operations",
       "operations-active-states",
@@ -13215,6 +13504,7 @@
       "reports-tab-pnl",
       "reports-tab-supplier",
       "reset-password",
+      "reset-password-dashboard-1",
       "settings",
       "settings-tab-apikeys",
       "settings-tab-billing",
@@ -13887,6 +14177,8 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
+      "progress",
+      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13972,6 +14264,8 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
+      "progress",
+      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14194,6 +14488,7 @@
       "finances-tab-profit",
       "finances-tab-settings",
       "forgot-password",
+      "forgot-password-dashboard-1",
       "leads",
       "leads-disqualified",
       "leads-queued",
@@ -14201,6 +14496,7 @@
       "leads-sold",
       "leads-unsold",
       "login",
+      "login-dashboard-1",
       "notifications",
       "operations-buyers",
       "operations-suppliers",
@@ -14217,6 +14513,7 @@
       "reports-tab-pnl",
       "reports-tab-supplier",
       "reset-password",
+      "reset-password-dashboard-1",
       "settings",
       "settings-tab-apikeys",
       "settings-tab-billing",
@@ -14238,19 +14535,25 @@
       "ad-manager-reports"
     ],
     "src/pages/ForgotPassword.jsx": [
-      "forgot-password"
+      "forgot-password",
+      "forgot-password-dashboard-1"
     ],
     "src/components/AuthLayout.jsx": [
       "forgot-password",
+      "forgot-password-dashboard-1",
       "login",
+      "login-dashboard-1",
       "register",
-      "reset-password"
+      "reset-password",
+      "reset-password-dashboard-1"
     ],
     "src/pages/Login.jsx": [
-      "login"
+      "login",
+      "login-dashboard-1"
     ],
     "src/components/GoogleIcon.jsx": [
       "login",
+      "login-dashboard-1",
       "register"
     ],
     "src/pages/Register.jsx": [
@@ -14260,7 +14563,8 @@
       "register"
     ],
     "src/pages/ResetPassword.jsx": [
-      "reset-password"
+      "reset-password",
+      "reset-password-dashboard-1"
     ],
     "src/pages/Apply.jsx": [
       "apply"
@@ -14569,7 +14873,7 @@
       "not-found"
     ],
     "src/lib/PageNotFound.jsx": [
-      "not-found-dashboard-2"
+      "not-found-dashboard-3"
     ],
     "src/pages/Finances.jsx": [
       "finances",
@@ -15877,6 +16181,32 @@
     ],
     "src/lib/overviewFinance.js": [
       "overview-root-dashboard-1"
+    ],
+    "src/pages/progress/CommandCenter.jsx": [
+      "progress"
+    ],
+    "src/components/progress/progressUi.jsx": [
+      "progress",
+      "progress-review"
+    ],
+    "src/components/progress/useProgress.js": [
+      "progress",
+      "progress-review"
+    ],
+    "src/lib/progress/readiness.js": [
+      "progress",
+      "progress-review"
+    ],
+    "src/components/progress/ProgressLayout.jsx": [
+      "progress",
+      "progress-review"
+    ],
+    "src/components/progress/progressNav.js": [
+      "progress",
+      "progress-review"
+    ],
+    "src/pages/progress/ApplicationReview.jsx": [
+      "progress-review"
     ],
     "src/pages/Reports.jsx": [
       "reports",
