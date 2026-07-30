@@ -208,7 +208,15 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const question = (body.question || '').toString().trim();
     const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
-    if (!question) return Response.json({ error: 'No question provided' }, { status: 400 });
+    // Attached screenshots, as [{ media_type, data }] with data base64 encoded.
+    // Capped at four, and each one is checked for a plausible size so a stray
+    // paste cannot blow the request up.
+    const images = (Array.isArray(body.images) ? body.images : [])
+      .filter((i) => i && typeof i.data === 'string' && i.data.length > 32 && i.data.length < 8_000_000)
+      .slice(0, 4)
+      .map((i) => ({ media_type: String(i.media_type || 'image/png'), data: i.data }));
+    // An image on its own is a valid message: "fix this" with a screenshot.
+    if (!question && !images.length) return Response.json({ error: 'No question provided' }, { status: 400 });
 
     const isAdmin = user.role === 'admin' || user.role === 'owner';
     const mode = body.mode === 'build' ? 'build' : 'data';
@@ -281,7 +289,7 @@ Deno.serve(async (req) => {
         });
       }
       try {
-        const draft = await draftBuildRequest(question, history);
+        const draft = await draftBuildRequest(question || 'See the attached screenshot and scope the change it implies.', history, images);
         if (draft && draft.is_build) return Response.json({ type: 'build_request', build_request: draft });
       } catch (_) { /* not a build, or draft failed: fall through to an answer */ }
     }
@@ -970,7 +978,7 @@ Every figure you state must come from the RESULT block in this message. Past top
 
 === PAST TOPICS (questions previously asked, for continuity only, never a source of figures) ===
 ${pastConvContext}
-
+${images.length ? `\nThe user has attached ${images.length} screenshot${images.length > 1 ? 's' : ''}. Read ${images.length > 1 ? 'them' : 'it'} and answer in relation to what is shown. If a figure in the screenshot disagrees with the RESULT block, say so plainly and treat the RESULT block as authoritative for data, while the screenshot is authoritative for what the interface currently looks like.\n` : ''}
 === RESULT (JSON, authoritative) ===
 ${JSON.stringify(payload)}
 
@@ -983,7 +991,17 @@ ${convo || '(none)'}
 User: ${question}
 ${botName}:`;
 
-    const answer = await callOpenAI({ prompt, model: botModel, temperature: botTemp, system: botInstructions || undefined });
+    // Vision needs a multimodal model. If the configured one is not obviously
+    // capable, fall back for this call rather than dropping the screenshot.
+    const visionOk = /4o|4\.1|omni/i.test(String(botModel));
+    const modelForCall = images.length && !visionOk ? 'gpt-4o-mini' : botModel;
+    const answer = await callOpenAI({
+      prompt,
+      model: modelForCall,
+      temperature: botTemp,
+      system: botInstructions || undefined,
+      images,
+    });
 
     const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
 
