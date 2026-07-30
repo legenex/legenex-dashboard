@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T11:08:14.950Z",
+  "generated_at": "2026-07-30T11:12:21.242Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "7e4e9f906cd2b9aa0942c60571be8e26d66cf956",
+  "app_commit": "809385050578ce816208546f1b20423d5043621d",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -9,9 +9,9 @@
     "src/components/docs/docsConfig.jsx"
   ],
   "counts": {
-    "total": 109,
+    "total": 111,
     "by_type": {
-      "page": 65,
+      "page": 67,
       "catchall": 2,
       "redirect": 11,
       "tab": 29,
@@ -30,7 +30,7 @@
       "operations": 7,
       "other": 7,
       "overview": 2,
-      "progress-control-center": 2,
+      "progress-control-center": 4,
       "reports": 8,
       "settings": 15,
       "supplier-portal": 6,
@@ -40,10 +40,10 @@
       "operator": 77,
       "public": 19,
       "buyer_portal": 5,
-      "progress": 2,
+      "progress": 4,
       "supplier_portal": 6
     },
-    "hidden_from_nav": 39
+    "hidden_from_nav": 41
   },
   "pages": [
     {
@@ -6387,6 +6387,118 @@
       ]
     },
     {
+      "page_key": "progress-gates",
+      "section_key": "progress-control-center",
+      "section_label": "Progress Control Center",
+      "title": "Gates",
+      "route": "/progress/gates",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "progress+dashboard",
+      "portal_scope": "progress",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "Gates",
+      "component_props": null,
+      "component_path": "src/pages/progress/Gates.jsx",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": "progress_access",
+      "roles": [
+        "owner",
+        "admin",
+        "manager"
+      ],
+      "entity_dependencies": [
+        "AdSpend"
+      ],
+      "function_dependencies": [
+        "progressPrompt",
+        "progressReadiness",
+        "progressSync"
+      ],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/progress/progressUi.jsx",
+        "src/components/progress/useProgress.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/fetchAll.js",
+        "src/lib/permissions.js",
+        "src/lib/progress/readiness.js",
+        "src/pages/progress/Gates.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": [
+        "src/api/base44Client.js",
+        "src/components/progress/ProgressLayout.jsx",
+        "src/components/progress/progressNav.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/permissions.js"
+      ]
+    },
+    {
+      "page_key": "progress-migration",
+      "section_key": "progress-control-center",
+      "section_label": "Progress Control Center",
+      "title": "Migration",
+      "route": "/progress/migration",
+      "parent_route": null,
+      "tab": null,
+      "host_scope": "progress+dashboard",
+      "portal_scope": "progress",
+      "route_type": "page",
+      "redirect_to": null,
+      "component": "Migration",
+      "component_props": null,
+      "component_path": "src/pages/progress/Migration.jsx",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "auth": "public",
+      "nav_visibility": "hidden",
+      "permission_key": "progress_access",
+      "roles": [
+        "owner",
+        "admin",
+        "manager"
+      ],
+      "entity_dependencies": [
+        "AdSpend"
+      ],
+      "function_dependencies": [
+        "progressPrompt",
+        "progressReadiness",
+        "progressSync"
+      ],
+      "component_dependencies": [
+        "src/api/base44Client.js",
+        "src/components/progress/progressUi.jsx",
+        "src/components/progress/useProgress.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/fetchAll.js",
+        "src/lib/permissions.js",
+        "src/lib/progress/readiness.js",
+        "src/pages/progress/Migration.jsx"
+      ],
+      "layout_entity_dependencies": [],
+      "layout_function_dependencies": [],
+      "layout_files": [
+        "src/api/base44Client.js",
+        "src/components/progress/ProgressLayout.jsx",
+        "src/components/progress/progressNav.js",
+        "src/lib/AuthContext.jsx",
+        "src/lib/app-params.js",
+        "src/lib/permissions.js"
+      ]
+    },
+    {
       "page_key": "progress-review",
       "section_key": "progress-control-center",
       "section_label": "Progress Control Center",
@@ -11265,6 +11377,8 @@
       "portal-returns",
       "portal-settings",
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review",
       "queue-recovery",
       "register",
@@ -11555,6 +11669,8 @@
       "portal-returns",
       "portal-settings",
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review",
       "queue-recovery",
       "register",
@@ -11656,6 +11772,8 @@
       "operations-suppliers",
       "overview-root-dashboard-1",
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review",
       "reports",
       "reports-tab-ad",
@@ -14178,6 +14296,8 @@
       "portal-returns",
       "portal-settings",
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review",
       "queue-recovery",
       "reports",
@@ -14265,6 +14385,8 @@
       "portal-returns",
       "portal-settings",
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review",
       "queue-recovery",
       "reports",
@@ -16187,23 +16309,39 @@
     ],
     "src/components/progress/progressUi.jsx": [
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review"
     ],
     "src/components/progress/useProgress.js": [
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review"
     ],
     "src/lib/progress/readiness.js": [
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review"
     ],
     "src/components/progress/ProgressLayout.jsx": [
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review"
     ],
     "src/components/progress/progressNav.js": [
       "progress",
+      "progress-gates",
+      "progress-migration",
       "progress-review"
+    ],
+    "src/pages/progress/Gates.jsx": [
+      "progress-gates"
+    ],
+    "src/pages/progress/Migration.jsx": [
+      "progress-migration"
     ],
     "src/pages/progress/ApplicationReview.jsx": [
       "progress-review"

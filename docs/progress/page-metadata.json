@@ -1429,6 +1429,32 @@
       "human_notes": "",
       "route": "/progress/review",
       "title": "Application Review"
+    },
+    "progress-gates": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/gates",
+      "title": "Gates"
+    },
+    "progress-migration": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/migration",
+      "title": "Migration"
     }
   }
 }
