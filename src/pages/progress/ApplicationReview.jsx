@@ -11,7 +11,7 @@ import {
 } from '@/components/progress/useProgress';
 import VisualReview from '@/components/progress/VisualReview';
 import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
-import { useOffscreenCapture } from '@/components/progress/OffscreenCapture';
+import { useOffscreenCapture, ALL_VIEWPORTS } from '@/components/progress/OffscreenCapture';
 import { sortSections } from '@/components/progress/progressNav';
 import {
   ProgressPageHeader, Card, CardBody, Badge, EmptyState,
@@ -145,7 +145,7 @@ export default function ApplicationReview() {
               <SecondaryButton onClick={capture.cancel}>Stop</SecondaryButton>
             )}
             <PrimaryButton
-              onClick={() => capture.run(capturable(pages), { label: 'every page' })}
+              onClick={() => capture.run(capturable(pages), { viewports: ALL_VIEWPORTS, label: 'every page' })}
               disabled={capture.running}
             >
               <span className="flex items-center gap-1.5">
@@ -170,7 +170,7 @@ export default function ApplicationReview() {
                   : <CheckCircle2 className="h-4 w-4 text-chart-5" />}
               <span className="text-[12px] text-foreground">
                 {capture.running
-                  ? `Capturing ${capture.progress.label}: ${capture.progress.done} of ${capture.progress.total}`
+                  ? `Capturing ${capture.progress.label}: ${capture.progress.done} of ${capture.progress.total}${capture.progress.viewport ? ` (${capture.progress.viewport})` : ''}`
                   : `${capture.progress.done - capture.progress.failed} captured, ${capture.progress.failed} failed of ${capture.progress.done} attempted${capture.progress.cancelled ? ', stopped early' : ''}`}
               </span>
               {capture.progress.current && (
@@ -244,7 +244,7 @@ export default function ApplicationReview() {
                       type="button"
                       title={`Capture the ${section.label} section`}
                       disabled={capture.running}
-                      onClick={() => capture.run(capturable(section.pages), { label: section.label })}
+                      onClick={() => capture.run(capturable(section.pages), { viewports: ALL_VIEWPORTS, label: section.label })}
                       className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
                     >
                       <Camera className="h-3.5 w-3.5" />

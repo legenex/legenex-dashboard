@@ -67,7 +67,9 @@ export default function VisualReview({ page, snapshots, threads, onRecapture, ca
   // Offscreen. Nothing navigates: the page is mounted in a hidden container at a
   // fixed width, captured, and removed. That is also why tablet and mobile are
   // possible from a desktop browser.
-  const recapture = (viewports) => onRecapture?.(viewports || [viewport]);
+  // Default to every size. Capturing one viewport and leaving the other two
+  // stale was busywork nobody should have to remember.
+  const recapture = (viewports) => onRecapture?.(viewports || ['desktop', 'tablet', 'mobile']);
 
   const toggleMask = () => {
     const next = !masked;
@@ -104,13 +106,13 @@ export default function VisualReview({ page, snapshots, threads, onRecapture, ca
               </SecondaryButton>
               {canCapture && (
                 <>
-                  <SecondaryButton onClick={() => recapture(['desktop', 'tablet', 'mobile'])} disabled={capturing}>
-                    All sizes
+                  <SecondaryButton onClick={() => recapture([viewport])} disabled={capturing}>
+                    {viewport} only
                   </SecondaryButton>
                   <PrimaryButton onClick={() => recapture()} disabled={capturing}>
                     <span className="flex items-center gap-1.5">
                       <RefreshCw className={`h-3.5 w-3.5 ${capturing ? 'animate-spin' : ''}`} />
-                      {capturing ? 'Capturing' : (latest ? 'Recapture' : 'Capture')}
+                      {capturing ? 'Capturing' : (latest ? 'Recapture all sizes' : 'Capture all sizes')}
                     </span>
                   </PrimaryButton>
                 </>

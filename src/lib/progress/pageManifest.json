@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T22:04:07.748Z",
-  "app_commit": "c947e0ace37fc7dd1c9970b3f42915ccc9e6f5e2",
+  "generated_at": "2026-07-30T22:38:07.924Z",
+  "app_commit": "9006dc91f620e625080259e30d752986053050aa",
   "counts": {
     "total": 116,
     "by_type": {
@@ -56,6 +56,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "ad_manager",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "AdManagerLayout"
+      ],
+      "component_props": null,
       "entity_count": 4,
       "function_count": 2,
       "dependency_count": 61
@@ -77,6 +84,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "ad_manager",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "AdManagerLayout"
+      ],
+      "component_props": null,
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 56
@@ -98,6 +112,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "ad_manager",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "AdManagerLayout"
+      ],
+      "component_props": null,
       "entity_count": 4,
       "function_count": 2,
       "dependency_count": 65
@@ -119,6 +140,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "ad_manager",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "AdManagerLayout"
+      ],
+      "component_props": null,
       "entity_count": 4,
       "function_count": 2,
       "dependency_count": 61
@@ -140,6 +168,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 7
@@ -161,6 +191,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 7
@@ -182,6 +214,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 8
@@ -203,6 +237,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 8
@@ -224,6 +260,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 10
@@ -245,6 +283,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 7
@@ -266,6 +306,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 7
@@ -287,6 +329,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 2,
       "dependency_count": 13
@@ -308,6 +352,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "PortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 27
@@ -329,6 +378,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "PortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 1,
       "dependency_count": 39
@@ -350,6 +404,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "PortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 27
@@ -371,6 +430,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "PortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 21
@@ -392,6 +456,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "PortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 23
@@ -413,6 +482,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 14
@@ -434,6 +505,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -455,6 +530,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -476,6 +555,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -497,6 +580,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -518,6 +605,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -539,6 +630,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -560,6 +655,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -581,6 +680,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -602,6 +705,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -623,6 +730,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "DocsLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 2
@@ -644,6 +755,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 1,
       "dependency_count": 3
@@ -665,6 +778,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": "to=\"/docs\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 0
@@ -686,6 +801,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": "to=\"/progress\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 0
@@ -707,6 +824,8 @@
       "auth": "public",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 3
@@ -728,6 +847,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -749,6 +875,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -770,6 +903,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "bank_feed",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -791,6 +931,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -812,6 +959,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -833,6 +987,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -854,6 +1015,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -875,6 +1043,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "bank_feed",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -896,6 +1071,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "finances",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "FinancesLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 0,
       "dependency_count": 75
@@ -917,6 +1099,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "dist_campaigns",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": null,
       "entity_count": 15,
       "function_count": 0,
       "dependency_count": 102
@@ -938,6 +1127,13 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_deliveries",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": "to=\"/campaigns\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 43
@@ -959,6 +1155,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "dist_conversion_events",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": null,
       "entity_count": 7,
       "function_count": 0,
       "dependency_count": 75
@@ -980,6 +1183,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "dist_webhooks",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": null,
       "entity_count": 8,
       "function_count": 0,
       "dependency_count": 76
@@ -1001,6 +1211,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "dist_dashboard",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": null,
       "entity_count": 7,
       "function_count": 0,
       "dependency_count": 58
@@ -1022,6 +1239,13 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_buyers",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": "to=\"/operations/buyers\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 43
@@ -1043,6 +1267,13 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_buyers",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": "to=\"/operations/buyers\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 43
@@ -1064,6 +1295,13 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_routes",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": null,
       "entity_count": 6,
       "function_count": 2,
       "dependency_count": 66
@@ -1085,6 +1323,13 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_simulator",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "DistributionLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 1,
       "dependency_count": 58
@@ -1106,6 +1351,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "leads_all",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "LeadsLayout"
+      ],
+      "component_props": "view=\"all\"",
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 87
@@ -1127,6 +1379,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "leads_disqualified",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "LeadsLayout"
+      ],
+      "component_props": "view=\"disqualified\"",
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 87
@@ -1148,6 +1407,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "leads_queued",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "LeadsLayout"
+      ],
+      "component_props": "view=\"queued\"",
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 87
@@ -1169,6 +1435,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "leads_rejected",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "LeadsLayout"
+      ],
+      "component_props": "view=\"rejected\"",
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 87
@@ -1190,6 +1463,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": "to=\"/leads/rejected\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1211,6 +1490,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "leads_sold",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "LeadsLayout"
+      ],
+      "component_props": "view=\"sold\"",
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 87
@@ -1232,6 +1518,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "leads_unsold",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "LeadsLayout"
+      ],
+      "component_props": "view=\"unsold\"",
       "entity_count": 4,
       "function_count": 0,
       "dependency_count": 87
@@ -1253,6 +1546,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 1,
       "dependency_count": 54
@@ -1274,6 +1574,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "operations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 5,
       "function_count": 0,
       "dependency_count": 68
@@ -1295,6 +1602,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "operations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 4,
       "function_count": 1,
       "dependency_count": 69
@@ -1316,6 +1630,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "operations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 3,
       "function_count": 1,
       "dependency_count": 67
@@ -1337,6 +1658,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "operations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 10,
       "function_count": 4,
       "dependency_count": 97
@@ -1358,6 +1686,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "operations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 3,
       "dependency_count": 101
@@ -1379,6 +1714,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "OperationsLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 0,
       "dependency_count": 62
@@ -1400,6 +1742,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_buyers",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": "to=\"/campaigns?tab=buyers\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1421,6 +1769,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_buyers",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1442,6 +1796,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": "to=\"/settings?tab=errors\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1463,6 +1823,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": "to=\"/campaigns\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1484,6 +1850,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "leads_queued",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 2,
       "function_count": 0,
       "dependency_count": 46
@@ -1505,6 +1877,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_suppliers",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": "to=\"/campaigns?tab=suppliers\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1526,6 +1904,12 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": "dist_suppliers",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 38
@@ -1547,6 +1931,8 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "overview",
+      "layouts": [],
+      "component_props": "to=\"/docs\" replace",
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 0
@@ -1568,6 +1954,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "overview",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 2,
       "dependency_count": 70
@@ -1589,6 +1981,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 17
@@ -1610,6 +2006,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 14
@@ -1631,6 +2031,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 16
@@ -1652,6 +2056,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 16
@@ -1673,6 +2081,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 17
@@ -1694,6 +2106,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 17
@@ -1715,6 +2131,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_prompts",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 16
@@ -1736,9 +2156,13 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_access",
-      "entity_count": 2,
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
+      "entity_count": 3,
       "function_count": 3,
-      "dependency_count": 24
+      "dependency_count": 44
     },
     {
       "page_key": "progress-settings",
@@ -1757,6 +2181,10 @@
       "auth": "public",
       "nav_visibility": "nav",
       "permission_key": "progress_admin",
+      "layouts": [
+        "ProgressLayout"
+      ],
+      "component_props": null,
       "entity_count": 1,
       "function_count": 3,
       "dependency_count": 17
@@ -1778,6 +2206,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1799,6 +2233,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1820,6 +2260,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1841,6 +2287,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1862,6 +2314,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1883,6 +2341,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1904,6 +2368,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1925,6 +2395,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "reports",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 12,
       "function_count": 0,
       "dependency_count": 85
@@ -1946,6 +2422,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_integrations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -1967,6 +2449,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_api_keys",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -1988,6 +2476,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_billing",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2009,6 +2503,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2030,6 +2530,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2051,6 +2557,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_data_sources",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2072,6 +2584,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_error_logs",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2093,6 +2611,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_field_mapping",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2114,6 +2638,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_custom_fields",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2135,6 +2665,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_integrations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2156,6 +2692,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_inbound_webhooks",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2177,6 +2719,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_integrations",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2198,6 +2746,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_knowledge_base",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2219,6 +2773,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2240,6 +2800,12 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "set_users",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute"
+      ],
+      "component_props": null,
       "entity_count": 24,
       "function_count": 8,
       "dependency_count": 107
@@ -2261,6 +2827,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "SupplierPortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 27
@@ -2282,6 +2853,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "SupplierPortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 22
@@ -2303,6 +2879,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "SupplierPortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 28
@@ -2324,6 +2905,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "SupplierPortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 27
@@ -2345,6 +2931,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "SupplierPortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 21
@@ -2366,6 +2957,11 @@
       "auth": "protected",
       "nav_visibility": "hidden",
       "permission_key": null,
+      "layouts": [
+        "ProtectedRoute",
+        "SupplierPortalLayout"
+      ],
+      "component_props": null,
       "entity_count": 0,
       "function_count": 0,
       "dependency_count": 20
@@ -2387,6 +2983,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "tools",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "ToolsLayout"
+      ],
+      "component_props": null,
       "entity_count": 8,
       "function_count": 0,
       "dependency_count": 70
@@ -2408,6 +3011,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "tools",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "ToolsLayout"
+      ],
+      "component_props": null,
       "entity_count": 7,
       "function_count": 0,
       "dependency_count": 60
@@ -2429,6 +3039,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "tools",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "ToolsLayout"
+      ],
+      "component_props": null,
       "entity_count": 5,
       "function_count": 0,
       "dependency_count": 58
@@ -2450,6 +3067,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "tools",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "ToolsLayout"
+      ],
+      "component_props": null,
       "entity_count": 6,
       "function_count": 0,
       "dependency_count": 54
@@ -2471,6 +3095,13 @@
       "auth": "protected",
       "nav_visibility": "nav",
       "permission_key": "tools",
+      "layouts": [
+        "ProtectedRoute",
+        "AppLayout",
+        "PermissionRoute",
+        "ToolsLayout"
+      ],
+      "component_props": null,
       "entity_count": 7,
       "function_count": 0,
       "dependency_count": 65
