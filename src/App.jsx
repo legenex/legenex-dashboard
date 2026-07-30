@@ -176,6 +176,30 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Progress subdomain: authenticated, and the ONLY thing it serves. The
+  // operator dashboard is never reachable here, so an unauthenticated visitor
+  // goes to login and every other path lands back on the Command Center rather
+  // than falling through to the operator app.
+  if (isProgressHost()) {
+    if (authError) {
+      if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+      if (authError.type === 'auth_required') { navigateToLogin(); return null; }
+    }
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+          <Route element={<PermissionRoute />}>
+            {ProgressRoutes()}
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/progress" replace />} />
+      </Routes>
+    );
+  }
+
   // /docs and /apply are public on the main host too, render them without redirecting to login.
   const onDocsPath = typeof window !== 'undefined' &&
     (window.location.pathname.startsWith('/docs') || window.location.pathname.startsWith('/apply'));
