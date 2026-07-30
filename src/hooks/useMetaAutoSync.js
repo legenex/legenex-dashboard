@@ -29,8 +29,9 @@ const CHECK_MS = 60 * 1000;         // re-evaluate every minute
 export default function useMetaAutoSync({ enabled = true } = {}) {
   // A screenshot must never cause the app to do anything. The offscreen capturer
   // mounts the real shell, which mounts this hook; syncing ad spend because
-  // somebody took a screenshot would be a genuine data side effect.
-  const capturing = isCaptureMode();
+  // somebody took a screenshot would be a genuine data side effect. Either the
+  // caller passing enabled: false or the module level capture flag stands it down.
+  const capturing = isCaptureMode() || enabled === false;
 
   const qc = useQueryClient();
   // Guards against a slow sync overlapping the next tick.
