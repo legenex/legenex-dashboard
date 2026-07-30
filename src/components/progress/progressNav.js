@@ -34,6 +34,7 @@ export const PROGRESS_NAV = [
     to: '/progress/findings',
     icon: AlertTriangle,
     permKey: 'progress_access',
+    built: true,
     description: 'Machine, AI and human findings in one list',
   },
   {
@@ -42,6 +43,7 @@ export const PROGRESS_NAV = [
     to: '/progress/changes',
     icon: GitPullRequest,
     permKey: 'progress_access',
+    built: true,
     description: 'Approved and proposed work, draft through released',
   },
   {
@@ -50,6 +52,7 @@ export const PROGRESS_NAV = [
     to: '/progress/prompts',
     icon: Sparkles,
     permKey: 'progress_prompts',
+    built: true,
     description: 'Implementation prompts for agents and developers',
   },
   {

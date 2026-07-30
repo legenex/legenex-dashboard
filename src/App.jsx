@@ -62,6 +62,9 @@ import CommandCenter from '@/pages/progress/CommandCenter';
 import ApplicationReview from '@/pages/progress/ApplicationReview';
 import Migration from '@/pages/progress/Migration';
 import Gates from '@/pages/progress/Gates';
+import Findings from '@/pages/progress/Findings';
+import ChangeRequests from '@/pages/progress/ChangeRequests';
+import PromptStudio from '@/pages/progress/PromptStudio';
 
 import PortalLayout from '@/components/portal/PortalLayout';
 import PortalDashboard from '@/pages/portal/PortalDashboard';
@@ -145,6 +148,9 @@ const ProgressRoutes = () => (
     <Route path="/progress/review" element={<ApplicationReview />} />
     <Route path="/progress/migration" element={<Migration />} />
     <Route path="/progress/gates" element={<Gates />} />
+    <Route path="/progress/findings" element={<Findings />} />
+    <Route path="/progress/changes" element={<ChangeRequests />} />
+    <Route path="/progress/prompts" element={<PromptStudio />} />
   </Route>
 );
 
