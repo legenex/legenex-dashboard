@@ -268,9 +268,19 @@ Deno.serve(async (req) => {
       pastConversations = recentConvs.map(c => {
         let msgs = [];
         try { msgs = JSON.parse(c.messages || '[]'); } catch { /* malformed history is not fatal */ }
-        const lastMsgs = msgs.slice(-4);
-        return { title: c.title, recent: lastMsgs.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : ''}`) };
-      });
+        // Only the user's own questions are carried forward, never past
+        // assistant answers. Old answers contain figures that were correct for
+        // a different question, and the model will happily reuse them instead
+        // of reading the result block. This is topic continuity, not a data
+        // source. The current thread's history is passed separately and is the
+        // only conversational context that may inform an answer.
+        return {
+          title: c.title,
+          recent: msgs.filter((m) => m.role === 'user')
+            .slice(-3)
+            .map((m) => `asked: ${typeof m.content === 'string' ? m.content.slice(0, 160) : ''}`),
+        };
+      }).filter((c) => c.recent.length);
     } catch { /* memory entities may not exist yet */ }
 
     // --- Resolve caller scope (deny-by-default), then gather only what they may see ---
@@ -588,8 +598,39 @@ Deno.serve(async (req) => {
 
       const period = plan.period || 'all_time';
       const daySpec = periodDays(period, plan.start_date, plan.end_date);
-      const groupKey = plan.group_by && plan.group_by !== 'none' ? plan.group_by : null;
       const topN = Math.min(Math.max(Number(plan.top_n) || 15, 1), 40);
+
+      // Deterministic fallback for the slice dimension.
+      //
+      // The planner returns group_by=none often enough that relying on it alone
+      // loses the breakdown and the answer degrades to a bare period total. The
+      // question text itself is unambiguous in these cases, so it is read
+      // directly. This only ever fills a gap: an explicit planner choice wins.
+      const qLower = question.toLowerCase();
+      const inferGroup = () => {
+        const pats: Array<[RegExp, string]> = [
+          [/\b(?:by|per|across|each)\s+states?\b|\bwhich states?\b|\btop states?\b|\bstate breakdown\b/, 'state'],
+          [/\b(?:by|per|each)\s+day\b|\bdaily\b|\bwhich day\b|\b(?:best|worst) day\b|\btrend\b|\bover time\b|\bday by day\b/, 'day'],
+          [/\b(?:by|per|across|each)\s+buyers?\b|\bwhich buyers?\b|\btop buyers?\b|\bworst buyers?\b|\bbuyer breakdown\b/, 'buyer'],
+          [/\b(?:by|per|across|each)\s+suppliers?\b|\bwhich suppliers?\b|\btop suppliers?\b|\bworst suppliers?\b|\bsupplier breakdown\b/, 'supplier'],
+          [/\b(?:by|per|across|each)\s+sources?\b|\bwhich sources?\b|\btop sources?\b/, 'source'],
+          [/\b(?:by|per|across|each)\s+verticals?\b|\bwhich vertical\b|\bmva vs\b|\bwc vs\b/, 'vertical'],
+          [/\b(?:by|per|across|each)\s+status\b|\bstatus breakdown\b/, 'status'],
+          [/\blead type\b|\bquiz vs\b|\bvs affiliate\b|\baffiliate vs\b/, 'lead_type'],
+        ];
+        for (const [re, dim] of pats) if (re.test(qLower)) return dim;
+        return null;
+      };
+      let groupKey = plan.group_by && plan.group_by !== 'none' ? plan.group_by : null;
+      let groupInferred = false;
+      if (!groupKey) {
+        const g = inferGroup();
+        if (g) { groupKey = g; groupInferred = true; }
+      }
+
+      // Same treatment for the finance flag, which the planner also under-sets.
+      const needsFinance = !!plan.needs_finance || plan.intent === 'finance'
+        || /\b(?:ad ?spend|spend|cost|costs|profit|margin|money|losing|revenue|bank|cash|cpl|roi|payout)\b/.test(qLower);
 
       // Resolve entities from the plan, then top up from a direct scan.
       const resolved: any[] = [];
@@ -668,11 +709,20 @@ Deno.serve(async (req) => {
           buckets[k].push(l);
         }
         const entries = Object.entries(buckets);
-        entries.sort((a, b) => (groupKey === 'day' ? a[0].localeCompare(b[0]) : b[1].length - a[1].length));
+        const isDay = groupKey === 'day';
+        // A day series must keep the most RECENT days, then read chronologically.
+        // Sorting ascending and slicing kept the oldest, which is the opposite
+        // of what any trend question wants.
+        const effTopN = isDay ? Math.min(Math.max(topN, 31), 40) : topN;
+        entries.sort((a, b) => (isDay ? b[0].localeCompare(a[0]) : b[1].length - a[1].length));
+        const picked = entries.slice(0, effTopN);
+        if (isDay) picked.sort((a, b) => a[0].localeCompare(b[0]));
         result.group_by = groupKey;
+        result.group_by_source = groupInferred ? 'inferred from the question text' : 'chosen by the planner';
         result.group_count_total = entries.length;
-        result.groups = entries.slice(0, topN).reduce((acc, [k, v]) => { acc[k] = econ(v); return acc; }, {});
-        if (entries.length > topN) result.groups_truncated = `showing top ${topN} of ${entries.length}`;
+        result.group_keys_present = entries.map(([k]) => k);
+        result.groups = picked.reduce((acc, [k, v]) => { acc[k] = econ(v); return acc; }, {});
+        if (entries.length > effTopN) result.groups_truncated = `showing ${effTopN} of ${entries.length}, ranked by volume`;
       }
 
       // Always give the model the standard windows as a cheap safety net.
@@ -691,7 +741,7 @@ Deno.serve(async (req) => {
         };
       }
 
-      if (plan.needs_finance || plan.intent === 'finance') {
+      if (needsFinance) {
         const acct = adSpend.filter((r) => !r.level || r.level === 'account');
         const rollup = (keyFn) => {
           const m = {};
