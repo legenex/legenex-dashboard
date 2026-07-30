@@ -29,12 +29,28 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 //      created_date, which is only when the row was written.
 //   3. Days bucket in America/Regina, the operating timezone.
 
-async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, jsonSchema = null }) {
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, jsonSchema = null, images = [] }) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
   const messages = [];
   if (system) messages.push({ role: 'system', content: system });
-  messages.push({ role: 'user', content: prompt });
+  // Attached screenshots ride along with the prompt as image parts. The vision
+  // models accept a data URL directly, so nothing is uploaded anywhere.
+  const pics = Array.isArray(images) ? images.filter((i) => i && i.data).slice(0, 4) : [];
+  if (pics.length) {
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: prompt },
+        ...pics.map((i) => ({
+          type: 'image_url',
+          image_url: { url: `data:${i.media_type || 'image/png'};base64,${i.data}`, detail: 'high' },
+        })),
+      ],
+    });
+  } else {
+    messages.push({ role: 'user', content: prompt });
+  }
   const payload: Record<string, unknown> = { model, messages, temperature };
   if (jsonSchema) {
     payload.response_format = { type: 'json_schema', json_schema: { name: 'response', strict: false, schema: jsonSchema } };
@@ -51,9 +67,21 @@ async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature =
   return content;
 }
 
+// A real inventory of the app, so target_files names things that exist instead
+// of being invented. Static and will drift, so the build channel confirms it.
+const APP_INVENTORY = `PAGES (src/pages/<Name>.jsx): ApiStatus, Apply, BuyerDetail, Campaigns, ConversionEvents, CustomCalculations, Deliveries, DistributionDashboard, ErrorLogs, Finances, ForgotPassword, Leads, LeadsRejections, LeadsView, Login, Notifications, Overview, PayloadTester, QueueRecovery, Register, Reports, ResetPassword, RouteGroups, RouteSimulator, Settings, SupplierDetail, Suppliers, ToolsDashboard, Verification
+
+COMPONENT FOLDERS (src/components/<folder>/): admanager, apply, calculations, campaigns, databot, distribution, docs, finances, layout, leads, operations, overview, portal, progress, reports, settings, shared, suppliers, supplierportal, tools, ui, verification
+
+BACKEND FUNCTIONS (base44/functions/<name>/entry.ts): processLead, leads, leadbyteWebhook, webhook, distributionConfig, distributionSetMode, distributionSimulate, distributionShadowReport, distributionInsights, campaignDeliveryTest, operationsData, operatorData, portalData, supplierPortalData, overviewBriefing, adManagerInsights, reconInsights, generateBillingRun, syncMetaSpend, syncMercury, syncStripe, syncXero, syncGoogleSheets, auditRun, dataBot, recomputeStateStatus, nightlyStateStatusRecompute, dedupeLeads, bulkDeleteLeads, onboardBuyer, submitBuyerOnboarding, allocateBuyerCode, testLeadByte, testLeadByteConnector, sendPayloadTest, health, spec, validate
+
+SHARED LIBS: src/lib/fetchAll.js (pagination past the 500 row cap), src/lib/reportMetrics.js (analytics engine), src/lib/adManagerMetrics.js, src/lib/distribution/engine.js
+
+DOCS: DESIGN-SYSTEM.md, docs/`;
+
 // Scope a change request into a single-concern build prompt for the CONTROLLED
 // channel (Claude via connector, Base44 builder, or Claude Code). Never executes.
-async function draftBuildRequest(question, history) {
+async function draftBuildRequest(question, history, images = []) {
   const schema = {
     type: 'object',
     properties: {
@@ -68,9 +96,27 @@ async function draftBuildRequest(question, history) {
     required: ['is_build', 'title', 'summary', 'ready_prompt'],
   };
   const convo = history.map((m) => `${m.role === 'user' ? 'User' : 'BuildBot'}: ${m.content}`).join('\n');
-  const system = `You scope change requests for the Legenex Base44 app so they can be handed to a controlled build channel (Claude via the Base44 connector, the Base44 builder, or Claude Code). You NEVER execute changes yourself. If the user's message is actually an analytics or data question rather than a request to change the app, set is_build=false and leave the other fields empty.\n\nBake these conventions into ready_prompt so it is safe to run:\n- One concern per change, with an explicit do-not-touch list.\n- Follow DESIGN-SYSTEM.md: semantic tokens only, never raw hex/hsl or raw palette utilities.\n- RED surfaces that need explicit human approval and must not be edited casually: processLead, the four LeadByteConnectors and their enabled states, Conversion Events, distribution_mode (only via distributionSetMode), credentials, live endpoints, billing records, buyer pricing and state coverage.\n- Additive schema only. No em dashes anywhere. Checkpoint before any schema or destructive change. Verify with the design-token gate and lint.\n\nready_prompt must be a complete, copy-pasteable instruction a builder can act on: the target area, the exact change, the do-not-touch list, and the verification step. Set risk=red if the request touches any RED surface, amber if it touches shared or data surfaces, green for isolated UI or docs.`;
+  const system = `You scope change requests for the Legenex Base44 app so they can be handed to a controlled build channel (Claude via the Base44 connector, the Base44 builder, or Claude Code). You NEVER execute changes yourself.
+
+WHAT COUNTS AS A BUILD. Set is_build=true for ANY request to change the app: add, remove, disable, enable, turn off, turn on, change, edit, update, fix, create, build, rename, move, restyle, redesign, refactor, or wire something up. A screenshot attached with a complaint or a request about what is shown is also a build request. Set is_build=false ONLY when the message is purely a question about DATA (counts, revenue, performance, what happened) with no request to change anything.
+
+CRITICAL, DO NOT REFUSE. A request touching a RED surface is still drafted. You mark it risk=red, put an explicit approval gate as the first line of ready_prompt, and describe the change precisely. You NEVER set is_build=false to avoid a sensitive request, and you never reply that you only handle analytics. Refusing to draft is a failure: the operator needs the scoped request in order to decide. Drafting is not doing.
+
+RISK. red if it touches any RED surface: processLead, the four live LeadByteConnectors or their enabled states, Conversion Events, distribution_mode, credentials, live endpoints, billing records, buyer pricing or state coverage, TrustedForm behaviour, portal scoping. amber for schema changes, shared components, data writes, or anything backend. green only for isolated UI, copy, or docs.
+
+DO_NOT_TOUCH IS NEVER EMPTY unless the change is a single isolated file. Name the adjacent surfaces the builder must leave alone. "None" is almost always wrong.
+
+SCOPE. One concern per change. If the request is vague or sprawling ("redesign the dashboard"), narrow it to the smallest sensible first step and say in summary what you deliberately excluded. Never draft a change spanning many unrelated files.
+
+CONVENTIONS to bake into ready_prompt: follow DESIGN-SYSTEM.md, semantic tokens only, never raw hex/hsl or raw palette utilities; additive schema only, no renames or deletions of live fields; create_checkpoint before any schema change or destructive edit; distribution_mode only ever via the distributionSetMode function, never a direct field write; no secrets; no em dashes anywhere; verify with the design token gate and lint, and confirm the rendered result in the live app.
+
+ready_prompt must be complete and copy-pasteable: the approval gate if red, the target area, the exact change, the do-not-touch list, and the verification step.
+
+TARGET FILES. Use the inventory below and name real paths. If you are unsure which file holds something, say so in target_files with a "confirm: " prefix rather than inventing a filename.
+
+${APP_INVENTORY}`;
   const prompt = `Conversation so far:\n${convo || '(none)'}\n\nUser request: ${question}\n\nReturn JSON only.`;
-  return await callOpenAI({ system, prompt, jsonSchema: schema, temperature: 0.2 });
+  return await callOpenAI({ system, prompt, jsonSchema: schema, temperature: 0.2, images });
 }
 
 // Extract learnable facts from a conversation exchange. Returns up to 3 facts.
