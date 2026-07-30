@@ -1,22 +1,22 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  ChevronRight, ChevronDown, Search, MessageSquarePlus, AlertTriangle, Database,
-  Puzzle, FileCode, ShieldCheck, EyeOff, CornerUpRight, Send, Camera,
+  ChevronRight, ChevronDown, Search, FileCode, EyeOff, Camera, CheckSquare,
 } from 'lucide-react';
-import { usePermissions } from '@/lib/AuthContext';
+import { usePermissions, useAuth } from '@/lib/AuthContext';
 import { pageReadiness } from '@/lib/progress/readiness';
 import {
   useProgressPages, useProgressFindings, useReviewThreads, useVerificationRecords,
   usePageSnapshots, useProgressMutation, mergePagesWithManifest, usePageManifest, parseJson,
 } from '@/components/progress/useProgress';
 import VisualReview from '@/components/progress/VisualReview';
+import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
 import { startCaptureQueue } from '@/components/progress/CaptureController';
 import { sortSections } from '@/components/progress/progressNav';
 import {
-  ProgressPageHeader, Card, CardHeader, CardBody, Badge, EmptyState, Row,
-  PrimaryButton, LoadingBlock, ReadinessBar, toneForReadiness,
-  LIFECYCLE_LABEL, LIFECYCLE_TONE, PRIORITY_TONE, EvidenceBadge,
+  ProgressPageHeader, Card, CardBody, Badge, EmptyState,
+  PrimaryButton, SecondaryButton, LoadingBlock, ReadinessBar, toneForReadiness,
+  LIFECYCLE_LABEL, LIFECYCLE_TONE,
 } from '@/components/progress/progressUi';
 
 // Application Review: the tree of every section and page, plus the per page
