@@ -194,6 +194,13 @@ const AuthenticatedApp = () => {
   // goes to login and every other path lands back on the Command Center rather
   // than falling through to the operator app.
   if (isProgressHost()) {
+    // Hard guard before any route matching. If a path is not on the allowlist,
+    // redirect immediately rather than letting the route table decide, so adding
+    // a route later cannot accidentally expose it on this domain.
+    const path = typeof window !== 'undefined' ? window.location.pathname : '/progress';
+    if (!isAllowedOnProgressHost(path)) {
+      return <Navigate to="/progress" replace />;
+    }
     if (authError) {
       if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
       if (authError.type === 'auth_required') { navigateToLogin(); return null; }

@@ -10,6 +10,10 @@ export default [
       "src/components/**/*.{js,mjs,cjs,jsx}",
       "src/pages/**/*.{js,mjs,cjs,jsx}",
       "src/Layout.jsx",
+      // The router was outside the lint set, which is how an undefined
+      // identifier in it reached production and blanked a page.
+      "src/App.jsx",
+      "src/main.jsx",
     ],
     ignores: ["src/lib/**/*", "src/components/ui/**/*"],
     ...pluginJs.configs.recommended,
