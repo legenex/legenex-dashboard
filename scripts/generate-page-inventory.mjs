@@ -4,7 +4,7 @@
 // Derives a normalized manifest of every page, tab, redirect and portal route in
 // the app from the REAL sources of truth:
 //
-//   src/App.jsx                        router (routes, layouts, host branches)
+//   src/App.jsx + src/AppRoutes.jsx    router (routes, layouts, host branches)
 //   src/components/layout/navConfig.js operator sidebar (sections, labels, tabs)
 //   src/lib/permissions.js             permission keys and role presets
 //   src/components/docs/docsConfig.jsx public documentation routes
@@ -377,11 +377,28 @@ function rolesFor(permissionKey, rolePresets) {
  * ------------------------------------------------------------------ */
 
 async function build() {
-  const appCode = read(join(SRC, 'App.jsx'));
-  if (!appCode) throw new Error('src/App.jsx not found; run from the app root.');
+  // The route table was extracted from App.jsx into AppRoutes.jsx. Parsing only
+  // App.jsx found 7 routes instead of 116 and silently emptied the review tree,
+  // so both files are read and their imports merged. Any future router file goes
+  // in this list.
+  const ROUTER_FILES = ['App.jsx', 'AppRoutes.jsx'];
+  const routerSources = ROUTER_FILES
+    .map((f) => ({ file: f, code: read(join(SRC, f)) }))
+    .filter((r) => r.code);
+  if (routerSources.length === 0) throw new Error('No router source found; run from the app root.');
+  const appCode = routerSources.map((r) => r.code).join('\n');
 
-  const imports = parseImports(appCode);
-  const routes = parseRouter(appCode);
+  const imports = {};
+  const importOrigin = {};
+  routerSources.forEach(({ file, code }) => {
+    const parsed = parseImports(code);
+    Object.entries(parsed).forEach(([name, spec]) => {
+      imports[name] = spec;
+      importOrigin[name] = join(SRC, file);
+    });
+  });
+  const routes = routerSources.flatMap(({ code }) => parseRouter(code));
+  const originFor = (name) => importOrigin[name] || join(SRC, 'App.jsx');
   const navGroups = await loadNav();
   const perms = await loadPermissions();
   const docsRoutes = loadDocsRoutes();
@@ -422,7 +439,7 @@ async function build() {
   for (const r of routes) {
     if (!r.route) continue;
     const componentSpec = r.element ? imports[r.element] : null;
-    const componentPath = componentSpec ? (resolveAlias(componentSpec, join(SRC, 'App.jsx')) || '') : '';
+    const componentPath = componentSpec ? (resolveAlias(componentSpec, originFor(r.element)) || '') : '';
     const nav = navByRoute.get(r.route);
     const permissionKey = typeof perms.keyForLocation === 'function'
       ? perms.keyForLocation(r.route, '')
@@ -436,7 +453,7 @@ async function build() {
     const layoutDeps = { entities: new Set(), functions: new Set(), files: new Set() };
     r.layouts.forEach((name) => {
       const spec = imports[name];
-      const lp = spec ? resolveAlias(spec, join(SRC, 'App.jsx')) : null;
+      const lp = spec ? resolveAlias(spec, originFor(name)) : null;
       if (!lp) return;
       const d = scanDependencies(lp, depCache);
       d.entities.forEach((x) => layoutDeps.entities.add(x));
@@ -582,6 +599,7 @@ async function build() {
       app_commit: commit,
       sources: [
         'src/App.jsx',
+        'src/AppRoutes.jsx',
         'src/components/layout/navConfig.js',
         'src/lib/permissions.js',
         'src/components/docs/docsConfig.jsx',
