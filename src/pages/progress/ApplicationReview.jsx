@@ -114,13 +114,6 @@ export default function ApplicationReview() {
 
   const selected = pages.find((p) => p.page_key === selectedKey) || null;
 
-  // Only surfaces that resolve to a real page component can be rendered
-  // offscreen. Redirects, catchalls and :id detail routes have nothing stable to
-  // capture, so they are skipped rather than producing junk snapshots.
-  const capturable = (list) => list.filter((p) => ['page', 'tab'].includes(p.route_type)
-    && p.portal_scope === 'operator'
-    && p.component_path
-    && !String(p.route).includes(':'));
 
   if (pagesQ.isLoading) {
     return (

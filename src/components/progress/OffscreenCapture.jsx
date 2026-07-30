@@ -31,18 +31,6 @@ import { setCaptureMode, CaptureModeProvider } from '@/lib/progress/captureMode'
 const PAGE_MODULES = import.meta.glob('/src/pages/**/*.jsx');
 const LAYOUT_MODULES = import.meta.glob('/src/components/**/*Layout.jsx');
 
-export const CAPTURE_WIDTHS = {
-  desktop: 1440,
-  tablet: 768,
-  mobile: 390,
-};
-
-export const ALL_VIEWPORTS = ['desktop', 'tablet', 'mobile'];
-
-// Route wrappers that exist for auth, not for layout. Rendering them offscreen
-// would gate the capture behind a redirect.
-const NON_VISUAL_WRAPPERS = new Set(['ProtectedRoute', 'PermissionRoute']);
-
 // The app shell is built to fill the viewport and scroll inside itself. For a
 // capture we want the opposite: let it grow to its content so nothing is cropped.
 const UNCLIP_CSS = `
@@ -59,19 +47,6 @@ const UNCLIP_CSS = `
 [data-offscreen-capture] .sticky, [data-offscreen-capture] .fixed { position: relative !important; }
 `;
 
-function parseProps(raw) {
-  const out = {};
-  if (!raw) return out;
-  const re = /([A-Za-z_][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
-  let m;
-  while ((m = re.exec(raw))) {
-    const value = m[2] ?? m[3] ?? m[4];
-    if (value === undefined) continue;
-    out[m[1]] = value.trim().replace(/^['"]|['"]$/g, '');
-  }
-  return out;
-}
-
 function findModule(modules, name) {
   return Object.keys(modules).find((k) => k.endsWith(`/${name}.jsx`));
 }
@@ -86,15 +61,11 @@ async function loadComponent(componentPath) {
   return mod.default;
 }
 
-// Rebuild the layout chain the router really wraps this route in.
+// Rebuild the layout chain the router really wraps this route in, so the
+// screenshot includes the sidebar and section sub-navigation.
 async function loadLayouts(layouts) {
-  const names = Array.isArray(layouts)
-    ? layouts
-    : (() => { try { return JSON.parse(layouts || '[]'); } catch { return []; } })();
-
   const loaded = [];
-  for (const name of names) {
-    if (NON_VISUAL_WRAPPERS.has(name)) continue;
+  for (const name of visualLayouts(layouts)) {
     const key = findModule(LAYOUT_MODULES, name);
     if (!key) continue;
     // eslint-disable-next-line no-await-in-loop
@@ -176,7 +147,7 @@ export async function captureOffscreen(page, {
   role,
   capturedBy,
 } = {}) {
-  const width = CAPTURE_WIDTHS[viewport] || CAPTURE_WIDTHS.desktop;
+  const width = widthFor(viewport);
   let host = null;
   let root = null;
   let renderError = null;

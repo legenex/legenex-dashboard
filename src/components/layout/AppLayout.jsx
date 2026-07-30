@@ -12,6 +12,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { navGroups } from './navConfig';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import useMetaAutoSync from '@/hooks/useMetaAutoSync';
+import { isCaptureMode } from '@/lib/progress/captureMode';
 import useInternalSuppliers from '@/hooks/useInternalSuppliers';
 
 // Resolve a human page title from the nav config for the current path.
@@ -42,7 +43,9 @@ export default function AppLayout() {
   // than on Overview so it holds regardless of which page is open.
   // Screenshot capture mounts this layout hundreds of times. Background upkeep
   // must not run during that, or taking screenshots would write ad spend rows.
-  // useMetaAutoSync self-guards on capture mode, so nothing is needed here.
+  // Screenshots mount this shell. Nothing here may reach the network, start a
+  // timer or touch the parent document while a capture is running.
+  const capturing = isCaptureMode();
   useMetaAutoSync();
 
   // Registers which suppliers are Internal so lead cost is suppressed for them
