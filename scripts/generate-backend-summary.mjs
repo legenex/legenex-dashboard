@@ -61,8 +61,10 @@ function headerComment(code) {
     .replace(/^\s*import\s+['"][^'"]+['"];?/gm, '');
 
   const collected = [];
-  for (const raw of withoutImports.split('\n')) {
-    const line = raw.trim();
+  let touchesDeclaration = false;
+  const lines = withoutImports.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trim();
     if (!line) {
       // A blank line before any comment is just spacing; after one, it is a
       // paragraph break inside the block.
@@ -73,11 +75,17 @@ function headerComment(code) {
       collected.push(line.replace(/^\/\/\s?/, ''));
       continue;
     }
-    // First real statement ends the header.
+    // First real statement ends the header. If it sits directly under the last
+    // comment line with no blank line between, the comment documents THAT
+    // declaration rather than the file. processLead is the case that matters:
+    // its first comment describes a phone-verification helper, and presenting it
+    // as the purpose of the lead pipeline would be worse than saying nothing.
+    const previous = lines[i - 1]?.trim();
+    if (previous && previous.startsWith('//')) touchesDeclaration = true;
     break;
   }
-  // Trim trailing blanks left by the paragraph handling.
   while (collected.length && collected[collected.length - 1] === '') collected.pop();
+  if (touchesDeclaration) return [];
   return collected;
 }
 
@@ -124,10 +132,20 @@ function analyseFunction(name) {
   const writes = new Set();
   let m;
 
-  const entityRe = /entities\.([A-Z][A-Za-z0-9_]*)\s*\.\s*([a-zA-Z]+)/g;
+  // Entity access is written either as base44.entities.X or through an alias, and
+  // `const svc = base44.asServiceRole.entities` is the common form in this repo.
+  // Matching only the literal "entities." prefix missed every write made through
+  // an alias, which reported writing functions as read only.
+  const aliases = new Set(['entities']);
+  const aliasRe = /const\s+([A-Za-z_$][\w$]*)\s*=\s*[\w.$]*\.entities\b/g;
+  while ((m = aliasRe.exec(code))) aliases.add(m[1]);
+
+  const prefix = [...aliases].map((a) => a.replace(/[$]/g, '\\$')).join('|');
+  const entityRe = new RegExp(`(?:${prefix})\\.([A-Z][A-Za-z0-9_]*)\\s*\\.\\s*([a-zA-Z]+)`, 'g');
+  const WRITE_METHODS = ['create', 'update', 'delete', 'bulkCreate', 'updateMany', 'deleteMany'];
   while ((m = entityRe.exec(code))) {
     const [, entity, method] = m;
-    if (['create', 'update', 'delete', 'bulkCreate', 'updateMany'].includes(method)) writes.add(entity);
+    if (WRITE_METHODS.includes(method)) writes.add(entity);
     else reads.add(entity);
   }
 
