@@ -15,7 +15,11 @@
     "engine:generate": "node scripts/generate-backend-engine.mjs",
     "engine:check": "node scripts/check-engine-parity.mjs",
     "design:check": "node scripts/check-design-tokens.mjs",
-    "design:baseline": "node scripts/check-design-tokens.mjs --update-baseline"
+    "design:baseline": "node scripts/check-design-tokens.mjs --update-baseline",
+    "progress:inventory": "node scripts/generate-page-inventory.mjs",
+    "progress:backend": "node scripts/generate-backend-summary.mjs",
+    "progress:bundle": "node scripts/generate-progress-bundle.mjs",
+    "progress:check": "node scripts/generate-page-inventory.mjs --check && node scripts/generate-backend-summary.mjs --check && node scripts/generate-progress-bundle.mjs --check"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.41",

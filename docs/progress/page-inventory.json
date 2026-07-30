@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T11:56:26.228Z",
+  "generated_at": "2026-07-30T13:03:32.429Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "e33327a90aabf9cdc5b78ec1d728b867e284c9fc",
+  "app_commit": "c4960ad522ecf3d8254c9e91032604f6a58adc29",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -6892,6 +6892,7 @@
       "component_dependencies": [
         "src/api/base44Client.js",
         "src/components/progress/CaptureController.jsx",
+        "src/components/progress/ReviewPanels.jsx",
         "src/components/progress/VisualReview.jsx",
         "src/components/progress/progressNav.js",
         "src/components/progress/progressUi.jsx",
@@ -17079,6 +17080,9 @@
       "progress-prompts"
     ],
     "src/pages/progress/ApplicationReview.jsx": [
+      "progress-review"
+    ],
+    "src/components/progress/ReviewPanels.jsx": [
       "progress-review"
     ],
     "src/components/progress/VisualReview.jsx": [

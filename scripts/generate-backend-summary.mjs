@@ -48,6 +48,10 @@ const RED_PATTERNS = [
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : '');
 
+// Extracted text is normalised so the house rule against em dashes holds in
+// generated artefacts too, not just in hand written prose.
+const normalise = (s) => (s || '').replace(/\u2014/g, ', ').replace(/\s+,/g, ',');
+
 // Pull the leading block of // comments that sits above the first statement.
 // That is where this codebase puts its explanation of what a function is for.
 //
@@ -178,8 +182,8 @@ function analyseFunction(name) {
     name,
     file: entryPath.replace(`${ROOT}/`, ''),
     lines: code.split('\n').length,
-    headline: summary.headline,
-    detail: summary.detail,
+    headline: normalise(summary.headline),
+    detail: summary.detail.map(normalise),
     documented: summary.documented,
     reads: [...reads].sort(),
     writes: [...writes].sort(),
@@ -215,7 +219,7 @@ function analyseEntity(file) {
     undocumented_fields: names.length - described.length,
     has_rls: Boolean(schema.rls && Object.keys(schema.rls).length),
     rls_operations: schema.rls ? Object.keys(schema.rls) : [],
-    highlights,
+    highlights: highlights.map(normalise),
   };
 }
 

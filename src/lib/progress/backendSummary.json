@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-30T12:58:03.573Z",
+  "generated_at": "2026-07-30T13:03:30.180Z",
   "generator": "scripts/generate-backend-summary.mjs",
   "counts": {
     "functions": 89,
@@ -2937,7 +2937,7 @@
         "kind: Delivery type: Leadbyte, BigQuery, Data, or Generic HTTP",
         "headers: JSON array of {key, value} header rows",
         "payload_template: JSON template string with {{token}} placeholders",
-        "forwarding_mode: Legacy — kept for compatibility. Routing now controlled by lead_route field."
+        "forwarding_mode: Legacy,  kept for compatibility. Routing now controlled by lead_route field."
       ]
     },
     {
