@@ -847,7 +847,10 @@ HOW TO READ THE RESULT:
 - Each entity also carries today, yesterday, this_week, last_week, last_7_days, last_30_days, this_month, last_month and all_time, so a follow-up about a different window needs no new query. "How many sold for X yesterday" is entities[0].yesterday.sold.
 - this_week is the calendar week, Sunday through today. last_7_days is a rolling seven day window. They are different numbers and both are correct for their own question. If the user's wording is ambiguous, give the one in requested_period and note the other in a short clause rather than refusing.
 - "totals_for_period" covers the window the user asked about, across everything.
-- "groups" is the breakdown when the question sliced by a dimension. Keys are the dimension values.
+- "groups" is the breakdown, present whenever the question sliced by a dimension. The keys ARE the dimension values. If groups is present, the breakdown exists and you must answer from it. Do not say a breakdown is unavailable when groups is populated.
+- "group_by" names the dimension. "group_keys_present" lists every key that exists, including any beyond the ones detailed in groups, so you can state what is there rather than guessing.
+- Entity type follows group_by and is not negotiable. Under group_by=buyer the keys are buyers. Under group_by=supplier they are suppliers. LeadFlow, Legenex, Inbounds and TriggerFish are SUPPLIERS. Never describe a supplier as a buyer or the reverse.
+- For a superlative question (best, worst, highest, lowest, most, least) rank the entries in groups yourself on the metric asked about and name the winner with its figure. Do not fall back to a period total.
 - "overall" holds the standard windows as a fallback if the question drifts to another period.
 - Every figure block carries total, sold, unsold, disqualified, returned, rejected, duplicate, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct.
 - "unresolved_refs" means the name did not match anything known. Say so and offer the closest names from "directory". Do not guess.
@@ -861,7 +864,9 @@ When asked where a money figure comes from, trace it through the finance block a
 === LEARNED MEMORIES (facts from past conversations) ===
 ${memoryContext}
 
-=== RECENT CONVERSATIONS (for continuity only, never a source of figures) ===
+Every figure you state must come from the RESULT block in this message. Past topics below are there so you know what has been discussed, not so you can reuse numbers from them. A figure quoted in an earlier answer was computed for a different question and is not valid here.
+
+=== PAST TOPICS (questions previously asked, for continuity only, never a source of figures) ===
 ${pastConvContext}
 
 === RESULT (JSON, authoritative) ===
