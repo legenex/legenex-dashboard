@@ -53,9 +53,6 @@ const UNCLIP_CSS = `
 [data-offscreen-capture] .sticky, [data-offscreen-capture] .fixed { position: relative !important; }
 `;
 
-export const CAPTURE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 390 };
-export const ALL_VIEWPORTS = ['desktop', 'tablet', 'mobile'];
-
 export function widthFor(viewport) {
   return CAPTURE_WIDTHS[viewport] || CAPTURE_WIDTHS.desktop;
 }
