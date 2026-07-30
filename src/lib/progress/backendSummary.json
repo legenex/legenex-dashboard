@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-07-30T12:56:39.566Z",
+  "generated_at": "2026-07-30T12:58:03.573Z",
   "generator": "scripts/generate-backend-summary.mjs",
   "counts": {
     "functions": 89,
-    "documented": 65,
-    "undocumented": 24,
-    "read_only": 42,
+    "documented": 36,
+    "undocumented": 53,
+    "read_only": 37,
     "no_auth_detected": 1,
     "entities": 75,
     "entities_without_rls": 47
@@ -15,12 +15,9 @@
       "name": "adManagerInsights",
       "file": "base44/functions/adManagerInsights/entry.ts",
       "lines": 84,
-      "headline": "Ad Manager AI Analyst.",
-      "detail": [
-        "The frontend sends a pre-aggregated summary of the current scope (platform, account or portfolio, reported vs verified metrics, per-campaign rows). We return a structured opportunity / risk / recommendation object rendered by the AI insight card. Uses OpenAI (OPENAI_API_KEY secret).",
-        "This function is read-only. It never touches the lead pipeline, AdSpend rows, or any entity. It only reads the JSON summary posted by the caller."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -200,14 +197,9 @@
       "name": "campaignDeliveryTest",
       "file": "base44/functions/campaignDeliveryTest/entry.ts",
       "lines": 99,
-      "headline": "Caller model: OPERATOR-ONLY.",
-      "detail": [
-        "Live outbound test of a single SubDelivery endpoint.",
-        "SAFETY GATES (all enforced BEFORE any send): 1. Authorization: operator-only (isOperator), checked before service-role use. 2. Mode gate: disabled entirely unless AppSettings.distribution_mode is past 'legacy_only'. In production default (legacy_only) this always refuses. 3. Approval gate: the request MUST carry confirm === true. Without it, refused. 4. Audit: every live test writes a DistributionAudit record (who/when/target).",
-        "Dry-run payload previews and response-mapping tests happen entirely in the browser and never call this function. This function is the ONLY path that performs a real outbound request, and only for an explicitly confirmed test.",
-        "CREDENTIAL HARD RULE: the outbound secret is resolved server-side here from the sub-delivery's opaque credential_ref via secret storage. It is never accepted from the browser, never logged, and never returned in the response."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "AppSettings",
         "Delivery",
@@ -231,9 +223,9 @@
       "name": "cancelInvitation",
       "file": "base44/functions/cancelInvitation/entry.ts",
       "lines": 19,
-      "headline": "Cancels (deletes) a pending Invitation row.",
+      "headline": "",
       "detail": [],
-      "documented": true,
+      "documented": false,
       "reads": [],
       "writes": [
         "Invitation"
@@ -248,12 +240,9 @@
       "name": "categorizeTransactions",
       "file": "base44/functions/categorizeTransactions/entry.ts",
       "lines": 114,
-      "headline": "AI-categorizes uncategorized BankTransaction records.",
-      "detail": [
-        "The taxonomy is read from the finance_settings IntegrationConfig so it stays in sync with the user-editable categories in Finances > Settings. Falls back to the original six categories when no settings record exists. Uses OpenAI (OPENAI_API_KEY secret). Admin-only.",
-        "Used only when no finance_settings record exists, parsing fails, or the categories array is empty. Matches the original hardcoded behavior."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "BankTransaction",
         "IntegrationConfig"
@@ -423,11 +412,9 @@
       "name": "distributionInsights",
       "file": "base44/functions/distributionInsights/entry.ts",
       "lines": 52,
-      "headline": "Distribution AI Insights: summarizes OPERATIONAL trends for a selected period.",
-      "detail": [
-        "The frontend sends a pre-aggregated, revenue-free summary; we return a short narrative. Uses OpenAI (OPENAI_API_KEY secret)."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -542,11 +529,9 @@
       "name": "getOnboardingContext",
       "file": "base44/functions/getOnboardingContext/entry.ts",
       "lines": 39,
-      "headline": "PUBLIC endpoint.",
-      "detail": [
-        "The token is the credential, so there is no operator gate and no auth.me call. Resolves an onboarding token to a strict allowlist of display-only fields used to prefill the public /apply form. Never returns credentials, email, billing, or any other field. Returns JSON only and never logs secrets."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "Buyer",
         "BuyerOnboarding"
@@ -579,9 +564,9 @@
       "name": "integrationStatus",
       "file": "base44/functions/integrationStatus/entry.ts",
       "lines": 47,
-      "headline": "Shared (builder) connectors whose connection status the Integrations tab reports.",
+      "headline": "",
       "detail": [],
-      "documented": true,
+      "documented": false,
       "reads": [
         "IntegrationConfig"
       ],
@@ -596,13 +581,9 @@
       "name": "leadbyteWebhook",
       "file": "base44/functions/leadbyteWebhook/entry.ts",
       "lines": 414,
-      "headline": "Caller model: public with key.",
-      "detail": [
-        "This endpoint is unauthenticated at the Base44 layer and must be invocable without a logged-in user. It authenticates ONLY by a route token, read from the query param `token` or the `X-Webhook-Token` header, SHA-256 hashed and matched against an enabled leadbyte InboundWebhookRoute. It uses the service role to look up the route and to read and write Lead.",
-        "This function only RECORDS LeadByte sold/unsold/return/conversion outcome data onto the matching Lead. It never calls processLead or any routing, delivery, connector, CAPI, or HLR logic. It never writes trustedform_valid or cert_source, and never overwrites the inbound pipeline fields.",
-        "Treat a literal single dash and empty string as null. Returns a trimmed string, or null when the value is empty/dash/nullish."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "InboundWebhookRoute",
         "Lead",
@@ -669,11 +650,9 @@
       "name": "listUsers",
       "file": "base44/functions/listUsers/entry.ts",
       "lines": 54,
-      "headline": "Returns every User record for this app using the service role, bypassing the row-level security that scopes base44.entities.User.list() to the caller.",
-      "detail": [
-        "Admin-gated: only admins may enumerate all users."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "Invitation",
         "User"
@@ -890,9 +869,9 @@
       "name": "metaOauthCallback",
       "file": "base44/functions/metaOauthCallback/entry.ts",
       "lines": 142,
-      "headline": "Fallback callback URL (Legenex production custom domain), used only if a state entry somehow lacks a stored redirect_uri.",
+      "headline": "",
       "detail": [],
-      "documented": true,
+      "documented": false,
       "reads": [
         "IntegrationConfig",
         "MetaConnection"
@@ -1023,12 +1002,16 @@
       "name": "notifyStateChange",
       "file": "base44/functions/notifyStateChange/entry.ts",
       "lines": 227,
-      "headline": "Debounce window: events younger than this are left for the next run so a burst of operator edits collapses into a single digest.",
+      "headline": "",
       "detail": [],
-      "documented": true,
-      "reads": [],
-      "writes": [],
-      "read_only": true,
+      "documented": false,
+      "reads": [
+        "IntegrationConfig"
+      ],
+      "writes": [
+        "StateChangeEvent"
+      ],
+      "read_only": false,
       "uses_service_role": true,
       "auth_style": "operator_session",
       "external_hosts": [
@@ -1126,11 +1109,9 @@
       "name": "overviewBriefing",
       "file": "base44/functions/overviewBriefing/entry.ts",
       "lines": 44,
-      "headline": "AI Analyst briefing for the Overview command center.",
-      "detail": [
-        "The frontend sends a pre-aggregated finance/lead summary (current + prior period); we return a short plain-English briefing. Uses OpenAI (OPENAI_API_KEY secret)."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -1196,9 +1177,9 @@
       "name": "processLead",
       "file": "base44/functions/processLead/entry.ts",
       "lines": 2349,
-      "headline": "Resolve phone_verified value from HLR result based on configured source",
+      "headline": "",
       "detail": [],
-      "documented": true,
+      "documented": false,
       "reads": [
         "ApiConnector",
         "ApiKey",
@@ -1251,10 +1232,18 @@
       ],
       "documented": true,
       "reads": [
-        "User"
+        "ChangeRequest",
+        "ProgressPage",
+        "PromptDraft",
+        "ReviewThread",
+        "User",
+        "VerificationRecord"
       ],
-      "writes": [],
-      "read_only": true,
+      "writes": [
+        "ChangeRequest",
+        "PromptDraft"
+      ],
+      "read_only": false,
       "uses_service_role": true,
       "auth_style": "operator_session",
       "external_hosts": [
@@ -1284,10 +1273,15 @@
       ],
       "documented": true,
       "reads": [
+        "ProgressSnapshot",
         "User"
       ],
-      "writes": [],
-      "read_only": true,
+      "writes": [
+        "ProgressPage",
+        "ProgressSnapshot",
+        "ReleaseGate"
+      ],
+      "read_only": false,
       "uses_service_role": true,
       "auth_style": "operator_session",
       "external_hosts": [],
@@ -1306,8 +1300,10 @@
       "reads": [
         "User"
       ],
-      "writes": [],
-      "read_only": true,
+      "writes": [
+        "ProgressPage"
+      ],
+      "read_only": false,
       "uses_service_role": true,
       "auth_style": "operator_session",
       "external_hosts": [],
@@ -1364,14 +1360,15 @@
       "name": "recomputeStateStatus",
       "file": "base44/functions/recomputeStateStatus/entry.ts",
       "lines": 249,
-      "headline": "The 50 US state codes.",
-      "detail": [
-        "StateStatus is only ever built for these."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
-      "writes": [],
-      "read_only": true,
+      "writes": [
+        "StateChangeEvent",
+        "StateStatus"
+      ],
+      "read_only": false,
       "uses_service_role": true,
       "auth_style": "operator_session",
       "external_hosts": [],
@@ -1383,11 +1380,9 @@
       "name": "reconInsights",
       "file": "base44/functions/reconInsights/entry.ts",
       "lines": 45,
-      "headline": "Produces AI reconciliation insights over per-counterparty gaps.",
-      "detail": [
-        "Admin-only. Uses OpenAI (OPENAI_API_KEY secret)."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -1404,11 +1399,9 @@
       "name": "recordInvitation",
       "file": "base44/functions/recordInvitation/entry.ts",
       "lines": 31,
-      "headline": "Records a pending Invitation row (app-owned entity) so an invited person is visible in Settings > Users and Roles as \"Pending\" before they accept and log in.",
-      "detail": [
-        "Base44 does not let apps insert User records directly (they get reaped), so we track the invite in our own Invitation entity instead. Admin-gated."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "Invitation"
       ],
@@ -1469,11 +1462,9 @@
       "name": "renameField",
       "file": "base44/functions/renameField/entry.ts",
       "lines": 151,
-      "headline": "Renames a custom field's token (field_name) and/or label across the whole system.",
-      "detail": [
-        "When the token changes, every {{old}} placeholder, mapping key, calculation input, and stored field reference is rewritten to the new token so nothing breaks downstream."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "ApiConnector",
         "CustomCalculation",
@@ -1539,9 +1530,9 @@
       "name": "sendGmail",
       "file": "base44/functions/sendGmail/entry.ts",
       "lines": 64,
-      "headline": "Base64url-encode a UTF-8 string (for the Gmail API `raw` field).",
+      "headline": "",
       "detail": [],
-      "documented": true,
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -1581,11 +1572,9 @@
       "name": "sendPayloadTest",
       "file": "base44/functions/sendPayloadTest/entry.ts",
       "lines": 123,
-      "headline": "Caller model: operator-only.",
-      "detail": [
-        "This proxies an arbitrary outbound HTTP request from the server, so it must be gated to operators (not portal accounts) and must refuse internal/link-local/metadata targets to avoid SSRF into private infrastructure."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "User"
       ],
@@ -1628,12 +1617,9 @@
       "name": "sendSlackTest",
       "file": "base44/functions/sendSlackTest/entry.ts",
       "lines": 51,
-      "headline": "One off Slack test message to a single channel.",
-      "detail": [
-        "This is the same posting path used by the digest sender (chat.postMessage with the bot token stored in the IntegrationConfig entity under name \"slack\"), isolated here so the drawer can fire a real test without touching the digest function.",
-        "This never writes a StateChangeEvent, never sets notified_at, and never enqueues a digest. It only posts one message."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "IntegrationConfig"
       ],
@@ -1650,11 +1636,9 @@
       "name": "sendWhatsapp",
       "file": "base44/functions/sendWhatsapp/entry.ts",
       "lines": 51,
-      "headline": "Sends a WhatsApp text message via the WhatsApp Business Cloud API.",
-      "detail": [
-        "Credentials (access_token + phone_number_id) are stored in the IntegrationConfig entity."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "IntegrationConfig"
       ],
@@ -1784,11 +1768,9 @@
       "name": "syncMercury",
       "file": "base44/functions/syncMercury/entry.ts",
       "lines": 96,
-      "headline": "Pulls transactions from the Mercury bank API and ingests them as BankTransaction records.",
-      "detail": [
-        "Token is stored in IntegrationConfig(name='mercury') as { api_token, account_id? }. Dedupes on external_id (Mercury transaction id). Runs on demand and on schedule."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "BankTransaction",
         "IntegrationConfig"
@@ -1835,11 +1817,9 @@
       "name": "syncStripe",
       "file": "base44/functions/syncStripe/entry.ts",
       "lines": 95,
-      "headline": "Verifies a Stripe secret key and pulls recent balance transactions / charges as BankTransaction records (source='stripe').",
-      "detail": [
-        "Key stored in IntegrationConfig(name='stripe') as { secret_key }. Dedupes on external_id. Runs on demand and on schedule."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "BankTransaction",
         "IntegrationConfig"
@@ -1862,11 +1842,9 @@
       "name": "syncXero",
       "file": "base44/functions/syncXero/entry.ts",
       "lines": 81,
-      "headline": "Verifies Xero credentials and pulls invoices/payments as reference data.",
-      "detail": [
-        "Config stored in IntegrationConfig(name='xero') as { access_token, tenant_id }. Xero uses OAuth2 access tokens (paste a token from the Xero developer app / custom connection). Verify hits /connections to resolve the tenant, then reads invoices. Runs on demand and on schedule."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "IntegrationConfig"
       ],
@@ -1906,11 +1884,9 @@
       "name": "testEmail",
       "file": "base44/functions/testEmail/entry.ts",
       "lines": 72,
-      "headline": "Common disposable/temporary email domains.",
-      "detail": [
-        "Basic free check, no external dependency."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -1944,11 +1920,9 @@
       "name": "testLeadByte",
       "file": "base44/functions/testLeadByte/entry.ts",
       "lines": 68,
-      "headline": "Caller model: operator-only.",
-      "detail": [
-        "Fires an outbound POST to an operator-configured LeadByte destination using operator credentials, so it must be gated to operators BEFORE any service-role read. Portal (buyer/supplier) accounts and unauthenticated callers are rejected."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "LeadByteConnector",
         "User"
@@ -2032,11 +2006,9 @@
       "name": "validateMetaToken",
       "file": "base44/functions/validateMetaToken/entry.ts",
       "lines": 59,
-      "headline": "Validates a Meta (Facebook) access token against the Graph API.",
-      "detail": [
-        "Payload: { token?: string } - token given: validate that pasted token (used before saving the master token). - token omitted: validate the currently active stored token, preferring the system-user / master token, falling back to the Facebook login token. Returns { valid, account_name, account_count, ad_accounts, error }."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [
         "IntegrationConfig"
       ],
@@ -2051,11 +2023,9 @@
       "name": "walkthroughGuide",
       "file": "base44/functions/walkthroughGuide/entry.ts",
       "lines": 52,
-      "headline": "AI-guided onboarding walkthrough.",
-      "detail": [
-        "Uses OpenAI (OPENAI_API_KEY secret)."
-      ],
-      "documented": true,
+      "headline": "",
+      "detail": [],
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
@@ -2109,9 +2079,9 @@
       "name": "whatsNew",
       "file": "base44/functions/whatsNew/entry.ts",
       "lines": 61,
-      "headline": "Generates the \"What's New\" release highlights using OpenAI (OPENAI_API_KEY secret).",
+      "headline": "",
       "detail": [],
-      "documented": true,
+      "documented": false,
       "reads": [],
       "writes": [],
       "read_only": true,
