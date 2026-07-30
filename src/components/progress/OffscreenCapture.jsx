@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider } from '@/lib/AuthContext';
 import { capturePageElement } from '@/lib/progress/capture';
+import CaptureShell from './CaptureShell';
 
 // Offscreen capture.
 //
@@ -26,12 +27,41 @@ import { capturePageElement } from '@/lib/progress/capture';
 // from the router the way a hand-maintained component map would.
 
 const PAGE_MODULES = import.meta.glob('/src/pages/**/*.jsx');
+// Section layouts draw the sub-menu (Campaigns, Webhooks, Conversion Events and
+// so on). Resolved by component name from the manifest's layout chain so this
+// cannot drift from the router.
+const LAYOUT_MODULES = import.meta.glob('/src/components/**/*Layout.jsx');
+
+const LAYOUT_PATHS = {
+  LeadsLayout: '/src/components/leads/LeadsLayout.jsx',
+  OperationsLayout: '/src/components/operations/OperationsLayout.jsx',
+  DistributionLayout: '/src/components/distribution/DistributionLayout.jsx',
+  FinancesLayout: '/src/components/finances/FinancesLayout.jsx',
+  AdManagerLayout: '/src/components/admanager/AdManagerLayout.jsx',
+  ToolsLayout: '/src/components/tools/ToolsLayout.jsx',
+};
+
+// Layout routes that must never be mounted for a capture. ProtectedRoute and
+// PermissionRoute gate on auth and would redirect; AppLayout runs the Meta auto
+// sync on mount and would write ad spend rows once per captured page.
+const SKIP_LAYOUTS = new Set(['ProtectedRoute', 'PermissionRoute', 'AppLayout']);
+
+async function loadSectionLayout(layouts) {
+  const name = (layouts || []).find((l) => !SKIP_LAYOUTS.has(l) && LAYOUT_PATHS[l]);
+  if (!name) return null;
+  const loader = LAYOUT_MODULES[LAYOUT_PATHS[name]];
+  if (!loader) return null;
+  const mod = await loader();
+  return mod?.default || null;
+}
 
 export const CAPTURE_WIDTHS = {
   desktop: 1440,
   tablet: 768,
   mobile: 390,
 };
+
+export const ALL_VIEWPORTS = ['desktop', 'tablet', 'mobile'];
 
 // Parse the inline props the router passes, e.g. view="sold".
 function parseProps(raw) {
