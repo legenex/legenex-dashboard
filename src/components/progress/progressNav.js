@@ -66,6 +66,7 @@ export const PROGRESS_NAV = [
     to: '/progress/migration',
     icon: ArrowRightLeft,
     permKey: 'progress_access',
+    built: true,
     description: 'Capability parity across the ten migration groups',
   },
   {
@@ -74,6 +75,7 @@ export const PROGRESS_NAV = [
     to: '/progress/gates',
     icon: ShieldCheck,
     permKey: 'progress_access',
+    built: true,
     description: 'Objective conditions that must hold before cutover',
   },
   {

@@ -60,6 +60,8 @@ import ToolsDashboard from '@/pages/ToolsDashboard';
 import ProgressLayout from '@/components/progress/ProgressLayout';
 import CommandCenter from '@/pages/progress/CommandCenter';
 import ApplicationReview from '@/pages/progress/ApplicationReview';
+import Migration from '@/pages/progress/Migration';
+import Gates from '@/pages/progress/Gates';
 
 import PortalLayout from '@/components/portal/PortalLayout';
 import PortalDashboard from '@/pages/portal/PortalDashboard';
@@ -141,6 +143,8 @@ const ProgressRoutes = () => (
   <Route element={<ProgressLayout />}>
     <Route path="/progress" element={<CommandCenter />} />
     <Route path="/progress/review" element={<ApplicationReview />} />
+    <Route path="/progress/migration" element={<Migration />} />
+    <Route path="/progress/gates" element={<Gates />} />
   </Route>
 );
 
