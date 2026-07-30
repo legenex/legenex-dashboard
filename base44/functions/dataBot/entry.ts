@@ -619,6 +619,7 @@ Deno.serve(async (req) => {
         timezone: APP_TZ,
         today_date: todayKey,
         yesterday_date: yesterdayKey,
+        week_convention: 'this_week is the calendar week running Sunday through today. last_7_days is a rolling seven day window ending today. They are deliberately different.',
         period_requested: period,
         period_row_count: periodRows.length,
         totals_for_period: econ(periodRows),
@@ -791,7 +792,10 @@ Deno.serve(async (req) => {
 The RESULT block below was produced by running the user's question through a query engine. The counting is already done and it is authoritative. Your job is to read the relevant number out of it and say it plainly, then add one short line of insight if there is an obvious one. Never recount, never estimate, never invent a figure that is not in the block.
 ${scopeNote ? `\nSCOPE (strict): ${scopeNote}\n` : ''}${planNote ? `\n${planNote}\n` : ''}
 HOW TO READ THE RESULT:
-- If "entities" is present, the user named a specific supplier or buyer and it was resolved for you. Each entity carries figures for today, yesterday, last_7_days, last_30_days, this_month, last_month and all_time. "How many sold for X yesterday" is entities[0].yesterday.sold. "How many did X get this week" is entities[0].last_7_days.total. Answer from here first.
+- If "entities" is present, the user named a specific supplier or buyer and it was resolved for you. Answer from here first.
+- Each entity carries a "requested_period" block. That is the exact window the user asked about, already computed, with "resolved_to" naming which window it was. If requested_period is present it IS the answer to the period they asked about. Never say the data does not specify a period when requested_period is populated.
+- Each entity also carries today, yesterday, this_week, last_week, last_7_days, last_30_days, this_month, last_month and all_time, so a follow-up about a different window needs no new query. "How many sold for X yesterday" is entities[0].yesterday.sold.
+- this_week is the calendar week, Sunday through today. last_7_days is a rolling seven day window. They are different numbers and both are correct for their own question. If the user's wording is ambiguous, give the one in requested_period and note the other in a short clause rather than refusing.
 - "totals_for_period" covers the window the user asked about, across everything.
 - "groups" is the breakdown when the question sliced by a dimension. Keys are the dimension values.
 - "overall" holds the standard windows as a fallback if the question drifts to another period.
