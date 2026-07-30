@@ -11,7 +11,7 @@
     "known_risks": [],
     "human_notes": ""
   },
-  "updated_at": "2026-07-30T08:57:07.536Z",
+  "updated_at": "2026-07-30T08:58:23.776Z",
   "pages": {
     "ad-manager": {
       "criticality": "normal",
@@ -338,7 +338,33 @@
       "route": "/docs/versioning",
       "title": "Versioning & Changelog"
     },
-    "root": {
+    "not-found": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "*",
+      "title": "Not found"
+    },
+    "not-found-dashboard-1": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "*",
+      "title": "Not found"
+    },
+    "not-found-dashboard-2": {
       "criticality": "normal",
       "readiness_weight": null,
       "business_owner": "",
@@ -857,6 +883,32 @@
       "human_notes": "",
       "route": "/suppliers/:id",
       "title": "Legacy Supplier Redirect"
+    },
+    "overview-root": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/",
+      "title": "Overview"
+    },
+    "overview-root-dashboard-1": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/",
+      "title": "Overview"
     },
     "reports": {
       "criticality": "normal",
