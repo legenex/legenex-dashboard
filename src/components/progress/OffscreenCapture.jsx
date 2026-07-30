@@ -75,20 +75,7 @@ export function visualLayouts(layouts) {
 }
 
 // Parse the inline props the router passes, for example view="sold".
-export function parseProps(raw) {
-  const out = {};
-  if (!raw) return out;
-  const re = /([A-Za-z_][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
-  let m;
-  while ((m = re.exec(raw))) {
-    const value = m[2] ?? m[3] ?? m[4];
-    if (value === undefined) continue;
-    out[m[1]] = value.trim().replace(/^['"]|['"]$/g, '');
-  }
-  return out;
-}
-
-function findModule(modules, name) {
+export function findModule(modules, name) {
 
   return Object.keys(modules).find((k) => k.endsWith(`/${name}.jsx`));
 }
