@@ -734,7 +734,7 @@ if (meta.added > 0 || !existsSync(METADATA_PATH)) {
 const SLIM_FIELDS = [
   'page_key', 'section_key', 'section_label', 'title', 'route', 'parent_route', 'tab',
   'host_scope', 'portal_scope', 'route_type', 'redirect_to', 'component', 'component_path',
-  'auth', 'nav_visibility', 'permission_key',
+  'auth', 'nav_visibility', 'permission_key', 'layouts', 'component_props',
 ];
 const slimPages = inventory.pages.map((p) => {
   const out = {};

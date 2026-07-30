@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider } from '@/lib/AuthContext';
@@ -105,6 +105,11 @@ function makeHost(width) {
   host.setAttribute('data-offscreen-capture', 'true');
   Object.assign(host.style, {
     position: 'fixed',
+    // An ancestor with a transform becomes the containing block for
+    // position:fixed descendants. The operator Sidebar is fixed, so without this
+    // it would anchor to the real viewport instead of the capture container and
+    // land outside the frame.
+    transform: 'translateZ(0)',
     // Kept at the document origin rather than pushed to left: -100000px.
     // html2canvas crops relative to the document, so an element parked far
     // outside it produced an empty canvas. Invisible via opacity and a negative
@@ -157,28 +162,52 @@ export async function captureOffscreen(page, {
   let root = null;
   let renderError = null;
 
+  // Sidebar writes --sidebar-width on the document element. Capturing must not
+  // leave the real page's layout shifted, so the value is restored afterwards.
+  const priorSidebarWidth = document.documentElement.style.getPropertyValue('--sidebar-width');
+
   try {
     const Component = await loadComponent(page.component_path);
     const props = parseProps(page.component_props);
+    let layouts = page.layouts;
+    if (typeof layouts === 'string') {
+      try { layouts = JSON.parse(layouts); } catch { layouts = []; }
+    }
+    const SectionLayout = await loadSectionLayout(layouts);
+
     host = makeHost(width);
     root = createRoot(host);
 
-    // The page gets its own router seeded with the real route so useSearchParams
-    // and useNavigate behave, and shares the live query client and auth so it
-    // renders the same data you would see.
+    // Rendered inside the real chrome: sidebar, section sub-menu, then the page.
+    // A screenshot of the page body alone is not what anyone reviews, since half
+    // the things worth commenting on live in the navigation.
+    const page_ = (
+      <CaptureBoundary onError={(e) => { renderError = e; }}>
+        <Component {...props} />
+      </CaptureBoundary>
+    );
+
     await new Promise((resolve) => {
       root.render(
         <AuthProvider>
           <QueryClientProvider client={queryClientInstance}>
             <MemoryRouter initialEntries={[page.route || '/']}>
-              <CaptureBoundary onError={(e) => { renderError = e; }}>
-                <Component {...props} />
-              </CaptureBoundary>
+              <Routes>
+                <Route element={<CaptureShell />}>
+                  {SectionLayout ? (
+                    <Route element={<SectionLayout />}>
+                      <Route path="*" element={page_} />
+                    </Route>
+                  ) : (
+                    <Route path="*" element={page_} />
+                  )}
+                </Route>
+              </Routes>
             </MemoryRouter>
           </QueryClientProvider>
         </AuthProvider>,
       );
-      setTimeout(resolve, 60);
+      setTimeout(resolve, 80);
     });
 
     if (renderError) throw renderError;
@@ -215,6 +244,11 @@ export async function captureOffscreen(page, {
   } finally {
     if (root) { try { root.unmount(); } catch { /* already gone */ } }
     if (host && host.parentNode) host.parentNode.removeChild(host);
+    if (priorSidebarWidth) {
+      document.documentElement.style.setProperty('--sidebar-width', priorSidebarWidth);
+    } else {
+      document.documentElement.style.removeProperty('--sidebar-width');
+    }
   }
 }
 
