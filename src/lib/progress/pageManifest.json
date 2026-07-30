@@ -1,13 +1,6 @@
 {
   "generated_at": "2026-07-30T09:34:15.116Z",
-  "generator": "scripts/generate-page-inventory.mjs",
   "app_commit": "42f1b0caa4a6bdb566827a2030cc85c894ab3759",
-  "sources": [
-    "src/App.jsx",
-    "src/components/layout/navConfig.js",
-    "src/lib/permissions.js",
-    "src/components/docs/docsConfig.jsx"
-  ],
   "counts": {
     "total": 103,
     "by_type": {
