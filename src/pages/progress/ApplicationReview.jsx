@@ -138,6 +138,9 @@ export default function ApplicationReview() {
         description={`${pages.length} surfaces derived from the router, nav and permission config. Select one to review it.`}
         actions={(can('progress_write') || can('progress_admin')) ? (
           <div className="flex flex-wrap items-center gap-2">
+            <SecondaryButton onClick={() => setTreeOpen(!treeOpen)}>
+              {treeOpen ? 'Hide list' : 'Show list'}
+            </SecondaryButton>
             {capture.running && (
               <SecondaryButton onClick={capture.cancel}>Stop</SecondaryButton>
             )}
@@ -185,7 +188,7 @@ export default function ApplicationReview() {
 
       <div className={`grid grid-cols-1 gap-4 ${treeOpen ? 'lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]' : 'lg:grid-cols-1'}`}>
         {/* Tree */}
-        <Card className="h-fit lg:sticky lg:top-4">
+        <Card className={`h-fit lg:sticky lg:top-4 ${treeOpen ? '' : 'hidden'}`}>
           <div className="border-b border-border p-3">
             <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
               <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -299,6 +302,7 @@ export default function ApplicationReview() {
               threads={threadsByPage[selected.page_key] || []}
               verifications={verifsByPage[selected.page_key] || []}
               snapshots={snapsByPage[selected.page_key] || []}
+              capture={capture}
             />
           )}
         </div>
@@ -316,7 +320,7 @@ export default function ApplicationReview() {
  * could already see and pushed the actual work below the fold.
  * ---------------------------------------------------------------- */
 
-function PageWorkspace({ page, findings, threads, verifications, snapshots = [] }) {
+function PageWorkspace({ page, findings, threads, verifications, snapshots = [], capture }) {
   const { can } = usePermissions();
   const pageMutation = useProgressMutation('ProgressPage', 'progress-pages');
   const threadMutation = useProgressMutation('ReviewThread', 'progress-threads');
@@ -376,7 +380,13 @@ function PageWorkspace({ page, findings, threads, verifications, snapshots = [] 
 
       {/* The review itself: screenshot beside the task list. */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
-        <VisualReview page={page} snapshots={snapshots} threads={threads} />
+        <VisualReview
+          page={page}
+          snapshots={snapshots}
+          threads={threads}
+          capturing={capture?.running}
+          onRecapture={(viewports) => capture?.run([page], { viewports, label: page.title })}
+        />
         <TaskSidebar page={page} threads={threads} findings={findings} />
       </div>
 
