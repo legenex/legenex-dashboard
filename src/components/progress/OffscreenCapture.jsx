@@ -46,8 +46,13 @@ const LAYOUT_PATHS = {
 // sync on mount and would write ad spend rows once per captured page.
 const SKIP_LAYOUTS = new Set(['ProtectedRoute', 'PermissionRoute', 'AppLayout']);
 
+// Pure, so it can be tested without a browser.
+export function pickSectionLayoutName(layouts) {
+  return (layouts || []).find((l) => !SKIP_LAYOUTS.has(l) && LAYOUT_PATHS[l]) || null;
+}
+
 async function loadSectionLayout(layouts) {
-  const name = (layouts || []).find((l) => !SKIP_LAYOUTS.has(l) && LAYOUT_PATHS[l]);
+  const name = pickSectionLayoutName(layouts);
   if (!name) return null;
   const loader = LAYOUT_MODULES[LAYOUT_PATHS[name]];
   if (!loader) return null;
@@ -64,7 +69,7 @@ export const CAPTURE_WIDTHS = {
 export const ALL_VIEWPORTS = ['desktop', 'tablet', 'mobile'];
 
 // Parse the inline props the router passes, e.g. view="sold".
-function parseProps(raw) {
+export function parseProps(raw) {
   const out = {};
   if (!raw) return out;
   const re = /([A-Za-z_][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;

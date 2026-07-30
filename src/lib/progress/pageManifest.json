@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T22:38:07.924Z",
-  "app_commit": "9006dc91f620e625080259e30d752986053050aa",
+  "generated_at": "2026-07-30T22:41:13.961Z",
+  "app_commit": "77cd333feba7ba53586e9877f323b3d601501c2b",
   "counts": {
     "total": 116,
     "by_type": {
@@ -65,7 +65,7 @@
       "component_props": null,
       "entity_count": 4,
       "function_count": 2,
-      "dependency_count": 61
+      "dependency_count": 62
     },
     {
       "page_key": "ad-manager-builder",
@@ -93,7 +93,7 @@
       "component_props": null,
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 56
+      "dependency_count": 57
     },
     {
       "page_key": "ad-manager-creative-analyzer",
@@ -121,7 +121,7 @@
       "component_props": null,
       "entity_count": 4,
       "function_count": 2,
-      "dependency_count": 65
+      "dependency_count": 66
     },
     {
       "page_key": "ad-manager-reports",
@@ -149,7 +149,7 @@
       "component_props": null,
       "entity_count": 4,
       "function_count": 2,
-      "dependency_count": 61
+      "dependency_count": 62
     },
     {
       "page_key": "forgot-password",
@@ -856,7 +856,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-adspend",
@@ -884,7 +884,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-bank",
@@ -912,7 +912,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-invoices",
@@ -940,7 +940,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-overview",
@@ -968,7 +968,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-payments",
@@ -996,7 +996,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-payouts",
@@ -1024,7 +1024,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-profit",
@@ -1052,7 +1052,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "finances-tab-settings",
@@ -1080,7 +1080,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "campaigns",
@@ -1108,7 +1108,7 @@
       "component_props": null,
       "entity_count": 15,
       "function_count": 0,
-      "dependency_count": 102
+      "dependency_count": 103
     },
     {
       "page_key": "campaigns-deliveries",
@@ -1136,7 +1136,7 @@
       "component_props": "to=\"/campaigns\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 43
+      "dependency_count": 44
     },
     {
       "page_key": "conversion-events",
@@ -1164,7 +1164,7 @@
       "component_props": null,
       "entity_count": 7,
       "function_count": 0,
-      "dependency_count": 75
+      "dependency_count": 76
     },
     {
       "page_key": "deliveries",
@@ -1192,7 +1192,7 @@
       "component_props": null,
       "entity_count": 8,
       "function_count": 0,
-      "dependency_count": 76
+      "dependency_count": 77
     },
     {
       "page_key": "distribution",
@@ -1220,7 +1220,7 @@
       "component_props": null,
       "entity_count": 7,
       "function_count": 0,
-      "dependency_count": 58
+      "dependency_count": 59
     },
     {
       "page_key": "distribution-buyers",
@@ -1248,7 +1248,7 @@
       "component_props": "to=\"/operations/buyers\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 43
+      "dependency_count": 44
     },
     {
       "page_key": "distribution-buyers-id",
@@ -1276,7 +1276,7 @@
       "component_props": "to=\"/operations/buyers\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 43
+      "dependency_count": 44
     },
     {
       "page_key": "distribution-routes",
@@ -1304,7 +1304,7 @@
       "component_props": null,
       "entity_count": 6,
       "function_count": 2,
-      "dependency_count": 66
+      "dependency_count": 67
     },
     {
       "page_key": "distribution-simulator",
@@ -1332,7 +1332,7 @@
       "component_props": null,
       "entity_count": 1,
       "function_count": 1,
-      "dependency_count": 58
+      "dependency_count": 59
     },
     {
       "page_key": "leads",
@@ -1360,7 +1360,7 @@
       "component_props": "view=\"all\"",
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 87
+      "dependency_count": 88
     },
     {
       "page_key": "leads-disqualified",
@@ -1388,7 +1388,7 @@
       "component_props": "view=\"disqualified\"",
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 87
+      "dependency_count": 88
     },
     {
       "page_key": "leads-queued",
@@ -1416,7 +1416,7 @@
       "component_props": "view=\"queued\"",
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 87
+      "dependency_count": 88
     },
     {
       "page_key": "leads-rejected",
@@ -1444,7 +1444,7 @@
       "component_props": "view=\"rejected\"",
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 87
+      "dependency_count": 88
     },
     {
       "page_key": "leads-rejections",
@@ -1471,7 +1471,7 @@
       "component_props": "to=\"/leads/rejected\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "leads-sold",
@@ -1499,7 +1499,7 @@
       "component_props": "view=\"sold\"",
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 87
+      "dependency_count": 88
     },
     {
       "page_key": "leads-unsold",
@@ -1527,7 +1527,7 @@
       "component_props": "view=\"unsold\"",
       "entity_count": 4,
       "function_count": 0,
-      "dependency_count": 87
+      "dependency_count": 88
     },
     {
       "page_key": "operations",
@@ -1555,7 +1555,7 @@
       "component_props": null,
       "entity_count": 1,
       "function_count": 1,
-      "dependency_count": 54
+      "dependency_count": 55
     },
     {
       "page_key": "operations-active-states",
@@ -1583,7 +1583,7 @@
       "component_props": null,
       "entity_count": 5,
       "function_count": 0,
-      "dependency_count": 68
+      "dependency_count": 69
     },
     {
       "page_key": "operations-billing-reports",
@@ -1611,7 +1611,7 @@
       "component_props": null,
       "entity_count": 4,
       "function_count": 1,
-      "dependency_count": 69
+      "dependency_count": 70
     },
     {
       "page_key": "operations-buyer-onboarding",
@@ -1639,7 +1639,7 @@
       "component_props": null,
       "entity_count": 3,
       "function_count": 1,
-      "dependency_count": 67
+      "dependency_count": 68
     },
     {
       "page_key": "operations-buyers",
@@ -1667,7 +1667,7 @@
       "component_props": null,
       "entity_count": 10,
       "function_count": 4,
-      "dependency_count": 97
+      "dependency_count": 98
     },
     {
       "page_key": "operations-suppliers",
@@ -1695,7 +1695,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 3,
-      "dependency_count": 101
+      "dependency_count": 102
     },
     {
       "page_key": "operations-verticals",
@@ -1723,7 +1723,7 @@
       "component_props": null,
       "entity_count": 1,
       "function_count": 0,
-      "dependency_count": 62
+      "dependency_count": 63
     },
     {
       "page_key": "buyers",
@@ -1750,7 +1750,7 @@
       "component_props": "to=\"/campaigns?tab=buyers\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "buyers-id",
@@ -1777,7 +1777,7 @@
       "component_props": null,
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "errors",
@@ -1804,7 +1804,7 @@
       "component_props": "to=\"/settings?tab=errors\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "lead-distribution",
@@ -1831,7 +1831,7 @@
       "component_props": "to=\"/campaigns\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "queue-recovery",
@@ -1858,7 +1858,7 @@
       "component_props": null,
       "entity_count": 2,
       "function_count": 0,
-      "dependency_count": 46
+      "dependency_count": 47
     },
     {
       "page_key": "suppliers",
@@ -1885,7 +1885,7 @@
       "component_props": "to=\"/campaigns?tab=suppliers\" replace",
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "suppliers-id",
@@ -1912,7 +1912,7 @@
       "component_props": null,
       "entity_count": 0,
       "function_count": 0,
-      "dependency_count": 38
+      "dependency_count": 39
     },
     {
       "page_key": "overview-root",
@@ -1962,7 +1962,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 2,
-      "dependency_count": 70
+      "dependency_count": 71
     },
     {
       "page_key": "progress",
@@ -2214,7 +2214,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-ad",
@@ -2241,7 +2241,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-buyer",
@@ -2268,7 +2268,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-campaign",
@@ -2295,7 +2295,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-daily",
@@ -2322,7 +2322,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-performance-overview",
@@ -2349,7 +2349,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-pnl",
@@ -2376,7 +2376,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "reports-tab-supplier",
@@ -2403,7 +2403,7 @@
       "component_props": null,
       "entity_count": 12,
       "function_count": 0,
-      "dependency_count": 85
+      "dependency_count": 86
     },
     {
       "page_key": "settings",
@@ -2430,7 +2430,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-apikeys",
@@ -2457,7 +2457,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-billing",
@@ -2484,7 +2484,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-chatbot",
@@ -2511,7 +2511,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-dashboard",
@@ -2538,7 +2538,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-data-sources",
@@ -2565,7 +2565,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-errors",
@@ -2592,7 +2592,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-field-mapping",
@@ -2619,7 +2619,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-fields",
@@ -2646,7 +2646,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-general",
@@ -2673,7 +2673,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-inbound-webhooks",
@@ -2700,7 +2700,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-integrations",
@@ -2727,7 +2727,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-knowledge",
@@ -2754,7 +2754,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-profile",
@@ -2781,7 +2781,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "settings-tab-users",
@@ -2808,7 +2808,7 @@
       "component_props": null,
       "entity_count": 24,
       "function_count": 8,
-      "dependency_count": 107
+      "dependency_count": 108
     },
     {
       "page_key": "supplier-portal",
@@ -2992,7 +2992,7 @@
       "component_props": null,
       "entity_count": 8,
       "function_count": 0,
-      "dependency_count": 70
+      "dependency_count": 71
     },
     {
       "page_key": "notifications",
@@ -3020,7 +3020,7 @@
       "component_props": null,
       "entity_count": 7,
       "function_count": 0,
-      "dependency_count": 60
+      "dependency_count": 61
     },
     {
       "page_key": "payload-tester",
@@ -3048,7 +3048,7 @@
       "component_props": null,
       "entity_count": 5,
       "function_count": 0,
-      "dependency_count": 58
+      "dependency_count": 59
     },
     {
       "page_key": "tools",
@@ -3076,7 +3076,7 @@
       "component_props": null,
       "entity_count": 6,
       "function_count": 0,
-      "dependency_count": 54
+      "dependency_count": 55
     },
     {
       "page_key": "verification",
@@ -3104,7 +3104,7 @@
       "component_props": null,
       "entity_count": 7,
       "function_count": 0,
-      "dependency_count": 65
+      "dependency_count": 66
     }
   ]
 }

@@ -42,7 +42,7 @@ const PII_SELECTORS = [
 
 const blockOut = (text) => (text || '').replace(/\S/g, '\u2022');
 
-function maskText(value) {
+export function maskText(value) {
   if (!value) return { text: value, hits: 0 };
   let hits = 0;
   let out = value;
