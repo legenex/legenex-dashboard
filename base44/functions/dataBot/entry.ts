@@ -127,7 +127,7 @@ async function planQuery(question, history, directory) {
       },
       period: {
         type: 'string',
-        enum: ['today', 'yesterday', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'all_time', 'custom'],
+        enum: ['today', 'yesterday', 'this_week', 'last_week', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'all_time', 'custom'],
       },
       start_date: { type: 'string', description: 'YYYY-MM-DD, only when period is custom' },
       end_date: { type: 'string', description: 'YYYY-MM-DD, only when period is custom' },
@@ -139,7 +139,9 @@ async function planQuery(question, history, directory) {
   const convo = history.slice(-4).map((m) => `${m.role === 'user' ? 'User' : 'DataBot'}: ${String(m.content).slice(0, 300)}`).join('\n');
   const system = `You convert questions about a lead-management platform into a structured query spec. You never answer the question yourself and you never invent numbers.
 
-Period mapping: "today"=today, "yesterday"=yesterday, "this week"/"past week"/"last 7 days"=last_7_days, "last 30 days"=last_30_days, "this month"/"month to date"=this_month, "last month"=last_month, "overall"/"ever"/"in total"/"all time"=all_time. A specific date or date range is custom. When no period is stated, use all_time.
+Period mapping: "today"=today, "yesterday"=yesterday, "this week"/"week to date"/"so far this week"=this_week (the calendar week, Sunday to today), "last week"=last_week (the previous full calendar week), "past 7 days"/"last 7 days"/"the last week" as a rolling window=last_7_days, "last 30 days"=last_30_days, "this month"/"month to date"=this_month, "last month"=last_month, "overall"/"ever"/"in total"/"all time"=all_time. A specific date or date range is custom. When no period is stated, use all_time.
+
+this_week and last_7_days are different windows and must not be treated as interchangeable. Prefer this_week when the user says "this week", and last_7_days only when they clearly mean a rolling seven day window.
 
 entity_refs: copy the supplier or buyer token exactly as the user typed it. Do not correct spelling or casing, the resolver handles that. Only include tokens that plausibly name a supplier or buyer from the directory.
 
@@ -524,11 +526,25 @@ Deno.serve(async (req) => {
       };
 
       // ---- Period resolution ---------------------------------------------
+      // Calendar week runs Sunday to Saturday, the US convention, and the
+      // result labels it so an answer can state the assumption. Regina has no
+      // DST so day offsets are exact arithmetic.
+      const weekdayFmt = new Intl.DateTimeFormat('en-US', { timeZone: APP_TZ, weekday: 'short' });
+      const dowIndex = () => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekdayFmt.format(new Date()));
+
       const allDayKeys = () => null; // null means no date filter
       const periodDays = (period, start, end) => {
         if (period === 'all_time') return allDayKeys();
         if (period === 'today') return [todayKey];
         if (period === 'yesterday') return [yesterdayKey];
+        if (period === 'this_week') {
+          const n = Math.max(dowIndex(), 0);
+          return Array.from({ length: n + 1 }, (_, i) => dayKeyOffset(i));
+        }
+        if (period === 'last_week') {
+          const n = Math.max(dowIndex(), 0);
+          return Array.from({ length: 7 }, (_, i) => dayKeyOffset(n + 1 + i));
+        }
         if (period === 'last_7_days') return Array.from({ length: 7 }, (_, i) => dayKeyOffset(i));
         if (period === 'last_30_days') return Array.from({ length: 30 }, (_, i) => dayKeyOffset(i));
         if (period === 'this_month') return { prefix: todayKey.slice(0, 7) };
@@ -614,7 +630,7 @@ Deno.serve(async (req) => {
       // Per-entity figures, always across the standard periods so a follow-up
       // question about a different window is already covered.
       if (resolved.length) {
-        const stdPeriods = ['today', 'yesterday', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'all_time'];
+        const stdPeriods = ['today', 'yesterday', 'this_week', 'last_week', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'all_time'];
         result.entities = resolved.slice(0, 6).map((rec) => {
           const rows = leads.filter((l) => matchesEntity(l, rec));
           const out: any = {
@@ -628,7 +644,9 @@ Deno.serve(async (req) => {
           for (const p of stdPeriods) {
             out[p] = econ(rows.filter((l) => inPeriod(l, periodDays(p))));
           }
-          if (period === 'custom') out.requested_period = econ(rows.filter((l) => inPeriod(l, daySpec)));
+          // Always echo the exact window that was asked about, so there is
+          // never a gap between the user's wording and a key in this object.
+          out.requested_period = { resolved_to: period, ...econ(rows.filter((l) => inPeriod(l, daySpec))) };
           return out;
         });
         result.entity_note = 'These entities were resolved from the question by name, sid, ssid, buyer_code or id. Their figures are authoritative. Answer from here.';
