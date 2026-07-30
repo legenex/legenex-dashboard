@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T21:38:15.321Z",
+  "generated_at": "2026-07-30T22:04:07.748Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "cc878a39d0cdbb080e9d7edce7858baa1b3a7630",
+  "app_commit": "c947e0ace37fc7dd1c9970b3f42915ccc9e6f5e2",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
