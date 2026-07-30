@@ -142,6 +142,11 @@ export async function rasterise(target, { mask = true, width } = {}) {
     scale: Math.min(window.devicePixelRatio || 1, 1.5),
     windowWidth: width || document.documentElement.clientWidth,
     width: width || undefined,
+    // Without an explicit height a tall page is cropped to the viewport. The
+    // element's own scroll height is the whole page.
+    height: width ? Math.max(target.scrollHeight || 0, 600) : undefined,
+    scrollX: 0,
+    scrollY: 0,
     onclone: (clonedDoc) => {
       if (mask) {
         try { maskCount = maskClone(clonedDoc); } catch { maskCount = -1; }

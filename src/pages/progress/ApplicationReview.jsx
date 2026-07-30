@@ -171,7 +171,7 @@ export default function ApplicationReview() {
               <span className="text-[12px] text-foreground">
                 {capture.running
                   ? `Capturing ${capture.progress.label}: ${capture.progress.done} of ${capture.progress.total}`
-                  : `${capture.progress.done} captured${capture.progress.failed ? `, ${capture.progress.failed} failed` : ''}${capture.progress.cancelled ? ', stopped' : ''}`}
+                  : `${capture.progress.done - capture.progress.failed} captured, ${capture.progress.failed} failed of ${capture.progress.done} attempted${capture.progress.cancelled ? ', stopped early' : ''}`}
               </span>
               {capture.progress.current && (
                 <span className="text-[11px] text-muted-foreground">{capture.progress.current}</span>
