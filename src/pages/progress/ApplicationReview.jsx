@@ -13,7 +13,7 @@ import {
 import { sortSections } from '@/components/progress/progressNav';
 import {
   ProgressPageHeader, Card, CardHeader, CardBody, Badge, EmptyState, Row,
-  PrimaryButton, SecondaryButton, LoadingBlock, ReadinessBar, toneForReadiness,
+  PrimaryButton, LoadingBlock, ReadinessBar, toneForReadiness,
   LIFECYCLE_LABEL, LIFECYCLE_TONE, PRIORITY_TONE, EvidenceBadge,
 } from '@/components/progress/progressUi';
 
