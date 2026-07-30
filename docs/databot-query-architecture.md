@@ -64,6 +64,37 @@ Available windows: `today`, `yesterday`, `this_week`, `last_week`, `last_7_days`
 
 Every resolved entity also carries a `requested_period` block echoing the exact window that was asked about, with `resolved_to` naming it. This closes the gap between the user's wording and the key names in the result object, which is what caused the model to hedge even when it held the number.
 
+## Deterministic inference beats the planner
+
+The planner is an LLM and it drifts. Two failures were observed in live testing on 30 July 2026:
+
+- It returned `group_by: none` for questions that plainly sliced by a dimension, so the answer degraded to a bare period total.
+- It returned `all_time` for a question that said "this month", after which the narrator reported a June date as this month's best day. The date was real; the window was not.
+
+Both are now backstopped by regex inference read straight off the question text. Group inference only fills a gap and an explicit planner choice wins. Period inference OVERRIDES the planner, because plain wording like "this month" is not ambiguous and the planner has been caught getting it wrong.
+
+`period_bounds` reports the earliest and latest day actually inside the window, and the narrator is instructed never to cite a date outside them. That is the second line of defence against the same class of error.
+
+## Conversation history is not a data source
+
+Past conversations contribute the user's QUESTIONS only, never past assistant answers. Feeding old answers back caused the model to reuse figures computed for a different question: asked which BUYER had the worst conversion rate, it answered "LeadFlow" (a supplier) at 45.7%, lifted verbatim from an earlier supplier answer.
+
+An earlier patch tried to fix this by filtering out past messages containing the phrase "data does not specify". That suppressed the evidence rather than the cause and has been removed.
+
+## Cost basis is a correctness constraint
+
+`econ()` derives `lead_cost`, `profit`, `margin_pct` and `cpl` from per-lead cost fields only. Internal suppliers never carry a per-lead price: LeadFlow settles on a 30 percent profit share of window revenue minus window cost, and Legenex has no mapped ad accounts so its cost reads as zero. Every margin figure covering internal supply therefore excludes the real cost base.
+
+Left alone, the bot reported a 99.6 percent margin for LeadFlow and, when challenged with the profit-share rule, used the rule to JUSTIFY the number. The `cost_basis` field in the result is now a hard instruction: state what the figure excludes, and when asked whether such a margin is real, say no and point at Finances.
+
+The durable fix is to fold period ad spend into the cost base for internal suppliers. That depends on the AdSpend level filter being confirmed correct first.
+
+## The 19 July bulk import
+
+Roughly 605 of 1,335 non-archived leads were written in a single batch on 19 July 2026, many within the same second. They carry ISO-format `timestamp` values in the bag pointing at their original event dates, which predate July.
+
+This is why `all_time` is far larger than the sum of the dated windows, and why `last_month` legitimately reads zero. It is correct behaviour, not a bug, but any all-time figure should not be read as current trading. A comparison against an empty window is not evidence of improvement.
+
 ## Counting rules
 
 Unchanged and matching the dashboard. Archived leads are excluded, they are retired duplicates. CPL is cost per SOLD lead. Conversion is sold over total received. Ad spend is deduplicated to account level so campaign and ad rows are not double counted.
