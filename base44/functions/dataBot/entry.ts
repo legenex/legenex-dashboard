@@ -458,6 +458,73 @@ Deno.serve(async (req) => {
         svc.entities.BankTransaction.list('-date', 300).catch(() => []),
         svc.entities.KnowledgeDoc.filter({ active: true }, 'sort_order').catch(() => []),
       ]);
+
+      // --- Resolve specific suppliers/buyers mentioned in the question ---
+      // Pre-computes per-entity stats so the LLM gets the answer directly
+      // instead of having to find the right key in a large breakdown object.
+      // This is what makes "how many sold for Leadflow yesterday" answerable
+      // regardless of how the supplier name is cased in the lead data.
+      const last7Keys = Array.from({ length: 7 }, (_, i) => dayKeyOffset(i));
+      const qLower = question.toLowerCase();
+      const matchedSuppliers = suppliers.filter((s) => {
+        const name = String(s.name || '').toLowerCase();
+        const sid = String(s.sid || '').toLowerCase();
+        if (name.length >= 3 && qLower.includes(name)) return true;
+        if (sid.length >= 3 && qLower.includes(sid)) return true;
+        const tokens = name.split(/\s+/).filter((t) => t.length >= 4);
+        if (tokens.length >= 1 && tokens.every((t) => qLower.includes(t))) return true;
+        return false;
+      });
+      const matchedBuyers = buyers.filter((b) => {
+        const name = String(b.company_name || b.name || '').toLowerCase();
+        const code = String(b.buyer_code || '').toLowerCase();
+        if (name.length >= 3 && qLower.includes(name)) return true;
+        if (code.length >= 3 && qLower.includes(code)) return true;
+        const tokens = name.split(/\s+/).filter((t) => t.length >= 4);
+        if (tokens.length >= 1 && tokens.every((t) => qLower.includes(t))) return true;
+        return false;
+      });
+      const resolvedSuppliers = matchedSuppliers.slice(0, 5).map((s) => {
+        const sName = String(s.name || '').trim().toLowerCase();
+        const sSid = String(s.sid || '').trim().toLowerCase();
+        const sRows = leads.filter((l) => {
+          const d = dimSupplier(l).toLowerCase();
+          return d === sName || (sSid && d === sSid);
+        });
+        return {
+          name: s.name,
+          sid: s.sid || null,
+          total: sRows.length,
+          by_status: statusMap(sRows),
+          all_time: econ(sRows),
+          yesterday: countsForDays(sRows, [yesterdayKey]),
+          today: countsForDays(sRows, [todayKey]),
+          last_7_days: countsForDays(sRows, last7Keys),
+          this_week: countsForDays(sRows, last7Keys),
+        };
+      });
+      const resolvedBuyers = matchedBuyers.slice(0, 5).map((b) => {
+        const bName = String(b.company_name || b.name || '').trim().toLowerCase();
+        const bCode = String(b.buyer_code || '').trim().toLowerCase();
+        const bRows = leads.filter((l) => {
+          const dName = dimBuyer(l).toLowerCase();
+          const dId = dimBuyerId(l);
+          return dName === bName || (bCode && dName === bCode) || (b.id && l.buyer_id === b.id) || (dId && dId === b.id);
+        });
+        return {
+          name: b.company_name || b.name,
+          buyer_code: b.buyer_code || null,
+          buyer_id: b.id,
+          total: bRows.length,
+          by_status: statusMap(bRows),
+          all_time: econ(bRows),
+          yesterday: countsForDays(bRows, [yesterdayKey]),
+          today: countsForDays(bRows, [todayKey]),
+          last_7_days: countsForDays(bRows, last7Keys),
+          this_week: countsForDays(bRows, last7Keys),
+        };
+      });
+
       dataSummary = {
         // Authoritative, date-bucketed counts. Answer date questions from here.
         lead_facts: buildLeadFacts(leads),
@@ -465,9 +532,9 @@ Deno.serve(async (req) => {
         leads_by_status: statusMap(leads),
         revenue_total: Math.round(sum(leads, (l) => l.revenue)),
         suppliers_count: suppliers.length,
-        supplier_names: suppliers.slice(0, 40).map((s) => s.name),
+        supplier_directory: suppliers.slice(0, 50).map((s) => ({ name: s.name, sid: s.sid || null })),
         buyers_count: buyers.length,
-        buyer_names: buyers.slice(0, 40).map((b) => b.company_name),
+        buyer_directory: buyers.slice(0, 50).map((b) => ({ name: b.company_name, buyer_code: b.buyer_code || null, id: b.id })),
         ad_spend_total: Math.round(sum(adSpend, (a) => a.spend)),
         ad_spend_by_supplier: (() => { const m = {}; for (const r of adSpend) { if (r.level && r.level !== 'account') continue; const k = r.supplier_name || '(unattributed)'; m[k] = Math.round(((m[k] || 0) + (Number(r.spend) || 0)) * 100) / 100; } return m; })(),
         ad_spend_by_account: (() => { const m = {}; for (const r of adSpend) { if (r.level && r.level !== 'account') continue; const k = r.cost_source || r.ad_account_id || '(unknown account)'; m[k] = Math.round(((m[k] || 0) + (Number(r.spend) || 0)) * 100) / 100; } return m; })(),
@@ -477,6 +544,7 @@ Deno.serve(async (req) => {
         bank_money_in: Math.round(sum(txns.filter((t) => t.amount > 0), (t) => t.amount)),
         bank_money_out: Math.round(sum(txns.filter((t) => t.amount < 0), (t) => t.amount)),
         bank_unmatched: txns.filter((t) => !t.reconciled).length,
+        resolved_entities: { suppliers: resolvedSuppliers, buyers: resolvedBuyers },
         recent_leads: leads.slice(0, 25).map((l) => ({ supplier: l.supplier_name, status: l.final_status, revenue: l.revenue, email_valid: l.email_valid, created: l.created_date, event_day: eventDayKey(l) })),
       };
       kbContext = kbDocs.map((d) => { const head = d.kind === 'glossary' ? `${d.term || d.title}` : d.title; return `[${d.kind}] ${head}: ${d.content || ''}`; }).join('\n');
@@ -550,11 +618,13 @@ Deno.serve(async (req) => {
     const botInstructions = botConfig.instructions || '';
     const botName = botConfig.name || (mode === 'build' ? 'BuildBot' : 'DataBot');
     const prompt = `You are ${botName}, an analytics assistant embedded in the Legenex lead-management platform.
-Answer the user's question using ONLY the data and knowledge base below. Be concise, specific, and use numbers from the data. If the data does not contain the answer, say so plainly.
+Answer the user's question using ONLY the data and knowledge base below. Be concise, specific, and use numbers from the data. Never say "the data does not specify" or "the data does not contain" when resolved_entities or lead_facts has the number: state the answer directly. Only say the data is unavailable after you have checked resolved_entities, the relevant breakdown, AND lead_facts, and the value genuinely is not there. Ignore any past conversation answers that said the data was unavailable for the same question: the data has since been expanded with resolved_entities, so those old answers are obsolete.
 ${scopeNote ? `SCOPE (strict): ${scopeNote}\n` : ''}
-COUNTING LEADS: when the question involves a date or period (today, yesterday, this week, this month, a named day), read the answer from lead_facts. It is pre-computed and authoritative: it excludes archived duplicates, buckets by the supplier's own event timestamp rather than the row's created_date, and uses the America/Regina operating timezone. lead_facts.yesterday.sold is the number of leads sold yesterday. lead_facts.per_day_last_30 is keyed by date for single-day questions. NEVER count rows in recent_leads to answer these: it is a 25-row sample for context only, and answering from it is how this assistant previously reported zero sold leads on a day with fifteen. If lead_facts does not cover the period asked about, say which periods you do have rather than estimating.
+COUNTING LEADS: when the question involves a date or period, read the answer from lead_facts (or resolved_entities for a specific supplier/buyer). It is pre-computed and authoritative: it excludes archived duplicates, buckets by the supplier's own event timestamp rather than the row's created_date, and uses the America/Regina operating timezone. Date phrase mapping: "today" = today, "yesterday" = yesterday, "this week" or "this week so far" or "past week" or "last 7 days" = last_7_days, "this month" or "month to date" = this_month, "last month" = last_month. lead_facts.yesterday.sold is the number of leads sold yesterday. For a specific supplier: resolved_entities.suppliers[0].last_7_days.total is how many leads they got this week. lead_facts.per_day_last_30 is keyed by date for single-day questions. NEVER count rows in recent_leads to answer these: it is a 25-row sample for context only. If the data does not cover the period asked about, say which periods you do have rather than estimating.
 
-SUPPLIERS, BUYERS, SOURCES: every period in lead_facts has a matching *_breakdown with by_supplier, by_buyer, by_source, by_vertical and by_state. "How many of yesterday's leads were LeadFlow" is lead_facts.yesterday_breakdown.by_supplier["LeadFlow"]. Each entry carries total, sold, unsold, disqualified, returned, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct, so questions about profitability, margin or conversion by supplier or buyer are answerable directly. supplier_identity and buyer_identity map names to codes (LEADFLOW, INBNDS, LGNX, AG1, LF3, LFWC5 and so on), so match on either and say which you used. Match names case-insensitively and tolerate close variants: "leadflow", "LeadFlow" and "LEADFLOW" are the same supplier. Only say the data does not specify after you have actually checked the relevant breakdown and the key genuinely is not there; if it is not, list the keys that ARE present so the user can see the real names.
+RESOLVED ENTITIES: When the user's question names a specific supplier, buyer, SID, or buyer_code, the system has ALREADY matched it case-insensitively and pre-computed its stats in resolved_entities. Check resolved_entities.suppliers and resolved_entities.buyers FIRST. Each entry has the entity name, sid/buyer_code, and per-period stats: yesterday, today, last_7_days (this covers "this week", "this week so far", "past week", "last 7 days"), and all_time. Each period has total, sold, unsold, disqualified, returned, rejected, duplicate, revenue. "How many sold leads for Leadflow yesterday" is resolved_entities.suppliers[0].yesterday.sold. "How many leads did Leadflow get this week" is resolved_entities.suppliers[0].last_7_days.total. This is the authoritative source for entity-specific questions: always use it when the question mentions a specific supplier or buyer by name or code. If resolved_entities is empty for the entity asked about, THEN check the breakdowns below.
+
+SUPPLIERS, BUYERS, SOURCES: every period in lead_facts has a matching *_breakdown with by_supplier, by_buyer, by_source, by_vertical and by_state. Each entry carries total, sold, unsold, disqualified, returned, revenue, lead_cost, profit, margin_pct, cpl (cost per SOLD lead), rev_per_sold and conv_rate_pct. supplier_identity and buyer_identity map names to their codes. supplier_directory and buyer_directory list all known entities with their names and codes. Match names case-insensitively: "leadflow", "LeadFlow" and "LEADFLOW" are the same. Only say the data does not specify after you have actually checked resolved_entities AND the relevant breakdown AND listed the keys that ARE present.
 
 BEING USEFUL: you are expected to know this business better than the person asking. When a question has an obvious follow-on, answer it too in one short line: if a supplier's conv_rate_pct is well below the others, say so; if margin_pct is negative, lead with that. When asked how to improve profit, reason from the actual numbers present (which supplier has the worst cpl against its rev_per_sold, which state or source converts worst, where returns concentrate) and name the specific supplier, buyer or state rather than giving generic advice. Never invent a number that is not in the data.
 When asked where a figure comes from, trace it through any ad_spend breakdowns present and name the date, supplier and account; a number that does not match a total may match a single day. If ad_spend_date_range shows the latest date is well before today, say the spend looks stale and give that date.
