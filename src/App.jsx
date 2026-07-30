@@ -65,6 +65,8 @@ import Gates from '@/pages/progress/Gates';
 import Findings from '@/pages/progress/Findings';
 import ChangeRequests from '@/pages/progress/ChangeRequests';
 import PromptStudio from '@/pages/progress/PromptStudio';
+import BuildActivity from '@/pages/progress/BuildActivity';
+import ProgressSettings from '@/pages/progress/ProgressSettings';
 
 import PortalLayout from '@/components/portal/PortalLayout';
 import PortalDashboard from '@/pages/portal/PortalDashboard';
@@ -151,6 +153,8 @@ const ProgressRoutes = () => (
     <Route path="/progress/findings" element={<Findings />} />
     <Route path="/progress/changes" element={<ChangeRequests />} />
     <Route path="/progress/prompts" element={<PromptStudio />} />
+    <Route path="/progress/activity" element={<BuildActivity />} />
+    <Route path="/progress/settings" element={<ProgressSettings />} />
   </Route>
 );
 

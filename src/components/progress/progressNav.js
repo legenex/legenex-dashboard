@@ -61,6 +61,7 @@ export const PROGRESS_NAV = [
     to: '/progress/activity',
     icon: Activity,
     permKey: 'progress_access',
+    built: true,
     description: 'What changed, who changed it and what it affected',
   },
   {
@@ -87,6 +88,7 @@ export const PROGRESS_NAV = [
     to: '/progress/settings',
     icon: Cog,
     permKey: 'progress_admin',
+    built: true,
     description: 'Weights, gates, verification requirements, sync',
   },
 ];
