@@ -419,6 +419,20 @@ async function build() {
       : (perms.PATH_KEYS || {})[r.route] || null;
     const deps = componentPath ? scanDependencies(componentPath, depCache) : { entities: [], functions: [], files: [] };
     const isPublic = r.layouts.every((l) => l !== 'ProtectedRoute');
+    // A page also inherits whatever its layout chain fetches. Portal pages read
+    // their data from the layout via useOutletContext, so without this the
+    // manifest would under-report their real backend dependencies. Kept in
+    // separate fields so per page signal is not drowned by shared layout noise.
+    const layoutDeps = { entities: new Set(), functions: new Set(), files: new Set() };
+    r.layouts.forEach((name) => {
+      const spec = imports[name];
+      const lp = spec ? resolveAlias(spec, join(SRC, 'App.jsx')) : null;
+      if (!lp) return;
+      const d = scanDependencies(lp, depCache);
+      d.entities.forEach((x) => layoutDeps.entities.add(x));
+      d.functions.forEach((x) => layoutDeps.functions.add(x));
+      d.files.forEach((x) => layoutDeps.files.add(x));
+    });
 
     pages.push({
       page_key: slugify(r.route),
@@ -443,6 +457,9 @@ async function build() {
       entity_dependencies: deps.entities,
       function_dependencies: deps.functions,
       component_dependencies: deps.files,
+      layout_entity_dependencies: [...layoutDeps.entities].sort().filter((x) => !deps.entities.includes(x)),
+      layout_function_dependencies: [...layoutDeps.functions].sort().filter((x) => !deps.functions.includes(x)),
+      layout_files: [...layoutDeps.files].sort(),
     });
   }
 
@@ -488,6 +505,9 @@ async function build() {
       entity_dependencies: parent?.entity_dependencies || [],
       function_dependencies: parent?.function_dependencies || [],
       component_dependencies: parent?.component_dependencies || [],
+      layout_entity_dependencies: parent?.layout_entity_dependencies || [],
+      layout_function_dependencies: parent?.layout_function_dependencies || [],
+      layout_files: parent?.layout_files || [],
     });
   }
 
@@ -522,6 +542,9 @@ async function build() {
       entity_dependencies: deps.entities,
       function_dependencies: deps.functions,
       component_dependencies: deps.files,
+      layout_entity_dependencies: [],
+      layout_function_dependencies: [],
+      layout_files: [],
     });
   }
 
@@ -532,7 +555,7 @@ async function build() {
   const fileToPages = {};
   pages.forEach((p) => {
     const own = p.component_path ? [p.component_path] : [];
-    [...own, ...(p.component_dependencies || [])].forEach((f) => {
+    [...own, ...(p.component_dependencies || []), ...(p.layout_files || [])].forEach((f) => {
       if (!fileToPages[f]) fileToPages[f] = [];
       if (!fileToPages[f].includes(p.page_key)) fileToPages[f].push(p.page_key);
     });
@@ -670,8 +693,9 @@ if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
 
 const nextJson = JSON.stringify(inventory, null, 2);
 const prev = read(INVENTORY_PATH);
-// Compare ignoring the timestamp so --check does not fail on a fresh clock.
-const strip = (s) => s.replace(/"generated_at":\s*"[^"]*",?\n/, '');
+// Compare ignoring the timestamp so --check does not fail on a fresh clock,
+// and ignoring trailing whitespace so the written newline is not a diff.
+const strip = (s) => s.replace(/"generated_at":\s*"[^"]*",?\n/, '').trim();
 const changed = strip(prev) !== strip(nextJson);
 
 if (CHECK_ONLY) {
