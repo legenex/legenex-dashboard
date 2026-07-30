@@ -47,7 +47,46 @@ const UNCLIP_CSS = `
 [data-offscreen-capture] .sticky, [data-offscreen-capture] .fixed { position: relative !important; }
 `;
 
+export const CAPTURE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 390 };
+export const ALL_VIEWPORTS = ['desktop', 'tablet', 'mobile'];
+
+export function widthFor(viewport) {
+  return CAPTURE_WIDTHS[viewport] || CAPTURE_WIDTHS.desktop;
+}
+
+// Layout routes that must NOT be mounted for a capture.
+//
+// ProtectedRoute and PermissionRoute gate on auth and would redirect the
+// memory router instead of rendering the page. Everything else in the chain is
+// chrome we want in the frame, including AppLayout: its side effects are held
+// off by capture mode, so mounting it is what puts the real sidebar and header
+// in the screenshot.
+const NON_VISUAL_LAYOUTS = new Set(['ProtectedRoute', 'PermissionRoute']);
+
+export function visualLayouts(layouts) {
+  let list = layouts;
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list); } catch { list = []; }
+  }
+  return (list || []).filter((name) => name && !NON_VISUAL_LAYOUTS.has(name));
+}
+
+// Parse the inline props the router passes, for example view="sold".
+export function parseProps(raw) {
+  const out = {};
+  if (!raw) return out;
+  const re = /([A-Za-z_][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
+  let m;
+  while ((m = re.exec(raw))) {
+    const value = m[2] ?? m[3] ?? m[4];
+    if (value === undefined) continue;
+    out[m[1]] = value.trim().replace(/^['"]|['"]$/g, '');
+  }
+  return out;
+}
+
 function findModule(modules, name) {
+
   return Object.keys(modules).find((k) => k.endsWith(`/${name}.jsx`));
 }
 
