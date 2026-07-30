@@ -9,7 +9,7 @@ import {
   useProgressMutation, mergePagesWithManifest, usePageManifest,
 } from '@/components/progress/useProgress';
 import {
-  ProgressPageHeader, Card, CardHeader, CardBody, Badge, EmptyState, Row,
+  ProgressPageHeader, Card, CardHeader, CardBody, Badge, EmptyState,
   PrimaryButton, SecondaryButton, LoadingBlock, PRIORITY_TONE, EvidenceBadge,
 } from '@/components/progress/progressUi';
 
