@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  ChevronRight, ChevronDown, Search, FileCode, EyeOff, Camera, CheckSquare,
+  ChevronRight, ChevronDown, Search, FileCode, EyeOff, Camera, CheckCircle2,
 } from 'lucide-react';
 import { usePermissions, useAuth } from '@/lib/AuthContext';
 import { pageReadiness } from '@/lib/progress/readiness';
 import {
   useProgressPages, useProgressFindings, useReviewThreads, useVerificationRecords,
-  usePageSnapshots, useProgressMutation, mergePagesWithManifest, usePageManifest, parseJson,
+  usePageSnapshots, useProgressMutation, mergePagesWithManifest, usePageManifest,
 } from '@/components/progress/useProgress';
 import VisualReview from '@/components/progress/VisualReview';
 import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
@@ -177,6 +177,9 @@ export default function ApplicationReview() {
               const avg = scored.length
                 ? Math.round(scored.reduce((s, r) => s + r.score, 0) / scored.length)
                 : 0;
+              // Section completion is Nick's tick, not the evidence score. A
+              // section is done when every page in it has been ticked off.
+              const sectionDone = section.pages.filter((p) => p.review_complete).length;
               return (
                 <div key={section.key} className="border-b border-border last:border-b-0">
                   <button
@@ -187,11 +190,16 @@ export default function ApplicationReview() {
                     {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12px] font-medium text-foreground">{section.label}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-[12px] font-medium text-foreground">{section.label}</span>
+                        {sectionDone === section.pages.length && section.pages.length > 0 && (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-chart-5" />
+                        )}
+                      </span>
                       <ReadinessBar value={avg} tone={toneForReadiness(avg)} className="mt-1.5" />
                     </span>
                     <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
-                      {section.pages.length}
+                      {sectionDone}/{section.pages.length}
                     </span>
                   </button>
                   {open && (
@@ -213,6 +221,7 @@ export default function ApplicationReview() {
                               </span>
                               <span className="block truncate text-[10px] text-muted-foreground">{p.route}</span>
                             </span>
+                            {p.review_complete && <CheckCircle2 className="h-3 w-3 shrink-0 text-chart-5" />}
                             {p.nav_visibility === 'hidden' && <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
                             {p0 > 0 && <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-medium text-primary">P0</span>}
                             {!p.registered && <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">new</span>}
