@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  ChevronRight, ChevronDown, Search, FileCode, EyeOff, Camera, CheckCircle2,
+  ChevronRight, ChevronDown, Search, FileCode, EyeOff, Camera, CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
 import { usePermissions, useAuth } from '@/lib/AuthContext';
 import { pageReadiness } from '@/lib/progress/readiness';
@@ -11,7 +11,7 @@ import {
 } from '@/components/progress/useProgress';
 import VisualReview from '@/components/progress/VisualReview';
 import { TaskSidebar, BackendPlainEnglish } from '@/components/progress/ReviewPanels';
-import { startCaptureQueue } from '@/components/progress/CaptureController';
+import { useOffscreenCapture } from '@/components/progress/OffscreenCapture';
 import { sortSections } from '@/components/progress/progressNav';
 import {
   ProgressPageHeader, Card, CardBody, Badge, EmptyState,
@@ -70,6 +70,9 @@ export default function ApplicationReview() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState({});
 
+  const { user } = useAuth();
+  const capture = useOffscreenCapture({ role: user?.role, capturedBy: user?.email });
+
   const pagesQ = useProgressPages();
   const findingsQ = useProgressFindings();
   const threadsQ = useReviewThreads();
@@ -110,6 +113,14 @@ export default function ApplicationReview() {
 
   const selected = pages.find((p) => p.page_key === selectedKey) || null;
 
+  // Only surfaces that resolve to a real page component can be rendered
+  // offscreen. Redirects, catchalls and :id detail routes have nothing stable to
+  // capture, so they are skipped rather than producing junk snapshots.
+  const capturable = (list) => list.filter((p) => ['page', 'tab'].includes(p.route_type)
+    && p.portal_scope === 'operator'
+    && p.component_path
+    && !String(p.route).includes(':'));
+
   if (pagesQ.isLoading) {
     return (
       <>
@@ -125,28 +136,22 @@ export default function ApplicationReview() {
         title="Application Review"
         description={`${pages.length} surfaces derived from the router, nav and permission config. Select one to review it.`}
         actions={(can('progress_write') || can('progress_admin')) ? (
-          <PrimaryButton
-            onClick={() => {
-              // Walk the capturable routes in this session. Redirects, catchalls
-              // and detail routes with an :id placeholder have nothing stable to
-              // capture, so they are skipped rather than producing junk.
-              const queue = pages
-                .filter((p) => ['page', 'tab'].includes(p.route_type))
-                .filter((p) => !String(p.route).includes(':'))
-                .filter((p) => p.portal_scope === 'operator')
-                .map((p) => ({ page_key: p.page_key, route: p.route }));
-              if (queue.length === 0) return;
-              startCaptureQueue(queue, '/progress/review');
-              const first = queue[0];
-              const sep = first.route.includes('?') ? '&' : '?';
-              window.location.assign(`${first.route}${sep}progress_capture=${first.page_key}`);
-            }}
-          >
-            <span className="flex items-center gap-1.5">
-              <Camera className="h-3.5 w-3.5" />
-              Capture every page
-            </span>
-          </PrimaryButton>
+          <div className="flex flex-wrap items-center gap-2">
+            {capture.running && (
+              <SecondaryButton onClick={capture.cancel}>Stop</SecondaryButton>
+            )}
+            <PrimaryButton
+              onClick={() => capture.run(capturable(pages), { label: 'every page' })}
+              disabled={capture.running}
+            >
+              <span className="flex items-center gap-1.5">
+                {capture.running
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Camera className="h-3.5 w-3.5" />}
+                {capture.running ? 'Capturing' : 'Capture every page'}
+              </span>
+            </PrimaryButton>
+          </div>
         ) : null}
       />
 
