@@ -289,20 +289,31 @@ Deno.serve(async (req) => {
       try { return JSON.parse(l?.mapped_fields || '{}') || {}; } catch { return {}; }
     };
 
-    // Mirrors leadEventInstant in src/lib/reportMetrics.js.
+    // Mirrors leadEventInstant in src/lib/reportMetrics.js exactly, so DataBot
+    // and the Leads page can never disagree about which day a lead lands on.
+    //
+    // Only ISO-shaped timestamps are honoured. US-format strings like
+    // "07/30/2026 05:26:44" are ignored on purpose and fall through to
+    // created_date, which is what the dashboard does. A naive ISO string is a
+    // wall clock in APP_TZ, not UTC. Regina is UTC-6 year round with no DST, so
+    // the offset can be pinned literally rather than importing date-fns-tz,
+    // which is not available to a Deno function.
+    const APP_TZ_OFFSET = '-06:00';
     const eventDayKey = (l) => {
       const bag = parseBag(l);
-      const raw = bag.timestamp || bag.received || bag.date_created || null;
+      const ts = bag.timestamp;
       let d = null;
-      if (raw) {
-        const s = String(raw).trim().replace(' ', 'T');
-        d = new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`);
+      if (typeof ts === 'string' && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(ts.trim())) {
+        const raw = ts.trim().replace(' ', 'T');
+        const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(raw);
+        const parsed = new Date(hasZone ? raw : `${raw}${APP_TZ_OFFSET}`);
+        if (!isNaN(parsed.getTime())) d = parsed;
       }
-      if (!d || isNaN(d.getTime())) {
+      if (!d) {
         const c = l?.created_date;
         if (!c) return null;
         const s = String(c).trim();
-        d = new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`);
+        d = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`);
       }
       return isNaN(d.getTime()) ? null : dayFmt.format(d);
     };
