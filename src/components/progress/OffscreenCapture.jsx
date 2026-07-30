@@ -10,9 +10,6 @@ import {
   CAPTURE_WIDTHS, ALL_VIEWPORTS, widthFor, parseProps, visualLayouts,
 } from '@/lib/progress/captureTargets';
 
-// Re-exported so callers have one obvious place to import capture constants from.
-export { CAPTURE_WIDTHS, ALL_VIEWPORTS };
-
 // Offscreen capture.
 //
 // Mounts the REAL application shell (sidebar, section sub-navigation, page) into
@@ -20,25 +17,26 @@ export { CAPTURE_WIDTHS, ALL_VIEWPORTS };
 // unmounts. Nothing navigates, so you are never dragged around your own app to
 // take a screenshot.
 //
-// Two things it gets right that the earlier versions did not:
+// Two things earlier versions got wrong:
+//   1. Only the page component was rendered, so the sidebar and sub-menu were
+//      missing from every shot. Those are part of what there is to review.
+//   2. The app shell is h-screen with an inner overflow-y-auto, so anything
+//      below the fold was cropped. The clip is lifted for the capture.
 //
-//   1. It rebuilds the actual layout chain from the manifest, so the screenshot
-//      shows the sidebar and sub-menu. Those are part of the page under review;
-//      capturing the page component alone left out most of what there is to
-//      comment on.
-//   2. It un-clips the app's scroll containers, so a tall page is captured in
-//      full instead of being cut off at one screen. AppLayout is h-screen with an
-//      inner overflow-y-auto, which crops everything below the fold.
+// Constants and pure helpers live in src/lib/progress/captureTargets.js, which
+// is unit tested. Nothing is redefined here.
 //
 // It cannot be done on the server: Base44 functions run Deno with no browser, so
-// there is nothing to render into. A headless browser on a runner is the only
-// server side option, and that is the item in docs/screenshot-automation.md.
+// there is nothing to render into.
 
 const PAGE_MODULES = import.meta.glob('/src/pages/**/*.jsx');
 const LAYOUT_MODULES = import.meta.glob('/src/components/**/*Layout.jsx');
 
-// The app shell is built to fill the viewport and scroll inside itself. For a
-// capture we want the opposite: let it grow to its content so nothing is cropped.
+// Re-exported so callers have one obvious place to import capture constants from.
+export { CAPTURE_WIDTHS, ALL_VIEWPORTS };
+
+// The app shell fills the viewport and scrolls inside itself. For a capture we
+// want the opposite: let it grow to its content so nothing is cut off.
 const UNCLIP_CSS = `
 [data-offscreen-capture] { height: auto !important; overflow: visible !important; }
 [data-offscreen-capture] .h-screen { height: auto !important; min-height: 0 !important; }
@@ -53,30 +51,7 @@ const UNCLIP_CSS = `
 [data-offscreen-capture] .sticky, [data-offscreen-capture] .fixed { position: relative !important; }
 `;
 
-export function widthFor(viewport) {
-  return CAPTURE_WIDTHS[viewport] || CAPTURE_WIDTHS.desktop;
-}
-
-// Layout routes that must NOT be mounted for a capture.
-//
-// ProtectedRoute and PermissionRoute gate on auth and would redirect the
-// memory router instead of rendering the page. Everything else in the chain is
-// chrome we want in the frame, including AppLayout: its side effects are held
-// off by capture mode, so mounting it is what puts the real sidebar and header
-// in the screenshot.
-const NON_VISUAL_LAYOUTS = new Set(['ProtectedRoute', 'PermissionRoute']);
-
-export function visualLayouts(layouts) {
-  let list = layouts;
-  if (typeof list === 'string') {
-    try { list = JSON.parse(list); } catch { list = []; }
-  }
-  return (list || []).filter((name) => name && !NON_VISUAL_LAYOUTS.has(name));
-}
-
-// Parse the inline props the router passes, for example view="sold".
-export function findModule(modules, name) {
-
+function findModule(modules, name) {
   return Object.keys(modules).find((k) => k.endsWith(`/${name}.jsx`));
 }
 
@@ -90,8 +65,8 @@ async function loadComponent(componentPath) {
   return mod.default;
 }
 
-// Rebuild the layout chain the router really wraps this route in, so the
-// screenshot includes the sidebar and section sub-navigation.
+// Rebuild the layout chain the router really wraps this route in, so the shot
+// includes the sidebar and section sub-navigation.
 async function loadLayouts(layouts) {
   const loaded = [];
   for (const name of visualLayouts(layouts)) {
@@ -114,75 +89,42 @@ class CaptureBoundary extends React.Component {
   }
 }
 
-// The capture surface is an IFRAME, not a div.
-//
-// This matters and it is not a detail. Tailwind's responsive classes are viewport
-// media queries, so a 390px wide div inside a 1900px window still renders the
-// desktop layout squeezed into 390px. Every "mobile" capture taken that way is a
-// lie about what a phone shows.
-//
-// A same-origin iframe created in JavaScript has its OWN viewport, so media
-// queries evaluate against the capture width and the real mobile layout appears.
-// x-frame-options blocks LOADING a url in a frame; it does not apply here,
-// because nothing is loaded: the document is built in place and React renders
-// into it.
-function makeFrame(width) {
-  const frame = document.createElement('iframe');
-  frame.setAttribute('data-progress-capture-ui', 'true');
-  frame.setAttribute('data-offscreen-capture', 'true');
-  frame.setAttribute('aria-hidden', 'true');
-  frame.setAttribute('tabindex', '-1');
-  Object.assign(frame.style, {
+function makeHost(width) {
+  const host = document.createElement('div');
+  host.setAttribute('data-progress-capture-ui', 'true');
+  host.setAttribute('data-offscreen-capture', 'true');
+  Object.assign(host.style, {
     position: 'fixed',
+    // At the document origin, not off to the left: html2canvas crops relative to
+    // the document, so an element parked outside it captures nothing. Invisible
+    // via opacity and a deep negative z-index instead, which still gives it real
+    // layout. The clone is made opaque again before rasterising.
     top: '0',
     left: '0',
     width: `${width}px`,
-    height: '1200px',
-    border: '0',
+    background: getComputedStyle(document.body).backgroundColor || '#0A0E15',
     opacity: '0',
     zIndex: '-2147483647',
     pointerEvents: 'none',
+    overflow: 'visible',
   });
-  document.body.appendChild(frame);
-
-  const doc = frame.contentDocument;
-  doc.open();
-  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body></body></html>');
-  doc.close();
-
-  // Carry the stylesheets across, or the capture is unstyled markup.
-  document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
-    if (node.id === 'progress-capture-unclip') return;
-    doc.head.appendChild(node.cloneNode(true));
-  });
-  // The theme lives as a class on <html>, and the app's base styles hang off body.
-  doc.documentElement.className = document.documentElement.className;
-  doc.body.className = document.body.className;
-  doc.body.style.background = getComputedStyle(document.body).backgroundColor || '#0A0E15';
-  doc.body.style.margin = '0';
-
-  const unclip = doc.createElement('style');
-  unclip.textContent = UNCLIP_CSS;
-  doc.head.appendChild(unclip);
-
-  return frame;
+  document.body.appendChild(host);
+  return host;
 }
 
 function injectUnclipStyle() {
-  const existing = document.getElementById('progress-capture-unclip');
-  if (existing) return existing;
+  if (document.getElementById('progress-capture-unclip')) return;
   const style = document.createElement('style');
   style.id = 'progress-capture-unclip';
   style.textContent = UNCLIP_CSS;
   document.head.appendChild(style);
-  return style;
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Wait for the page's queries to settle, with a floor and a ceiling. A page that
-// never settles is captured anyway: a screenshot of a stuck page is itself worth
-// seeing, and it is recorded in the snapshot notes.
+// never settles is captured anyway and the snapshot says so: a screenshot of a
+// stuck page is itself worth seeing.
 async function waitForSettle({ minMs = 1400, maxMs = 15000 } = {}) {
   const started = Date.now();
   await wait(minMs);
@@ -191,15 +133,16 @@ async function waitForSettle({ minMs = 1400, maxMs = 15000 } = {}) {
       await wait(400);
       if (queryClientInstance.isFetching() === 0) return true;
     }
+    // eslint-disable-next-line no-await-in-loop
     await wait(250);
   }
   return false;
 }
 
 /**
- * Render one page offscreen, inside its real layout chain, and capture it.
+ * Render one page offscreen inside its real layout chain and capture it.
  * Always resolves: a failure produces a snapshot with capture_status failed and
- * the reason attached, so a gap is visible rather than looking unreviewed.
+ * the reason attached, so the gap is visible rather than looking unreviewed.
  */
 export async function captureOffscreen(page, {
   viewport = 'desktop',
@@ -208,7 +151,7 @@ export async function captureOffscreen(page, {
   capturedBy,
 } = {}) {
   const width = widthFor(viewport);
-  let frame = null;
+  let host = null;
   let root = null;
   let renderError = null;
 
@@ -221,14 +164,9 @@ export async function captureOffscreen(page, {
 
     injectUnclipStyle();
     setCaptureMode(true);
-    frame = makeFrame(width);
-    // React renders into the FRAME's document, so the app lays itself out
-    // against the frame's viewport and the responsive classes resolve to the
-    // real layout for that width.
-    root = createRoot(frame.contentDocument.body);
+    host = makeHost(width);
+    root = createRoot(host);
 
-    // Nest the real layouts around the page so the capture includes the sidebar
-    // and section sub-navigation, matching what an operator actually sees.
     const leaf = <Route path="*" element={<Component {...props} />} />;
     const tree = layouts.reduceRight(
       (child, { name, Component: Layout }) => (
@@ -241,13 +179,13 @@ export async function captureOffscreen(page, {
       root.render(
         <CaptureModeProvider>
           <AuthProvider>
-          <QueryClientProvider client={queryClientInstance}>
-            <MemoryRouter initialEntries={[page.route || '/']}>
-              <CaptureBoundary onError={(e) => { renderError = e; }}>
-                <Routes>{tree}</Routes>
-              </CaptureBoundary>
-            </MemoryRouter>
-          </QueryClientProvider>
+            <QueryClientProvider client={queryClientInstance}>
+              <MemoryRouter initialEntries={[page.route || '/']}>
+                <CaptureBoundary onError={(e) => { renderError = e; }}>
+                  <Routes>{tree}</Routes>
+                </CaptureBoundary>
+              </MemoryRouter>
+            </QueryClientProvider>
           </AuthProvider>
         </CaptureModeProvider>,
       );
@@ -258,19 +196,14 @@ export async function captureOffscreen(page, {
     const settled = await waitForSettle();
     if (renderError) throw renderError;
 
-    const body = frame.contentDocument.body;
-    if (!body.firstChild || body.scrollHeight < 40) {
+    if (!host.firstChild || host.scrollHeight < 40) {
       throw new Error('The page rendered empty outside its normal layout');
     }
-    // Grow the frame to the full content height, so html2canvas measures the
-    // whole page rather than the initial 1200px window.
-    frame.style.height = `${body.scrollHeight}px`;
-    await wait(120);
 
     return await capturePageElement({
       pageKey: page.page_key,
       route: page.route,
-      element: body,
+      element: host,
       viewport,
       width,
       mask,
@@ -292,15 +225,14 @@ export async function captureOffscreen(page, {
     });
   } finally {
     if (root) { try { root.unmount(); } catch { /* already gone */ } }
-    if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+    if (host && host.parentNode) host.parentNode.removeChild(host);
     setCaptureMode(false);
   }
 }
 
 /**
  * Run a batch offscreen, one at a time so the query client is not swamped.
- * Every viewport by default: needing to ask for tablet and mobile separately was
- * busywork.
+ * Every viewport by default: asking for tablet and mobile separately was busywork.
  */
 export function useOffscreenCapture({ role, capturedBy, mask = true, onDone } = {}) {
   const [running, setRunning] = useState(false);
