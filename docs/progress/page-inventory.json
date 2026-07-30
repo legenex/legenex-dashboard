@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T11:47:28.153Z",
+  "generated_at": "2026-07-30T11:56:26.228Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "a57b7e16a6be2088b5f9316126052408e411b7ad",
+  "app_commit": "e33327a90aabf9cdc5b78ec1d728b867e284c9fc",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -6511,6 +6511,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6564,6 +6565,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6619,6 +6621,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6674,6 +6677,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6730,6 +6734,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6786,6 +6791,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6840,6 +6846,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6901,6 +6908,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -6956,6 +6964,7 @@
       "layout_function_dependencies": [],
       "layout_files": [
         "src/api/base44Client.js",
+        "src/components/progress/ProgressErrorBoundary.jsx",
         "src/components/progress/ProgressLayout.jsx",
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
@@ -17015,6 +17024,17 @@
       "progress",
       "progress-gates",
       "progress-migration",
+      "progress-review",
+      "progress-settings"
+    ],
+    "src/components/progress/ProgressErrorBoundary.jsx": [
+      "progress",
+      "progress-activity",
+      "progress-changes",
+      "progress-findings",
+      "progress-gates",
+      "progress-migration",
+      "progress-prompts",
       "progress-review",
       "progress-settings"
     ],
