@@ -185,12 +185,22 @@ Deno.serve(async (req) => {
         { user_id: user.id, mode, active: true },
         '-last_message_at', 5
       ).catch(() => []);
-      pastConversations = recentConvs.map(c => {
-        let msgs = [];
-        try { msgs = JSON.parse(c.messages || '[]'); } catch {}
-        const lastMsgs = msgs.slice(-4);
-        return { title: c.title, recent: lastMsgs.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : ''}`) };
-      });
+      pastConversations = recentConvs
+        .map(c => {
+          let msgs = [];
+          try { msgs = JSON.parse(c.messages || '[]'); } catch {}
+          const lastMsgs = msgs.slice(-4);
+          return { title: c.title, recent: lastMsgs.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : ''}`) };
+        })
+        // Drop conversations whose messages are just the current question
+        // repeated (the LLM would echo its own stale answer) and any that
+        // contain obsolete "data does not specify" replies to the same
+        // question — those were from before resolved_entities existed.
+        .filter(c => {
+          const text = c.recent.join(' ').toLowerCase();
+          if (text.includes('data does not specify') && text.includes(question.toLowerCase().slice(0, 30))) return false;
+          return true;
+        });
     } catch { /* memory entities may not exist yet */ }
 
     // --- Resolve caller scope (deny-by-default), then gather only what they may see ---
