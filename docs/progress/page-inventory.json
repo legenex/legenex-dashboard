@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T13:43:10.908Z",
+  "generated_at": "2026-07-30T19:29:18.512Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "375e8278be9f26d5c691041bbf7849776fefe357",
+  "app_commit": "783b968af31709edfb411b5d34dfba5d5a6df525",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -30,7 +30,7 @@
       "operations": 7,
       "other": 7,
       "overview": 2,
-      "progress-control-center": 9,
+      "progress": 9,
       "reports": 8,
       "settings": 15,
       "supplier-portal": 6,
@@ -43,7 +43,7 @@
       "progress": 9,
       "supplier_portal": 6
     },
-    "hidden_from_nav": 46
+    "hidden_from_nav": 37
   },
   "pages": [
     {
@@ -6464,8 +6464,8 @@
     },
     {
       "page_key": "progress",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Command Center",
       "route": "/progress",
       "parent_route": null,
@@ -6481,7 +6481,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6516,13 +6516,14 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-activity",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Build Activity",
       "route": "/progress/activity",
       "parent_route": null,
@@ -6538,7 +6539,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6570,13 +6571,14 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-changes",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Change Requests",
       "route": "/progress/changes",
       "parent_route": null,
@@ -6592,7 +6594,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6626,13 +6628,14 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-findings",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Findings",
       "route": "/progress/findings",
       "parent_route": null,
@@ -6648,7 +6651,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6682,14 +6685,15 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-gates",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
-      "title": "Gates",
+      "section_key": "progress",
+      "section_label": "Progress",
+      "title": "Release Gates",
       "route": "/progress/gates",
       "parent_route": null,
       "tab": null,
@@ -6704,7 +6708,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6739,14 +6743,15 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-migration",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
-      "title": "Migration",
+      "section_key": "progress",
+      "section_label": "Progress",
+      "title": "LeadByte Migration",
       "route": "/progress/migration",
       "parent_route": null,
       "tab": null,
@@ -6761,7 +6766,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6796,13 +6801,14 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-prompts",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Prompt Studio",
       "route": "/progress/prompts",
       "parent_route": null,
@@ -6818,7 +6824,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_prompts",
       "roles": [
         "owner",
@@ -6851,13 +6857,14 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-review",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Application Review",
       "route": "/progress/review",
       "parent_route": null,
@@ -6873,7 +6880,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_access",
       "roles": [
         "owner",
@@ -6916,13 +6923,14 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
     {
       "page_key": "progress-settings",
-      "section_key": "progress-control-center",
-      "section_label": "Progress Control Center",
+      "section_key": "progress",
+      "section_label": "Progress",
       "title": "Progress Settings",
       "route": "/progress/settings",
       "parent_route": null,
@@ -6938,7 +6946,7 @@
         "ProgressLayout"
       ],
       "auth": "public",
-      "nav_visibility": "hidden",
+      "nav_visibility": "nav",
       "permission_key": "progress_admin",
       "roles": [
         "owner",
@@ -6972,6 +6980,7 @@
         "src/components/progress/progressNav.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
+        "src/lib/hostScope.js",
         "src/lib/permissions.js"
       ]
     },
@@ -17053,6 +17062,17 @@
       "progress-settings"
     ],
     "src/components/progress/progressNav.js": [
+      "progress",
+      "progress-activity",
+      "progress-changes",
+      "progress-findings",
+      "progress-gates",
+      "progress-migration",
+      "progress-prompts",
+      "progress-review",
+      "progress-settings"
+    ],
+    "src/lib/hostScope.js": [
       "progress",
       "progress-activity",
       "progress-changes",
