@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-30T22:58:49.633Z",
-  "app_commit": "8033c6100cb4c9ff3320a152bf9241c2a2d873bb",
+  "generated_at": "2026-07-30T23:35:05.490Z",
+  "app_commit": "44f2358a8d1731387812e61de1514f49a5dbf116",
   "counts": {
     "total": 116,
     "by_type": {
@@ -2162,7 +2162,7 @@
       "component_props": null,
       "entity_count": 2,
       "function_count": 3,
-      "dependency_count": 27
+      "dependency_count": 28
     },
     {
       "page_key": "progress-settings",
