@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-07-30T12:55:24.423Z",
+  "generated_at": "2026-07-30T12:56:39.566Z",
   "generator": "scripts/generate-backend-summary.mjs",
   "counts": {
     "functions": 89,
-    "documented": 64,
-    "undocumented": 25,
+    "documented": 65,
+    "undocumented": 24,
     "read_only": 42,
-    "caller_model_gaps": 22,
+    "no_auth_detected": 1,
     "entities": 75,
     "entities_without_rls": 47
   },
@@ -25,8 +25,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "session_only",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -53,8 +52,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -88,8 +86,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -117,8 +114,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -142,8 +138,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -166,8 +161,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -195,8 +189,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -227,8 +220,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [],
       "red_surfaces": [
         "distribution_mode",
@@ -248,8 +240,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -259,7 +250,8 @@
       "lines": 114,
       "headline": "AI-categorizes uncategorized BankTransaction records.",
       "detail": [
-        "The taxonomy is read from the finance_settings IntegrationConfig so it stays in sync with the user-editable categories in Finances > Settings. Falls back to the original six categories when no settings record exists. Uses OpenAI (OPENAI_API_KEY secret). Admin-only."
+        "The taxonomy is read from the finance_settings IntegrationConfig so it stays in sync with the user-editable categories in Finances > Settings. Falls back to the original six categories when no settings record exists. Uses OpenAI (OPENAI_API_KEY secret). Admin-only.",
+        "Used only when no finance_settings record exists, parsing fails, or the categories array is empty. Matches the original hardcoded behavior."
       ],
       "documented": true,
       "reads": [
@@ -271,8 +263,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -302,8 +293,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "credentials",
@@ -341,8 +331,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -373,8 +362,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "trustedform"
@@ -397,8 +385,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -426,8 +413,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [],
       "red_surfaces": [
         "leadbyte_connectors"
@@ -446,8 +432,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "session_only",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -474,8 +459,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [],
       "red_surfaces": [
         "distribution_mode"
@@ -499,8 +483,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -519,8 +502,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -547,8 +529,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -573,8 +554,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "route_token",
       "external_hosts": [],
       "red_surfaces": [
         "credentials"
@@ -591,8 +571,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "none_detected",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -609,8 +588,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -621,7 +599,8 @@
       "headline": "Caller model: public with key.",
       "detail": [
         "This endpoint is unauthenticated at the Base44 layer and must be invocable without a logged-in user. It authenticates ONLY by a route token, read from the query param `token` or the `X-Webhook-Token` header, SHA-256 hashed and matched against an enabled leadbyte InboundWebhookRoute. It uses the service role to look up the route and to read and write Lead.",
-        "This function only RECORDS LeadByte sold/unsold/return/conversion outcome data onto the matching Lead. It never calls processLead or any routing, delivery, connector, CAPI, or HLR logic. It never writes trustedform_valid or cert_source, and never overwrites the inbound pipeline fields."
+        "This function only RECORDS LeadByte sold/unsold/return/conversion outcome data onto the matching Lead. It never calls processLead or any routing, delivery, connector, CAPI, or HLR logic. It never writes trustedform_valid or cert_source, and never overwrites the inbound pipeline fields.",
+        "Treat a literal single dash and empty string as null. Returns a trimmed string, or null when the value is empty/dash/nullish."
       ],
       "documented": true,
       "reads": [
@@ -636,8 +615,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "route_token",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -659,8 +637,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -684,8 +661,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -705,8 +681,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -728,8 +703,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -751,8 +725,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -769,8 +742,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -790,8 +762,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -809,8 +780,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -827,8 +797,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "graph.facebook.com"
       ],
@@ -853,8 +822,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -874,8 +842,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "credentials"
@@ -898,8 +865,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -916,8 +882,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -938,8 +903,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "route_token",
       "external_hosts": [
         "graph.facebook.com"
       ],
@@ -962,8 +926,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "credentials"
@@ -982,8 +945,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1009,8 +971,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1034,8 +995,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1053,8 +1013,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "buyer_pricing"
@@ -1071,8 +1030,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "slack.com"
       ],
@@ -1104,8 +1062,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.rebrandly.com",
         "api.stripe.com",
@@ -1137,8 +1094,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "buyer_pricing"
@@ -1162,8 +1118,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1180,8 +1135,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "session_only",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -1209,8 +1163,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1233,8 +1186,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "portal_scoping"
@@ -1275,8 +1227,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [
         "dns.google"
       ],
@@ -1305,8 +1256,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -1326,17 +1276,20 @@
       "name": "progressReadiness",
       "file": "base44/functions/progressReadiness/entry.ts",
       "lines": 238,
-      "headline": "",
-      "detail": [],
-      "documented": false,
+      "headline": "Recalculates readiness across every ProgressPage, capability and release gate, then writes the day's ProgressSnapshot.",
+      "detail": [
+        "This is the only writer of readiness_score, verification_status and ProgressSnapshot. Nothing in the UI may set those by hand, which is what keeps the number honest: a page becomes verified because evidence exists, not because somebody ticked a box.",
+        "Idempotent. Running it twice on the same day updates the same snapshot row.",
+        "Access: operator session, admin role or progress_admin / progress_write. Writes: ProgressPage (computed fields only), ReleaseGate status for automatic gates, ProgressSnapshot. Never touches operational records."
+      ],
+      "documented": true,
       "reads": [
         "User"
       ],
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1356,8 +1309,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1380,8 +1332,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -1405,8 +1356,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1423,8 +1373,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "buyer_pricing"
@@ -1443,8 +1392,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -1469,8 +1417,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1491,8 +1438,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -1515,8 +1461,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1544,8 +1489,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "leadbyte_connectors"
@@ -1566,8 +1510,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "credentials"
@@ -1586,8 +1529,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "graph.facebook.com"
       ],
@@ -1604,8 +1546,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [
         "gmail.googleapis.com"
       ],
@@ -1632,8 +1573,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1652,8 +1592,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1677,8 +1616,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "gmail.googleapis.com"
       ],
@@ -1702,8 +1640,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [
         "slack.com"
       ],
@@ -1724,8 +1661,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [
         "graph.facebook.com"
       ],
@@ -1755,8 +1691,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -1784,8 +1719,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "route_token",
       "external_hosts": [
         "gmail.googleapis.com"
       ],
@@ -1812,8 +1746,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "credentials",
@@ -1840,8 +1773,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -1867,8 +1799,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.mercury.com"
       ],
@@ -1896,8 +1827,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -1920,8 +1850,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.stripe.com"
       ],
@@ -1946,8 +1875,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "api.xero.com"
       ],
@@ -1968,8 +1896,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [],
       "red_surfaces": [
         "conversion_events"
@@ -1988,8 +1915,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "session_only",
       "external_hosts": [
         "dns.google"
       ],
@@ -2008,8 +1934,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "session_only",
       "external_hosts": [],
       "red_surfaces": [
         "processLead"
@@ -2031,8 +1956,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "leadbyte_connectors",
@@ -2053,8 +1977,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -2078,8 +2001,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [
         "graph.facebook.com"
       ],
@@ -2099,8 +2021,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -2122,8 +2043,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": true,
-      "enforces_caller_model": true,
-      "caller_model_gap": false,
+      "auth_style": "operator_session",
       "external_hosts": [],
       "red_surfaces": []
     },
@@ -2140,8 +2060,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "session_only",
       "external_hosts": [
         "api.openai.com"
       ],
@@ -2177,8 +2096,7 @@
       ],
       "read_only": false,
       "uses_service_role": true,
-      "enforces_caller_model": false,
-      "caller_model_gap": true,
+      "auth_style": "api_key",
       "external_hosts": [],
       "red_surfaces": [
         "processLead",
@@ -2198,8 +2116,7 @@
       "writes": [],
       "read_only": true,
       "uses_service_role": false,
-      "enforces_caller_model": false,
-      "caller_model_gap": false,
+      "auth_style": "session_only",
       "external_hosts": [
         "api.openai.com"
       ],
