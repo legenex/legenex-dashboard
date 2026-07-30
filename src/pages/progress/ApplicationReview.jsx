@@ -64,6 +64,7 @@ const groupBy = (list, key) => {
 
 export default function ApplicationReview() {
   const manifest = usePageManifest();
+  const { can } = usePermissions();
   const [params, setParams] = useSearchParams();
   const selectedKey = params.get('page');
   const [query, setQuery] = useState('');
