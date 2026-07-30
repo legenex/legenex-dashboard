@@ -278,8 +278,13 @@ function scanDependencies(entryFile, cache) {
     let m;
     const entRe = /base44\.entities\.([A-Z][A-Za-z0-9_]*)/g;
     while ((m = entRe.exec(code))) entities.add(m[1]);
-    const fnRe = /base44\.functions\.([a-zA-Z][A-Za-z0-9_]*)/g;
-    while ((m = fnRe.exec(code))) functions.add(m[1]);
+    // Functions are called as base44.functions.invoke('name', args). Capture the
+    // NAME, not the invoke wrapper. A direct base44.functions.name(...) call is
+    // supported too in case that form appears.
+    const invokeRe = /base44\.functions\.invoke\(\s*['"]([A-Za-z][A-Za-z0-9_]*)['"]/g;
+    while ((m = invokeRe.exec(code))) functions.add(m[1]);
+    const directRe = /base44\.functions\.(?!invoke\b)([a-zA-Z][A-Za-z0-9_]*)\s*\(/g;
+    while ((m = directRe.exec(code))) functions.add(m[1]);
 
     const impRe = /from\s+['"]([^'"]+)['"]/g;
     while ((m = impRe.exec(code))) {
@@ -303,12 +308,31 @@ function scanDependencies(entryFile, cache) {
  * 4. Classification helpers
  * ------------------------------------------------------------------ */
 
-const slugify = (s) => (s || '')
-  .replace(/^\//, '')
-  .replace(/\?/g, '-')
-  .replace(/[^A-Za-z0-9]+/g, '-')
-  .replace(/^-+|-+$/g, '')
-  .toLowerCase() || 'root';
+const slugify = (s) => {
+  if (s === '/') return 'overview-root';
+  if (s === '*') return 'not-found';
+  return (s || '')
+    .replace(/^\//, '')
+    .replace(/\?/g, '-')
+    .replace(/\*/g, 'wildcard')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'root';
+};
+
+// page_key must be unique across the manifest. The router legitimately mounts
+// the same path in more than one host branch, so disambiguate rather than losing
+// an entry.
+function dedupeKeys(pages) {
+  const seen = new Map();
+  pages.forEach((p) => {
+    const base = p.page_key;
+    const n = seen.get(base) || 0;
+    seen.set(base, n + 1);
+    if (n > 0) p.page_key = `${base}-${p.host_scope.replace(/[^a-z]/g, '') || 'alt'}-${n}`;
+  });
+  return pages;
+}
 
 function hostScopeFor(route, element) {
   if (element === 'ApiStatus') return 'api';
@@ -502,6 +526,7 @@ async function build() {
   }
 
   pages.sort((a, b) => (a.section_key + a.route).localeCompare(b.section_key + b.route));
+  dedupeKeys(pages);
 
   // 5d. Invert the dependency graph: file to the pages it can affect.
   const fileToPages = {};
