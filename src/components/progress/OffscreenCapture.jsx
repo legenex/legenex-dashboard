@@ -75,14 +75,18 @@ function makeHost(width) {
   host.setAttribute('data-offscreen-capture', 'true');
   Object.assign(host.style, {
     position: 'fixed',
+    // Kept at the document origin rather than pushed to left: -100000px.
+    // html2canvas crops relative to the document, so an element parked far
+    // outside it produced an empty canvas. Invisible via opacity and a negative
+    // z-index instead, which still gives it real layout, and the clone is made
+    // opaque again in the onclone hook.
     top: '0',
-    // Far off to the left rather than display:none, because a hidden element has
-    // no layout and html2canvas would rasterise nothing.
-    left: '-100000px',
+    left: '0',
     width: `${width}px`,
     minHeight: '900px',
     background: getComputedStyle(document.body).backgroundColor || '#0A0E15',
-    zIndex: '-1',
+    opacity: '0',
+    zIndex: '-2147483647',
     pointerEvents: 'none',
     overflow: 'visible',
   });
