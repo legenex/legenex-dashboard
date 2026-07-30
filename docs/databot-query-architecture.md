@@ -56,6 +56,14 @@ These were wrong in the first draft of the rewrite and would have failed silentl
 
 Consequence worth remembering: a lead created at 02:50 UTC on the 30th buckets to the 29th in Regina.
 
+## Periods
+
+Available windows: `today`, `yesterday`, `this_week`, `last_week`, `last_7_days`, `last_30_days`, `this_month`, `last_month`, `all_time`, `custom`.
+
+`this_week` is the calendar week running Sunday through today, the US convention. `last_week` is the previous full Sunday to Saturday. `last_7_days` is a rolling seven day window ending today. These are deliberately different and must not be aliased to each other. An earlier patch aliased "this week" onto `last_7_days`, which returned a number that was correct for a window the user had not asked about.
+
+Every resolved entity also carries a `requested_period` block echoing the exact window that was asked about, with `resolved_to` naming it. This closes the gap between the user's wording and the key names in the result object, which is what caused the model to hedge even when it held the number.
+
 ## Counting rules
 
 Unchanged and matching the dashboard. Archived leads are excluded, they are retired duplicates. CPL is cost per SOLD lead. Conversion is sold over total received. Ad spend is deduplicated to account level so campaign and ad rows are not double counted.
