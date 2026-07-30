@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Menu, X, ExternalLink, ShieldAlert } from 'lucide-react';
 import { usePermissions } from '@/lib/AuthContext';
 import { PROGRESS_NAV } from './progressNav';
+import ProgressErrorBoundary from './ProgressErrorBoundary';
 
 // Dedicated shell for the Progress Control Center.
 //
@@ -147,7 +148,11 @@ export default function ProgressLayout() {
         </div>
 
         <main className="min-w-0 flex-1 p-4 lg:p-6">
-          <Outlet />
+          {/* Keyed on pathname so navigating away from a broken surface clears
+              the error instead of trapping the shell in it. */}
+          <ProgressErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ProgressErrorBoundary>
         </main>
       </div>
     </div>
