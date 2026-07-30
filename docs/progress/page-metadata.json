@@ -1455,6 +1455,71 @@
       "human_notes": "",
       "route": "/progress/migration",
       "title": "Migration"
+    },
+    "progress-activity": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/activity",
+      "title": "Build Activity"
+    },
+    "progress-changes": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/changes",
+      "title": "Change Requests"
+    },
+    "progress-findings": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/findings",
+      "title": "Findings"
+    },
+    "progress-prompts": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/prompts",
+      "title": "Prompt Studio"
+    },
+    "progress-settings": {
+      "criticality": "normal",
+      "readiness_weight": null,
+      "business_owner": "",
+      "technical_owner": "",
+      "leadbyte_equivalent": "",
+      "migration_required": null,
+      "backend_dependencies_manual": [],
+      "known_risks": [],
+      "human_notes": "",
+      "route": "/progress/settings",
+      "title": "Progress Settings"
     }
   }
 }
