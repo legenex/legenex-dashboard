@@ -221,7 +221,7 @@ export async function captureOffscreen(page, {
   capturedBy,
 } = {}) {
   const width = widthFor(viewport);
-  let host = null;
+  let frame = null;
   let root = null;
   let renderError = null;
 
@@ -234,8 +234,11 @@ export async function captureOffscreen(page, {
 
     injectUnclipStyle();
     setCaptureMode(true);
-    host = makeHost(width);
-    root = createRoot(host);
+    frame = makeFrame(width);
+    // React renders into the FRAME's document, so the app lays itself out
+    // against the frame's viewport and the responsive classes resolve to the
+    // real layout for that width.
+    root = createRoot(frame.contentDocument.body);
 
     // Nest the real layouts around the page so the capture includes the sidebar
     // and section sub-navigation, matching what an operator actually sees.
@@ -268,14 +271,19 @@ export async function captureOffscreen(page, {
     const settled = await waitForSettle();
     if (renderError) throw renderError;
 
-    if (!host.firstChild || host.scrollHeight < 40) {
+    const body = frame.contentDocument.body;
+    if (!body.firstChild || body.scrollHeight < 40) {
       throw new Error('The page rendered empty outside its normal layout');
     }
+    // Grow the frame to the full content height, so html2canvas measures the
+    // whole page rather than the initial 1200px window.
+    frame.style.height = `${body.scrollHeight}px`;
+    await wait(120);
 
     return await capturePageElement({
       pageKey: page.page_key,
       route: page.route,
-      element: host,
+      element: body,
       viewport,
       width,
       mask,
@@ -297,7 +305,7 @@ export async function captureOffscreen(page, {
     });
   } finally {
     if (root) { try { root.unmount(); } catch { /* already gone */ } }
-    if (host && host.parentNode) host.parentNode.removeChild(host);
+    if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
     setCaptureMode(false);
   }
 }
