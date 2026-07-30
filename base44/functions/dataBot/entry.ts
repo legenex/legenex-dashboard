@@ -408,33 +408,48 @@ Deno.serve(async (req) => {
         register({ type: 'buyer', id: b.id, display: b.company_name || b.name, buyer_code: b.buyer_code || null, aliases });
       }
 
-      // Real-column lookups beat the mapped_fields bag wherever they exist.
-      const buyerNameById = new Map<string, string>();
-      for (const b of buyers) buyerNameById.set(String(b.id), String(b.company_name || b.name || '').trim());
-      const supplierBySid = new Map<string, string>();
-      for (const s of suppliers) {
-        if (s.sid) supplierBySid.set(norm(s.sid), String(s.name || '').trim());
-        if (s.ssid) supplierBySid.set(norm(s.ssid), String(s.name || '').trim());
+      // Real-column lookups, corrected against live data on 30 July 2026.
+      //
+      // Lead.buyer_id holds the buyer CODE ("AG1", "NW2", "LF3"), NOT a Base44
+      // record id, so buyer_code is the join key. Lead.supplier_name is correct
+      // on all but a couple of rows, but sids carry suffixes in the wild
+      // ("INBNDS-SURVEY" belongs to Inbounds/INBNDS), so supplier resolution
+      // falls back to a longest-prefix sid match rather than exact equality.
+      const buyerByCode = new Map<string, any>();
+      for (const b of buyers) {
+        const name = String(b.company_name || b.name || '').trim();
+        if (b.buyer_code) buyerByCode.set(norm(b.buyer_code), { name, id: b.id, code: b.buyer_code });
       }
+      const supplierByName = new Map<string, string>();
+      const supplierSids: Array<{ code: string; name: string }> = [];
+      for (const s of suppliers) {
+        const name = String(s.name || '').trim();
+        if (name) supplierByName.set(norm(name), name);
+        if (s.sid) supplierSids.push({ code: norm(s.sid), name });
+      }
+      // Longest sid first so INBNDS-SURVEY cannot be stolen by a shorter code.
+      supplierSids.sort((a, b) => b.code.length - a.code.length);
 
       // ---- Dimensions ----------------------------------------------------
       const dimSupplier = (l) => {
         const bag = parseBag(l);
         const direct = String(l?.supplier_name || bag.supplier_name || '').trim();
-        if (direct) return direct;
+        if (direct && supplierByName.has(norm(direct))) return supplierByName.get(norm(direct)) as string;
         const code = norm(bag.sid || bag.ssid || '');
-        if (code && supplierBySid.has(code)) return supplierBySid.get(code) as string;
-        return String(bag.sid || bag.ssid || '').trim() || '(unattributed)';
-      };
-      // Buyer resolves off the real buyer_id column first. The old version read
-      // bag.buyer as both the name and the id, which is why buyer questions
-      // were unreliable.
-      const dimBuyer = (l) => {
-        if (l?.buyer_id && buyerNameById.has(String(l.buyer_id))) {
-          return buyerNameById.get(String(l.buyer_id)) as string;
+        if (code) {
+          const hit = supplierSids.find((s) => s.code && (code === s.code || code.startsWith(s.code)));
+          if (hit) return hit.name;
         }
+        return direct || String(bag.sid || '').trim() || '(unattributed)';
+      };
+      // Buyer joins on Lead.buyer_id === Buyer.buyer_code, then falls back to
+      // the real buyer_name column, then the bag. The old version read bag.buyer
+      // as both the name and the id, which is why buyer questions were flaky.
+      const dimBuyer = (l) => {
+        const code = norm(l?.buyer_id || '');
+        if (code && buyerByCode.has(code)) return buyerByCode.get(code).name;
         const bag = parseBag(l);
-        return String(bag.buyer_name || l?.buyer_name || '').trim() || '(unsold or unassigned)';
+        return String(l?.buyer_name || bag.buyer_name || '').trim() || '(unsold or unassigned)';
       };
       const dimSource = (l) => {
         const bag = parseBag(l);
@@ -449,11 +464,14 @@ Deno.serve(async (req) => {
         return String(l?.state || bag.accident_state || bag.geoip_state || '').trim().toUpperCase() || '(unknown)';
       };
       const dimStatus = (l) => String(l?.final_status || '(unset)');
-      // lead_type is sid-based: LEADFLOW and LGNX are Quiz, everything else Affiliate.
+      // lead_type: newer rows carry it explicitly in the bag. Otherwise apply
+      // the sid rule, LEADFLOW and LGNX are Quiz, everything else Affiliate.
       const dimLeadType = (l) => {
         const bag = parseBag(l);
+        const explicit = String(bag.lead_type || '').trim();
+        if (explicit) return explicit;
         const code = norm(bag.sid || bag.ssid || l?.supplier_name || '');
-        return (code.includes('leadflow') || code.includes('lgnx')) ? 'Quiz' : 'Affiliate';
+        return (code.startsWith('leadflow') || code.startsWith('lgnx')) ? 'Quiz' : 'Affiliate';
       };
       const dimDay = (l) => eventDayKey(l) || '(undated)';
 
@@ -557,14 +575,14 @@ Deno.serve(async (req) => {
         if (!seen.has(`${rec.type}:${rec.id}`)) { resolved.push(rec); seen.add(`${rec.type}:${rec.id}`); }
       }
 
+      // Both sides go through the same dimension resolver, so a lead posted as
+      // sid INBNDS-SURVEY matches the Inbounds record and a lead with buyer_id
+      // AG1 matches Walker Advertising.
       const matchesEntity = (l, rec) => {
-        if (rec.type === 'supplier') {
-          const d = norm(dimSupplier(l));
-          return rec.aliases.some((a) => norm(a) === d);
-        }
-        if (String(l?.buyer_id || '') === String(rec.id)) return true;
-        const d = norm(dimBuyer(l));
-        return rec.aliases.some((a) => norm(a) === d);
+        if (rec.type === 'supplier') return norm(dimSupplier(l)) === norm(rec.display);
+        const code = norm(l?.buyer_id || '');
+        if (code && rec.buyer_code && code === norm(rec.buyer_code)) return true;
+        return norm(dimBuyer(l)) === norm(rec.display);
       };
 
       // ---- Execute ---------------------------------------------------------
