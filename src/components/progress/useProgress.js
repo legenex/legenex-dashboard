@@ -90,6 +90,14 @@ export function useProgressSnapshots() {
   });
 }
 
+export function usePageSnapshots() {
+  return useQuery({
+    queryKey: ['progress-page-snapshots'],
+    queryFn: () => list('PageSnapshot', '-captured_at'),
+    staleTime: 15 * 1000,
+  });
+}
+
 // The manifest is a build artefact, so it never changes at runtime.
 export function usePageManifest() {
   return manifest;
