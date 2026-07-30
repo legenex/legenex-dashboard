@@ -88,6 +88,58 @@ import SupplierPortalReturns from '@/pages/supplierportal/SupplierPortalReturns'
 import SupplierPortalApi from '@/pages/supplierportal/SupplierPortalApi';
 import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSettings';
 
+function LegacySupplierRedirect() {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  if (params.get('legacy') === '1') return <SupplierDetail />;
+  const tab = params.get('tab');
+  const qs = new URLSearchParams({ supplier: id || '' });
+  if (tab) qs.set('tab', tab);
+  return <Navigate to={`/operations/suppliers?${qs.toString()}`} replace />;
+}
+
+// Same handoff for buyers. The old /buyers/:id page duplicated the Operations
+// buyer detail; Operations is the surface that is maintained, so old links go
+// there with their tab preserved.
+function LegacyBuyerRedirect() {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  if (params.get('legacy') === '1') return <BuyerDetail />;
+  const tab = params.get('tab');
+  const qs = new URLSearchParams({ buyer: id || '' });
+  if (tab) qs.set('tab', tab);
+  return <Navigate to={`/operations/buyers?${qs.toString()}`} replace />;
+}
+
+// Public documentation routes, rendered with no auth. Reused both on the
+// docs subdomain (as the entire app) and under /docs on the main app.
+
+export const DocsRoutes = () => (
+  <Route path="/docs" element={<DocsLayout />}>
+    {DOCS_ROUTES.map((r) => (
+      <Route
+        key={r.slug || 'index'}
+        {...(r.slug ? { path: r.slug } : { index: true })}
+        element={<r.Component />}
+      />
+    ))}
+  </Route>
+);
+
+export const ProgressRoutes = () => (
+  <Route element={<ProgressLayout />}>
+    <Route path="/progress" element={<CommandCenter />} />
+    <Route path="/progress/review" element={<ApplicationReview />} />
+    <Route path="/progress/migration" element={<Migration />} />
+    <Route path="/progress/gates" element={<Gates />} />
+    <Route path="/progress/findings" element={<Findings />} />
+    <Route path="/progress/changes" element={<ChangeRequests />} />
+    <Route path="/progress/prompts" element={<PromptStudio />} />
+    <Route path="/progress/activity" element={<BuildActivity />} />
+    <Route path="/progress/settings" element={<ProgressSettings />} />
+  </Route>
+);
+
 export function OperatorRoutes() {
   return (
     <>

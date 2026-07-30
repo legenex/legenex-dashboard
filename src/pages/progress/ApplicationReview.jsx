@@ -183,6 +183,20 @@ export default function ApplicationReview() {
               </button>
             )}
           </CardBody>
+          {!capture.running && capture.progress.failures?.length > 0 && (
+            <CardBody className="border-t border-border pt-2.5">
+              <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                What failed, and why
+              </p>
+              <ul className="max-h-40 space-y-1 overflow-y-auto">
+                {capture.progress.failures.slice(0, 40).map((f, i) => (
+                  <li key={i} className="text-[11px] text-muted-foreground">
+                    <span className="text-foreground">{f.page}</span> ({f.viewport}): {f.reason}
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          )}
         </Card>
       )}
 

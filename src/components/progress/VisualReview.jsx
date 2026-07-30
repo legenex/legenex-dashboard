@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { usePermissions, useAuth } from '@/lib/AuthContext';
 import { cropAndUpload } from '@/lib/progress/capture';
+import { ALL_VIEWPORTS } from '@/components/progress/OffscreenCapture';
 import { maskEnabled, setMaskEnabled } from '@/components/progress/CaptureController';
 import { useProgressMutation } from '@/components/progress/useProgress';
 import {
@@ -157,9 +158,9 @@ export default function VisualReview({ page, snapshots, threads, onRecapture, ca
             icon={Camera}
             title={`No ${viewport} capture yet`}
             description={canCapture
-              ? 'Press Capture to open this page, let it settle and store a screenshot. The capture happens in your own session, so it shows exactly what you see.'
+              ? 'Capture renders this page with its real sidebar and sub-menu, lets it settle, and stores desktop, tablet and mobile in one go. Nothing navigates.'
               : 'Nobody with capture permission has taken a screenshot of this page yet.'}
-            action={canCapture ? <PrimaryButton onClick={() => recapture()} disabled={capturing}>Capture this page</PrimaryButton> : null}
+            action={canCapture ? <PrimaryButton onClick={() => recapture(ALL_VIEWPORTS)} disabled={capturing}>Capture all sizes</PrimaryButton> : null}
           />
         </Card>
       ) : latest.capture_status === 'failed' ? (

@@ -9,6 +9,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import PermissionRoute from '@/components/PermissionRoute';
 import ScrollToTop from './components/ScrollToTop';
 import { hostScope, isAllowedOnProgressHost } from '@/lib/hostScope';
+import { OperatorRoutes, DocsRoutes, ProgressRoutes } from './AppRoutes';
 
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -89,42 +90,6 @@ import SupplierPortalSettings from '@/pages/supplierportal/SupplierPortalSetting
 // deep-links via ?supplier=<id>&tab=<tab>, so old links land on the maintained
 // surface with the tab they asked for. ?legacy=1 still reaches the old page if
 // something turns out to depend on it.
-function LegacySupplierRedirect() {
-  const { id } = useParams();
-  const [params] = useSearchParams();
-  if (params.get('legacy') === '1') return <SupplierDetail />;
-  const tab = params.get('tab');
-  const qs = new URLSearchParams({ supplier: id || '' });
-  if (tab) qs.set('tab', tab);
-  return <Navigate to={`/operations/suppliers?${qs.toString()}`} replace />;
-}
-
-// Same handoff for buyers. The old /buyers/:id page duplicated the Operations
-// buyer detail; Operations is the surface that is maintained, so old links go
-// there with their tab preserved.
-function LegacyBuyerRedirect() {
-  const { id } = useParams();
-  const [params] = useSearchParams();
-  if (params.get('legacy') === '1') return <BuyerDetail />;
-  const tab = params.get('tab');
-  const qs = new URLSearchParams({ buyer: id || '' });
-  if (tab) qs.set('tab', tab);
-  return <Navigate to={`/operations/buyers?${qs.toString()}`} replace />;
-}
-
-// Public documentation routes, rendered with no auth. Reused both on the
-// docs subdomain (as the entire app) and under /docs on the main app.
-const DocsRoutes = () => (
-  <Route path="/docs" element={<DocsLayout />}>
-    {DOCS_ROUTES.map((r) => (
-      <Route
-        key={r.slug || 'index'}
-        {...(r.slug ? { path: r.slug } : { index: true })}
-        element={<r.Component />}
-      />
-    ))}
-  </Route>
-);
 
 // Host predicates live in src/lib/hostScope.js so they can be unit tested. Host
 // scoping is a security boundary, not a convenience.
@@ -143,19 +108,7 @@ const isProgressHost = () => hostScope(currentHost()) === 'progress';
 
 // The progress route table, reused on both the progress subdomain (as the whole
 // app) and under /progress on the main dashboard.
-const ProgressRoutes = () => (
-  <Route element={<ProgressLayout />}>
-    <Route path="/progress" element={<CommandCenter />} />
-    <Route path="/progress/review" element={<ApplicationReview />} />
-    <Route path="/progress/migration" element={<Migration />} />
-    <Route path="/progress/gates" element={<Gates />} />
-    <Route path="/progress/findings" element={<Findings />} />
-    <Route path="/progress/changes" element={<ChangeRequests />} />
-    <Route path="/progress/prompts" element={<PromptStudio />} />
-    <Route path="/progress/activity" element={<BuildActivity />} />
-    <Route path="/progress/settings" element={<ProgressSettings />} />
-  </Route>
-);
+
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
