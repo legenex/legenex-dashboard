@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T22:41:13.961Z",
+  "generated_at": "2026-07-30T22:43:13.423Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "77cd333feba7ba53586e9877f323b3d601501c2b",
+  "app_commit": "d1eb4647ea0bbcb6be93cf0893fb8cc31f0666b2",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -156,6 +156,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -264,6 +265,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -383,6 +385,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -498,6 +501,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -1839,6 +1843,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -1969,6 +1974,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2099,6 +2105,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2229,6 +2236,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2359,6 +2367,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2489,6 +2498,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2619,6 +2629,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2749,6 +2760,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -2879,6 +2891,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3043,6 +3056,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3132,6 +3146,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3261,6 +3276,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3392,6 +3408,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3504,6 +3521,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3593,6 +3611,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3682,6 +3701,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3805,6 +3825,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -3914,6 +3935,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4054,6 +4076,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4192,6 +4215,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4330,6 +4354,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4468,6 +4493,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4553,6 +4579,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4693,6 +4720,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4832,6 +4860,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -4939,6 +4968,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5060,6 +5090,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5183,6 +5214,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5303,6 +5335,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5463,6 +5496,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5627,6 +5661,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5740,6 +5775,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5823,6 +5859,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5906,6 +5943,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -5991,6 +6029,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -6076,6 +6115,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -6171,6 +6211,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -6254,6 +6295,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -6337,6 +6379,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -6501,6 +6544,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -6933,7 +6977,6 @@
       ],
       "entity_dependencies": [
         "AdSpend",
-        "ErrorLog",
         "PageSnapshot"
       ],
       "function_dependencies": [
@@ -6943,40 +6986,22 @@
       ],
       "component_dependencies": [
         "src/api/base44Client.js",
-        "src/components/layout/NotificationBell.jsx",
-        "src/components/layout/ResizeHandle.jsx",
-        "src/components/layout/Sidebar.jsx",
-        "src/components/layout/SidebarProfile.jsx",
-        "src/components/layout/SystemClock.jsx",
-        "src/components/layout/ViewAsSwitcher.jsx",
-        "src/components/layout/WalkthroughPanel.jsx",
-        "src/components/layout/WhatsNewDialog.jsx",
-        "src/components/layout/navConfig.js",
         "src/components/progress/CaptureController.jsx",
-        "src/components/progress/CaptureShell.jsx",
         "src/components/progress/OffscreenCapture.jsx",
         "src/components/progress/ReviewPanels.jsx",
         "src/components/progress/VisualReview.jsx",
         "src/components/progress/progressNav.js",
         "src/components/progress/progressUi.jsx",
         "src/components/progress/useProgress.js",
-        "src/components/ui/button.jsx",
-        "src/components/ui/dialog.jsx",
-        "src/components/ui/dropdown-menu.jsx",
-        "src/components/ui/input.jsx",
-        "src/components/ui/popover.jsx",
-        "src/hooks/useCollapsible.js",
-        "src/hooks/useResizableWidth.js",
-        "src/hooks/useSidebarWidth.js",
         "src/lib/AuthContext.jsx",
         "src/lib/app-params.js",
         "src/lib/fetchAll.js",
-        "src/lib/periodRange.js",
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
+        "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/progress/readiness.js",
         "src/lib/query-client.js",
-        "src/lib/theme.js",
         "src/pages/progress/ApplicationReview.jsx"
       ],
       "layout_entity_dependencies": [],
@@ -7189,6 +7214,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -7334,6 +7360,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -7479,6 +7506,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -7624,6 +7652,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -7769,6 +7798,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -7914,6 +7944,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -8059,6 +8090,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -8204,6 +8236,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -8388,6 +8421,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -8572,6 +8606,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -8756,6 +8791,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -8942,6 +8978,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -9128,6 +9165,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -9312,6 +9350,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -9496,6 +9535,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -9680,6 +9720,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -9864,6 +9905,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -10048,6 +10090,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -10232,6 +10275,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -10416,6 +10460,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -10596,6 +10641,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -10782,6 +10828,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -10966,6 +11013,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -11477,6 +11525,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -11592,6 +11641,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -11703,6 +11753,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -11811,6 +11862,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -11930,6 +11982,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/captureMode.jsx",
+        "src/lib/progress/mask.js",
         "src/lib/reportMetrics.js",
         "src/lib/tagColors.js",
         "src/lib/theme.js"
@@ -12468,7 +12521,6 @@
       "portal",
       "portal-leads",
       "portal-reports",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13178,7 +13230,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13253,7 +13304,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13328,7 +13378,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13408,7 +13457,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13589,7 +13637,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13664,7 +13711,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13744,7 +13790,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13830,7 +13875,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -13911,7 +13955,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14070,7 +14113,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "register",
       "reports",
@@ -14159,7 +14201,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14245,7 +14286,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14335,7 +14375,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "register",
       "reports",
@@ -14421,7 +14460,6 @@
       "payload-tester",
       "portal",
       "portal-reports",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14572,7 +14610,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14869,7 +14906,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -14944,7 +14980,6 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -15282,6 +15317,82 @@
       "operations-verticals",
       "overview-root-dashboard-1",
       "payload-tester",
+      "progress-review",
+      "queue-recovery",
+      "reports",
+      "reports-tab-ad",
+      "reports-tab-buyer",
+      "reports-tab-campaign",
+      "reports-tab-daily",
+      "reports-tab-performance-overview",
+      "reports-tab-pnl",
+      "reports-tab-supplier",
+      "settings",
+      "settings-tab-apikeys",
+      "settings-tab-billing",
+      "settings-tab-chatbot",
+      "settings-tab-dashboard",
+      "settings-tab-data-sources",
+      "settings-tab-errors",
+      "settings-tab-field-mapping",
+      "settings-tab-fields",
+      "settings-tab-general",
+      "settings-tab-inbound-webhooks",
+      "settings-tab-integrations",
+      "settings-tab-knowledge",
+      "settings-tab-profile",
+      "settings-tab-users",
+      "suppliers",
+      "suppliers-id",
+      "tools",
+      "verification"
+    ],
+    "src/lib/progress/mask.js": [
+      "ad-manager",
+      "ad-manager-builder",
+      "ad-manager-creative-analyzer",
+      "ad-manager-reports",
+      "buyers",
+      "buyers-id",
+      "calculated-fields",
+      "campaigns",
+      "campaigns-deliveries",
+      "conversion-events",
+      "deliveries",
+      "distribution",
+      "distribution-buyers",
+      "distribution-buyers-id",
+      "distribution-routes",
+      "distribution-simulator",
+      "errors",
+      "finances",
+      "finances-tab-adspend",
+      "finances-tab-bank",
+      "finances-tab-invoices",
+      "finances-tab-overview",
+      "finances-tab-payments",
+      "finances-tab-payouts",
+      "finances-tab-profit",
+      "finances-tab-settings",
+      "lead-distribution",
+      "leads",
+      "leads-disqualified",
+      "leads-queued",
+      "leads-rejected",
+      "leads-rejections",
+      "leads-sold",
+      "leads-unsold",
+      "notifications",
+      "operations",
+      "operations-active-states",
+      "operations-billing-reports",
+      "operations-buyer-onboarding",
+      "operations-buyers",
+      "operations-suppliers",
+      "operations-verticals",
+      "overview-root-dashboard-1",
+      "payload-tester",
+      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -15436,7 +15547,6 @@
       "portal-reports",
       "portal-returns",
       "portal-settings",
-      "progress-review",
       "queue-recovery",
       "reports",
       "reports-tab-ad",
@@ -17288,9 +17398,6 @@
       "progress-prompts"
     ],
     "src/pages/progress/ApplicationReview.jsx": [
-      "progress-review"
-    ],
-    "src/components/progress/CaptureShell.jsx": [
       "progress-review"
     ],
     "src/components/progress/OffscreenCapture.jsx": [
