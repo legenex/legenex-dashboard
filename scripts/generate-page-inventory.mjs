@@ -343,12 +343,16 @@ function dedupeKeys(pages) {
 function hostScopeFor(route, element) {
   if (element === 'ApiStatus') return 'api';
   if (route.startsWith('/docs')) return 'docs+dashboard';
+  // The Progress Control Center is served on its own subdomain and, for
+  // authorised users, under /progress on the main dashboard.
+  if (route.startsWith('/progress')) return 'progress+dashboard';
   return 'dashboard';
 }
 
 function portalScopeFor(route) {
   if (route.startsWith('/portal')) return 'buyer_portal';
   if (route.startsWith('/supplier-portal')) return 'supplier_portal';
+  if (route.startsWith('/progress')) return 'progress';
   if (route.startsWith('/docs') || route === '/apply' || route === '/login'
     || route === '/register' || route === '/forgot-password' || route === '/reset-password') return 'public';
   return 'operator';
@@ -604,6 +608,7 @@ function countBy(list, key) {
 }
 
 function sectionFromRoute(route) {
+  if (route.startsWith('/progress')) return 'progress-control-center';
   if (route.startsWith('/portal')) return 'buyer-portal';
   if (route.startsWith('/supplier-portal')) return 'supplier-portal';
   if (route.startsWith('/docs')) return 'documentation';
@@ -620,6 +625,7 @@ function sectionFromRoute(route) {
 
 function sectionLabelFromRoute(route) {
   const map = {
+    'progress-control-center': 'Progress Control Center',
     'buyer-portal': 'Buyer Portal',
     'supplier-portal': 'Supplier Portal',
     documentation: 'Public documentation',
