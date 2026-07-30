@@ -74,6 +74,7 @@ function SidebarFooter() {
 export default function ProgressLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { can } = usePermissions();
+  const location = useLocation();
 
   const items = PROGRESS_NAV.filter((i) => i.built && (!i.permKey || can(i.permKey)));
 
