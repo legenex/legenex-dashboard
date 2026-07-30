@@ -36,6 +36,12 @@ export default [
     },
     rules: {
       "no-unused-vars": "off",
+      // Spreading pluginJs.configs.recommended above does NOT survive this rules
+      // block, so no-undef has to be stated explicitly. Without it a reference to
+      // an undefined identifier (a hook result used in the wrong component, say)
+      // passes lint and passes the build, then blanks the page at runtime.
+      // That has happened. Keep this on.
+      "no-undef": "error",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",
       "unused-imports/no-unused-imports": "error",
