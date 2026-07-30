@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T13:03:32.429Z",
+  "generated_at": "2026-07-30T13:42:09.709Z",
   "generator": "scripts/generate-page-inventory.mjs",
-  "app_commit": "c4960ad522ecf3d8254c9e91032604f6a58adc29",
+  "app_commit": "a2c9495dc4382c78810d7e37c0e32fdd6883e73c",
   "sources": [
     "src/App.jsx",
     "src/components/layout/navConfig.js",
@@ -6892,6 +6892,7 @@
       "component_dependencies": [
         "src/api/base44Client.js",
         "src/components/progress/CaptureController.jsx",
+        "src/components/progress/OffscreenCapture.jsx",
         "src/components/progress/ReviewPanels.jsx",
         "src/components/progress/VisualReview.jsx",
         "src/components/progress/progressNav.js",
@@ -6903,6 +6904,7 @@
         "src/lib/permissions.js",
         "src/lib/progress/capture.js",
         "src/lib/progress/readiness.js",
+        "src/lib/query-client.js",
         "src/pages/progress/ApplicationReview.jsx"
       ],
       "layout_entity_dependencies": [],
@@ -17082,10 +17084,16 @@
     "src/pages/progress/ApplicationReview.jsx": [
       "progress-review"
     ],
+    "src/components/progress/OffscreenCapture.jsx": [
+      "progress-review"
+    ],
     "src/components/progress/ReviewPanels.jsx": [
       "progress-review"
     ],
     "src/components/progress/VisualReview.jsx": [
+      "progress-review"
+    ],
+    "src/lib/query-client.js": [
       "progress-review"
     ],
     "src/pages/progress/ProgressSettings.jsx": [
