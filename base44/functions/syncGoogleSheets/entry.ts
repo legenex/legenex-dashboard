@@ -162,6 +162,20 @@ function truthy(val) {
   return s === 'yes' || s === 'true' || s === '1' || s === 'y' || s === 'converted' || s === 'returned';
 }
 
+// A conversion is defined per sheet, because every buyer words it differently:
+// Walker calls it Qualified Flag = Yes, another posts Converted = Yes, a third
+// writes Buyer_feedback = Converted. A rule is a column plus the values in it
+// that count. With no values listed it falls back to the usual yes/true/1 set.
+function ruleMatches(row, column, values) {
+  if (!column) return false;
+  const raw = row[column];
+  if (raw === undefined || raw === null || String(raw).trim() === '') return false;
+  const list = Array.isArray(values) ? values : parseJsonArray(values);
+  if (!list.length) return truthy(raw);
+  const s = String(raw).trim().toLowerCase();
+  return list.some((v) => String(v).trim().toLowerCase() === s);
+}
+
 // The conversion value a row carries: either a column on the sheet or a flat
 // amount that applies to every converting row. Returns null when the row should
 // not move any money field.
@@ -227,8 +241,10 @@ async function writeFeedbackRow(db, source, row, mapping, cfg, dryRun) {
   ).trim();
   if (!disposition) return 'skipped';
 
-  const converted = truthy(mappedValue(row, mapping, 'buyer_conversion') ?? (cfg.converted_column ? row[cfg.converted_column] : ''));
-  const returned = truthy(mappedValue(row, mapping, 'buyer_returned') ?? (cfg.returned_column ? row[cfg.returned_column] : ''));
+  const converted = ruleMatches(row, cfg.converted_column, cfg.converted_values)
+    || truthy(mappedValue(row, mapping, 'buyer_conversion'));
+  const returned = ruleMatches(row, cfg.returned_column, cfg.returned_values)
+    || truthy(mappedValue(row, mapping, 'buyer_returned'));
   const convValue = conversionValue(row, cfg, converted);
   const buyerCode = source.buyer_code || lead.buyer_id || '';
 
