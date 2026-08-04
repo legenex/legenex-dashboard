@@ -308,9 +308,122 @@ async function writeDisqualifiedRow(db, source, row, mapping, cfg, dryRun) {
 }
 
 async function writeCallRow(db, base44, source, row, mapping, cfg, dryRun) {
-  // A call sheet either creates leads or records an outcome on an existing lead.
+  // A call sheet may simply be a lead feed wearing a different hat.
   if (cfg.create_leads === true) return await writeLeadRow(db, base44, source, row, mapping, dryRun);
-  return await writeFeedbackRow(db, source, row, mapping, cfg, dryRun);
+
+  const rawMobile = cfg.mobile_column ? row[cfg.mobile_column]
+    : (source.match_column ? row[source.match_column] : undefined);
+  const mobile = digitsOnly(rawMobile);
+  const callId = cfg.call_id_column ? String(row[cfg.call_id_column] || '').trim() : '';
+  if (!mobile && !callId) return 'skipped';
+
+  const qualifiedRaw = cfg.converted_column ? String(row[cfg.converted_column] ?? '') : '';
+  const qualified = ruleMatches(row, cfg.converted_column, cfg.converted_values);
+  const revenue = cfg.revenue_column ? toNumber(row[cfg.revenue_column]) : null;
+  const callAt = source.date_column ? toIsoDate(row[source.date_column]) : null;
+
+  // The buyer: one selected buyer pins every row, several means read it per row.
+  const buyerCodes = parseJsonArray(source.buyer_codes);
+  let buyerCode = source.buyer_code || '';
+  if (!buyerCode && buyerCodes.length === 1) buyerCode = buyerCodes[0];
+  else if (cfg.buyer_column && row[cfg.buyer_column]) {
+    const cell = String(row[cfg.buyer_column]).trim();
+    const hit = buyerCodes.find((c) => String(c).toLowerCase() === cell.toLowerCase());
+    buyerCode = hit || cell;
+  }
+
+  // Attribution: the number is the join key. A known lead gives us the supplier
+  // straight away; otherwise a Ringba style feed fills sid and ssid later.
+  let leadRef = null;
+  if (mobile) {
+    const found = await matchLead(db, 'mobile', mobile);
+    leadRef = found.lead;
+  }
+
+  if (dryRun) return 'written';
+
+  const custom = {};
+  for (const [col, field] of Object.entries(parseJsonObject(cfg.custom_map))) {
+    if (col && field && row[col] !== undefined && row[col] !== '') custom[field] = row[col];
+  }
+
+  const record = {
+    call_id: callId || undefined,
+    source_id: source.id,
+    source_name: source.name,
+    call_at: callAt ? new Date(`${callAt}T00:00:00Z`).toISOString() : undefined,
+    mobile: mobile || undefined,
+    mobile_raw: rawMobile == null ? undefined : String(rawMobile),
+    caller_id: cfg.caller_id_column ? String(row[cfg.caller_id_column] || '') : undefined,
+    duration_seconds: cfg.duration_column ? (toNumber(row[cfg.duration_column]) ?? 0) : undefined,
+    inquiry_status: cfg.status_column ? String(row[cfg.status_column] || '') : undefined,
+    qualified,
+    qualified_raw: qualifiedRaw || undefined,
+    revenue: revenue == null ? 0 : revenue,
+    buyer_code: buyerCode || undefined,
+    supplier_name: leadRef?.supplier_name || undefined,
+    lead_id: leadRef?.id || undefined,
+    attribution_status: leadRef ? 'matched_lead' : 'unattributed',
+    first_name: cfg.first_name_column ? String(row[cfg.first_name_column] || '') : undefined,
+    last_name: cfg.last_name_column ? String(row[cfg.last_name_column] || '') : undefined,
+    state: cfg.state_column ? String(row[cfg.state_column] || '') : undefined,
+    vertical: cfg.vertical_column ? String(row[cfg.vertical_column] || '') : undefined,
+    vertical_detail: cfg.vertical_detail_column ? String(row[cfg.vertical_detail_column] || '') : undefined,
+    custom_fields: Object.keys(custom).length ? JSON.stringify(custom) : undefined,
+  };
+
+  // Upsert on the platform's own call id when there is one, so a sheet that is
+  // re-read with updated commission updates the call rather than duplicating it.
+  let existing = null;
+  if (callId) existing = (await db.entities.CallRecord.filter({ call_id: callId }))?.[0] || null;
+  if (existing) await db.entities.CallRecord.update(existing.id, record);
+  else await db.entities.CallRecord.create(record);
+
+  return 'written';
+}
+
+// A Ringba style feed carries the numbers alongside sid and ssid. It creates no
+// calls of its own: it finds the call already recorded against that number and
+// fills in who sent it.
+async function writeCallAttributionRow(db, source, row, cfg, dryRun) {
+  const rawMobile = cfg.mobile_column ? row[cfg.mobile_column]
+    : (source.match_column ? row[source.match_column] : undefined);
+  const mobile = digitsOnly(rawMobile);
+  if (!mobile) return 'skipped';
+
+  const sid = cfg.sid_column ? String(row[cfg.sid_column] || '').trim() : '';
+  const ssid = cfg.ssid_column ? String(row[cfg.ssid_column] || '').trim() : '';
+  if (!sid && !ssid) return 'skipped';
+
+  const calls = await db.entities.CallRecord.filter({ mobile });
+  const target = (Array.isArray(calls) ? calls : [])[0];
+  if (!target) return 'skipped';
+
+  if (dryRun) return 'written';
+
+  // A sid is a supplier code, so resolve it to the supplier's real name the same
+  // way the inbound webhook does rather than storing a raw code as a name.
+  let supplierName = target.supplier_name || '';
+  if (sid && !supplierName) {
+    const sups = await db.entities.Supplier.list();
+    const n = (v) => String(v ?? '').trim().toLowerCase();
+    const s = n(sid);
+    const hit = (Array.isArray(sups) ? sups : []).find((x) => {
+      const name = n(x.name);
+      const xsid = n(x.sid);
+      if (xsid && s && xsid === s) return true;
+      return name && s && (name === s || s.startsWith(name) || name.startsWith(s));
+    });
+    supplierName = hit?.name || sid;
+  }
+
+  await db.entities.CallRecord.update(target.id, {
+    sid: sid || target.sid || undefined,
+    ssid: ssid || target.ssid || undefined,
+    supplier_name: supplierName || undefined,
+    attribution_status: 'matched_feed',
+  });
+  return 'written';
 }
 
 async function writeCostRow(db, source, row, cfg, dryRun) {
@@ -379,6 +492,7 @@ async function syncOne(db, base44, source, dryRun) {
       if (purpose === 'buyer_feedback') result = await writeFeedbackRow(db, source, row, mapping, cfg, dryRun);
       else if (purpose === 'disqualified') result = await writeDisqualifiedRow(db, source, row, mapping, cfg, dryRun);
       else if (purpose === 'inbound_calls') result = await writeCallRow(db, base44, source, row, mapping, cfg, dryRun);
+      else if (purpose === 'call_attribution') result = await writeCallAttributionRow(db, source, row, cfg, dryRun);
       else if (purpose === 'cost') result = await writeCostRow(db, source, row, cfg, dryRun);
       else result = await writeLeadRow(db, base44, source, row, mapping, dryRun);
 
