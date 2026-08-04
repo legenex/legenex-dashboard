@@ -12,6 +12,7 @@
 // or cert_source, and never overwrites the inbound pipeline fields.
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { normalizeEmail, normalizeMobileUs, outranks, pickWinner } from './leadIdentity.generated.js';
 
 // Treat a literal single dash and empty string as null. Returns a trimmed
 // string, or null when the value is empty/dash/nullish.
@@ -244,21 +245,55 @@ Deno.serve(async (req) => {
     let resultStatus: string | null = finalStatus;
 
     let existing: any = null;
-    // 1. Primary match: the LeadByte lead id.
+    let alsoMatched: any[] = [];
+
+    // Identity matching runs on NORMALIZED keys, never raw equality.
+    //
+    // The old code compared raw strings, so LeadsHook storing
+    // "Blackicedane@gmail.com" and LeadByte posting back
+    // "blackicedane@gmail.com" did not match and this function created a
+    // second Lead for the same person. Mobile had the same flaw against
+    // "+1 404 979 1133" vs "4049791133".
+    const emailKey = normalizeEmail(contactEmail);
+    const mobileKey = normalizeMobileUs(contactPhone);
+
+    const candidates: any[] = [];
+    const seen = new Set<string>();
+    const addAll = (rows: unknown) => {
+      for (const r of (Array.isArray(rows) ? rows : [])) {
+        const id = (r as any)?.id;
+        if (id && !seen.has(id)) { seen.add(id); candidates.push(r); }
+      }
+    };
+
+    // 1. Primary match: the LeadByte lead id. Unambiguous when present.
     if (leadbyteId !== null) {
-      const found = await svc.entities.Lead.filter({ leadbyte_lead_id: leadbyteId });
-      existing = (Array.isArray(found) ? found : [])[0] || null;
+      addAll(await svc.entities.Lead.filter({ leadbyte_lead_id: leadbyteId }));
     }
-    // 2. Fallback match: email, then phone. Outcome webhooks for direct-route
-    //    leads carry no leadbyte_lead_id (those leads never went to LeadByte),
-    //    so match them on contact identity instead of creating a phantom lead.
-    if (!existing && contactEmail) {
-      const found = await svc.entities.Lead.filter({ email: contactEmail });
-      existing = (Array.isArray(found) ? found : [])[0] || null;
+    // 2. Identity match on the normalized keys. Both are checked (not
+    //    email-then-phone) so a lead that changed one field is still found.
+    if (candidates.length === 0 && emailKey) {
+      addAll(await svc.entities.Lead.filter({ email_normalized: emailKey }));
     }
-    if (!existing && contactPhone) {
-      const found = await svc.entities.Lead.filter({ mobile: contactPhone });
-      existing = (Array.isArray(found) ? found : [])[0] || null;
+    if (candidates.length === 0 && mobileKey) {
+      addAll(await svc.entities.Lead.filter({ mobile_normalized: mobileKey }));
+    }
+    // 3. Raw fallback, for any record predating the normalization backfill.
+    //    Kept deliberately: without it an un-backfilled lead would be missed
+    //    and this function would create the duplicate all over again.
+    if (candidates.length === 0 && contactEmail) {
+      addAll(await svc.entities.Lead.filter({ email: contactEmail }));
+    }
+    if (candidates.length === 0 && contactPhone) {
+      addAll(await svc.entities.Lead.filter({ mobile: contactPhone }));
+    }
+
+    if (candidates.length > 0) {
+      // The outcome attaches to ONE record. pickWinner resolves by status
+      // precedence, then captured revenue, then age (the oldest record is the
+      // original intake and carries the quiz/source provenance).
+      existing = candidates.reduce((best, row) => pickWinner(best, row));
+      alsoMatched = candidates.filter((r) => r.id !== existing.id);
     }
 
     if (existing) {
@@ -268,8 +303,17 @@ Deno.serve(async (req) => {
       // Guard: an outcome postback must never downgrade a lead that already
       // sold at intake. If the lead is already Sold, keep it Sold and never
       // zero out its captured revenue.
-      const alreadySold = String(existing.final_status || '').toLowerCase() === 'sold';
-      if (alreadySold && patch.final_status && patch.final_status !== 'Sold' && !toBool(body.buyer_returned)) {
+      // An inbound outcome may only ever move a lead UP the precedence order
+      // (Converted > Sold > Returned > Unsold > Disqualified > Rejected >
+      // Duplicate > Qualified). A late or replayed postback can no longer
+      // downgrade a lead that already reached a better outcome. A buyer return
+      // is the one legitimate downgrade and is allowed through explicitly.
+      if (
+        patch.final_status &&
+        !outranks(patch.final_status, existing.final_status) &&
+        String(patch.final_status) !== String(existing.final_status) &&
+        !toBool(body.buyer_returned)
+      ) {
         delete patch.final_status;
       }
       // Never overwrite an existing non-zero revenue with a null/zero outcome value.
