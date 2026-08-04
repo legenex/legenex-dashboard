@@ -33,8 +33,8 @@ import { callLLM } from './llmClient.generated.js';
 // Delegates to the shared client: OpenAI first, automatic failover to
 // Anthropic (ANTHROPIC_API_KEY) if OpenAI is unavailable for any reason.
 // The name is kept so existing call sites are untouched.
-async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
-  return await callLLM({ prompt, system, model, temperature, maxTokens });
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, jsonSchema = null, images = [], maxTokens } = {}) {
+  return await callLLM({ prompt, system, model, temperature, jsonSchema, images, maxTokens });
 }
 
 // A real inventory of the app, so target_files names things that exist instead

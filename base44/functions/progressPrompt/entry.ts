@@ -51,7 +51,7 @@ const STANDING_CONSTRAINTS = [
 // Delegates to the shared client: OpenAI first, automatic failover to
 // Anthropic (ANTHROPIC_API_KEY) if OpenAI is unavailable for any reason.
 // The name is kept so existing call sites are untouched.
-async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
+async function callOpenAI({ prompt, system, model = 'gpt-4o', temperature = 0.2, maxTokens } = {}) {
   return await callLLM({ prompt, system, model, temperature, maxTokens });
 }
 
