@@ -378,6 +378,19 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
 
             <div>
               <Label className="text-[12px]">Spreadsheet *</Label>
+
+              {/* Google's own browser. Preferred when configured, because it
+                  needs no restricted scope and shows every sheet the operator
+                  can reach, including ones shared with them. */}
+              {pickerReady && (
+                <div className="mt-1 mb-2">
+                  <Button variant="outline" onClick={browseDrive} disabled={picking} className="gap-1.5 w-full justify-center">
+                    {picking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}
+                    {form.spreadsheet_name ? `Change sheet (${form.spreadsheet_name})` : 'Browse my Google Drive'}
+                  </Button>
+                </div>
+              )}
+
               {driveFiles === null ? (
                 <div className="mt-1 text-[12px] text-muted-foreground inline-flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Reading your Google Drive
@@ -388,9 +401,9 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
                     <Input value={form.sheetInput} onChange={(e) => setForm((p) => ({ ...p, sheetInput: e.target.value }))} placeholder="https://docs.google.com/spreadsheets/d/..." className="bg-background font-mono text-[12px]" />
                     <Button size="sm" variant="outline" onClick={usePastedLink} disabled={busy}>Use link</Button>
                   </div>
-                  {driveFiles.length === 0 && account?.can_list === false && (
+                  {driveFiles.length === 0 && account?.can_list === false && !pickerReady && (
                     <p className="text-[11px] text-muted-foreground">
-                      Browsing your Drive needs a Google Drive connection, which is separate from the Sheets one. Until that is connected, paste the sheet link here. Everything after this step works identically either way.
+                      Browsing your Drive needs the picker set up once, from the Google Sheets panel. Until then, paste the sheet link here. Everything after this step works identically either way.
                     </p>
                   )}
                 </div>
