@@ -11,9 +11,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Copy, Trash2, Pencil, Webhook, KeyRound } from 'lucide-react';
+import { Plus, Copy, Trash2, Pencil, Webhook, KeyRound, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { WEBHOOK_PURPOSES, MATCH_FIELDS, purposeMeta } from '@/components/settings/dataSourcePurposes';
 
 const WEBHOOK_FN_URL = 'https://api.legenex.com/functions/webhook';
 
@@ -33,7 +34,33 @@ const EVENT_OPTIONS = [
 
 const NO_SUPPLIER = '__none__';
 
-const blankForm = { name: '', event_type: DYNAMIC, api_key_id: '', supplier_name: NO_SUPPLIER, notes: '' };
+// Blank match_field means the built-in resolution order: lead id, then email,
+// then mobile. That is what every route created before purposes existed uses.
+const AUTO_MATCH = '__auto__';
+
+const blankForm = {
+  name: '', event_type: DYNAMIC, api_key_id: '', supplier_name: NO_SUPPLIER, notes: '',
+  purpose: 'lead_outcome', match_field: AUTO_MATCH, match_key: '', date_key: '', field_map: [],
+};
+
+// field_map is stored as a JSON object and edited as ordered rows.
+function mapToRows(json) {
+  try {
+    const obj = JSON.parse(json || '{}');
+    if (!obj || typeof obj !== 'object') return [];
+    return Object.entries(obj).map(([key, field]) => ({ key, field: String(field) }));
+  } catch { return []; }
+}
+
+function rowsToMap(rows) {
+  const out = {};
+  for (const r of rows || []) {
+    const k = String(r.key || '').trim();
+    const f = String(r.field || '').trim();
+    if (k && f) out[k] = f;
+  }
+  return out;
+}
 
 // The full URL a sender posts to. The key authenticates; route is optional and
 // only exists so receipts and last-received land on the right row.
@@ -100,6 +127,11 @@ export default function SettingsInboundWebhooks() {
       api_key_id: route.api_key_id || '',
       supplier_name: route.supplier_name || NO_SUPPLIER,
       notes: route.notes || '',
+      purpose: route.purpose || 'lead_outcome',
+      match_field: route.match_field || AUTO_MATCH,
+      match_key: route.match_key || '',
+      date_key: route.date_key || '',
+      field_map: mapToRows(route.field_map),
     });
     setModalOpen(true);
   };
@@ -113,6 +145,11 @@ export default function SettingsInboundWebhooks() {
       api_key_name: key?.name || '',
       supplier_name: form.supplier_name === NO_SUPPLIER ? '' : form.supplier_name,
       notes: form.notes.trim(),
+      purpose: form.purpose || 'lead_outcome',
+      match_field: form.match_field === AUTO_MATCH ? '' : form.match_field,
+      match_key: form.match_key.trim(),
+      date_key: form.date_key.trim(),
+      field_map: JSON.stringify(rowsToMap(form.field_map)),
     };
     try {
       if (editingId) {
