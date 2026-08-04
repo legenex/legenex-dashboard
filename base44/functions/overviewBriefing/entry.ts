@@ -5,7 +5,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // we return a short plain-English briefing. Uses OpenAI (OPENAI_API_KEY secret).
 async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4 }) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Every AI feature (DataBot, Ad Manager insights, Distribution insights, this briefing) depends on it.');
   const messages = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
@@ -14,7 +14,14 @@ async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature =
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, messages, temperature }),
   });
-  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const detail = await res.text();
+    // Classify the common failures so the operator sees a cause, not a shrug.
+    if (res.status === 401) throw new Error('OPENAI_KEY_REJECTED: the OPENAI_API_KEY secret is set but OpenAI rejected it (revoked or wrong project).');
+    if (res.status === 429) throw new Error('OPENAI_QUOTA: OpenAI rate limit or billing quota exceeded.');
+    if (res.status === 404) throw new Error(`OPENAI_MODEL_MISSING: the model "${model}" is not available to this key. It may have been retired.`);
+    throw new Error(`OPENAI_ERROR ${res.status}: ${detail.slice(0, 300)}`);
+  }
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? '';
 }
@@ -39,6 +46,9 @@ ${JSON.stringify(summary)}`;
     const briefing = await callOpenAI({ prompt, system });
     return Response.json({ briefing: String(briefing || '').trim() });
   } catch (error) {
-    return Response.json({ error: (error as Error).message }, { status: 500 });
+    // Deliberately 200: a non-2xx makes the SDK throw on the client, which
+    // replaced the real cause with a generic "could not generate" message and
+    // left the operator with nothing to act on.
+    return Response.json({ error: (error as Error).message }, { status: 200 });
   }
 });
