@@ -30,6 +30,7 @@ import { DOCS_ROUTES } from '@/components/docs/docsConfig';
 import AppLayout from '@/components/layout/AppLayout';
 import DistributionLayout from '@/components/distribution/DistributionLayout';
 import LeadsLayout from '@/components/leads/LeadsLayout';
+import Calls from '@/pages/Calls';
 import FinancesLayout from '@/components/finances/FinancesLayout';
 import OperationsLayout from '@/components/operations/OperationsLayout';
 import AdManagerLayout from '@/components/admanager/AdManagerLayout';
@@ -183,6 +184,7 @@ export function OperatorRoutes() {
             <Route path="/leads/rejected" element={<LeadsView view="rejected" />} />
             <Route path="/leads/queued" element={<LeadsView view="queued" />} />
             <Route path="/leads/converted" element={<LeadsView view="converted" />} />
+            <Route path="/leads/calls" element={<Calls />} />
           </Route>
           <Route path="/leads/rejections" element={<Navigate to="/leads/rejected" replace />} />
           <Route path="/queue-recovery" element={<QueueRecovery />} />
