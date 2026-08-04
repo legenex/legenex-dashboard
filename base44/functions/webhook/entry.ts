@@ -290,7 +290,28 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const c = canonicalise(body);
+    // A route may translate the sender's own key names before the built-in
+    // aliases run, so a buyer, a call platform or a Sheets Apps Script can post
+    // its own column names without a code change. field_map is payload key ->
+    // our field name. A route without a field_map behaves exactly as before.
+    const routeMap: Record<string, any> = (() => {
+      try {
+        const m = JSON.parse(route?.field_map || '{}');
+        return m && typeof m === 'object' ? m : {};
+      } catch { return {}; }
+    })();
+    const shaped: Record<string, any> = { ...body };
+    for (const [payloadKey, field] of Object.entries(routeMap)) {
+      if (!field || typeof field !== 'string') continue;
+      if (body[payloadKey] !== undefined && shaped[field] === undefined) shaped[field] = body[payloadKey];
+    }
+    // match_key names the payload key holding the match value, for a sender
+    // that uses none of the known aliases.
+    if (route?.match_field && route?.match_key && body[route.match_key] !== undefined) {
+      shaped[route.match_field] = body[route.match_key];
+    }
+
+    const c = canonicalise(shaped);
     const email = c.email || null;
     const mobile = c.mobile || null;
     const externalId = num(c.lead_id);
@@ -343,6 +364,45 @@ Deno.serve(async (req) => {
     // Everything that reaches a lead write counts as a receipt on the row.
     await bumpRoute(true);
 
+    // A cost route carries spend for a day, not a lead outcome. It writes an
+    // AdSpend row and returns before any lead matching runs.
+    const routePurpose = clean(route?.purpose) || 'lead_outcome';
+    if (routePurpose === 'cost') {
+      const rawDate = clean(shaped.date) || clean(shaped.spend_date) || clean(shaped.day)
+        || (route?.date_key ? clean(body[route.date_key]) : null);
+      const rawSpend = shaped.spend ?? shaped.cost ?? shaped.amount ?? shaped.total_cost;
+      const spendNum = num(rawSpend);
+      const isoDate = rawDate && Number.isFinite(Date.parse(rawDate))
+        ? new Date(Date.parse(rawDate)).toISOString().slice(0, 10)
+        : null;
+      if (!isoDate || spendNum === null) {
+        await bumpRoute(false, 'cost post missing date or spend');
+        return reply(400, {
+          ok: false, outcome: 'rejected', reason: 'cost_missing_fields',
+          message: 'A cost webhook needs a date and a spend amount on the payload.',
+        });
+      }
+      const costSupplier = clean(apiKey.supplier_name) || clean(route?.supplier_name) || supplierName;
+      await svc.entities.AdSpend.create({
+        date: isoDate,
+        spend: spendNum,
+        platform: 'webhook',
+        level: 'account',
+        cost_source: `webhook:${route?.name || 'inbound'}`,
+        supplier_name: costSupplier || undefined,
+        supplier_key: costSupplier ? String(costSupplier).trim().toLowerCase() : undefined,
+        leads: num(shaped.leads) ?? 0,
+        clicks: num(shaped.clicks) ?? 0,
+        impressions: num(shaped.impressions) ?? 0,
+      });
+      await touchKeyRef();
+      return reply(200, {
+        ok: true, outcome: 'cost_recorded', date: isoDate, spend: spendNum,
+        supplier: costSupplier || null,
+        message: `Recorded ${spendNum} of spend on ${isoDate}.`,
+      });
+    }
+
     if (!email && !mobile && externalId === null) {
       return reply(400, {
         ok: false, outcome: 'rejected', reason: 'no_identifying_fields',
@@ -353,7 +413,18 @@ Deno.serve(async (req) => {
     // == Match ==
     let existing: any = null;
     const firstOf = (r: unknown) => (Array.isArray(r) ? r : [])[0] || null;
-    if (externalId !== null) {
+    // A route may pin which field identifies the lead. With none pinned the
+    // order stays lead id, then email, then mobile, which is what every
+    // existing route relies on.
+    const pinned = clean(route?.match_field);
+    if (pinned === 'email' && email) {
+      existing = firstOf(await svc.entities.Lead.filter({ email }));
+    } else if (pinned === 'mobile' && mobile) {
+      existing = firstOf(await svc.entities.Lead.filter({ mobile }));
+    } else if (pinned === 'lead_id' && externalId !== null) {
+      existing = firstOf(await svc.entities.Lead.filter({ leadbyte_lead_id: externalId }));
+    }
+    if (!existing && externalId !== null) {
       existing = firstOf(await svc.entities.Lead.filter({ leadbyte_lead_id: externalId }));
     }
     if (!existing && email) {
@@ -439,6 +510,28 @@ Deno.serve(async (req) => {
       }
 
       await svc.entities.Lead.update(existing.id, { ...patch, leadbyte_outcome_at: new Date().toISOString() });
+
+      // A feedback or call route also leaves a BuyerFeedback record, so the
+      // buyer's verdict is auditable per receipt rather than only as the
+      // latest value on the lead.
+      if (routePurpose === 'buyer_feedback' || routePurpose === 'inbound_call') {
+        const verdict = c.buyer_feedback || c.lead_status || status || '';
+        if (verdict) {
+          await svc.entities.BuyerFeedback.create({
+            lead_id: existing.id,
+            buyer_id: c.buyer_id || existing.buyer_id || '',
+            matched_by: pinned || (externalId !== null ? 'lead_id' : email ? 'email' : 'mobile'),
+            disposition: String(verdict).slice(0, 120),
+            raw_disposition: String(verdict),
+            outcome: status === 'Converted' ? 'converted' : status === 'Returned' ? 'returned' : 'contacted',
+            revenue_value: num(c.revenue) ?? undefined,
+            notes: c.returned_reason || undefined,
+            source: `webhook:${route?.name || 'inbound'}`,
+            match_confidence: 'high',
+          }).catch(() => { /* the lead write is the contract, this is the audit trail */ });
+        }
+      }
+
       await touchKey();
       return reply(200, {
         ok: true, outcome: 'updated', lead_id: existing.id,
