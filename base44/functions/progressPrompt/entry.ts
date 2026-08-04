@@ -53,30 +53,6 @@ const STANDING_CONSTRAINTS = [
 // The name is kept so existing call sites are untouched.
 async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
   return await callLLM({ prompt, system, model, temperature, maxTokens });
-}) {
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      temperature,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    if (res.status === 401) throw new Error('OPENAI_KEY_REJECTED: OpenAI rejected the OPENAI_API_KEY secret (revoked, or wrong project).');
-    if (res.status === 429) throw new Error('OPENAI_QUOTA: OpenAI rate limit or billing quota exceeded.');
-    if (res.status === 404) throw new Error(`OPENAI_MODEL_MISSING: model "${model}" is not available to this key.`);
-    throw new Error(`OPENAI_ERROR ${res.status}: ${detail.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? '';
 }
 
 const parse = (v: any, fallback: any) => {

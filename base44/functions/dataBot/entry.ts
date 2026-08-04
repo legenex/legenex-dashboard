@@ -35,48 +35,6 @@ import { callLLM } from './llmClient.generated.js';
 // The name is kept so existing call sites are untouched.
 async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
   return await callLLM({ prompt, system, model, temperature, maxTokens });
-}) {
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  // Attached screenshots ride along with the prompt as image parts. The vision
-  // models accept a data URL directly, so nothing is uploaded anywhere.
-  const pics = Array.isArray(images) ? images.filter((i) => i && i.data).slice(0, 4) : [];
-  if (pics.length) {
-    messages.push({
-      role: 'user',
-      content: [
-        { type: 'text', text: prompt },
-        ...pics.map((i) => ({
-          type: 'image_url',
-          image_url: { url: `data:${i.media_type || 'image/png'};base64,${i.data}`, detail: 'high' },
-        })),
-      ],
-    });
-  } else {
-    messages.push({ role: 'user', content: prompt });
-  }
-  const payload: Record<string, unknown> = { model, messages, temperature };
-  if (jsonSchema) {
-    payload.response_format = { type: 'json_schema', json_schema: { name: 'response', strict: false, schema: jsonSchema } };
-  }
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    if (res.status === 401) throw new Error('OPENAI_KEY_REJECTED: OpenAI rejected the OPENAI_API_KEY secret (revoked, or wrong project).');
-    if (res.status === 429) throw new Error('OPENAI_QUOTA: OpenAI rate limit or billing quota exceeded.');
-    if (res.status === 404) throw new Error(`OPENAI_MODEL_MISSING: model "${model}" is not available to this key.`);
-    throw new Error(`OPENAI_ERROR ${res.status}: ${detail.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content ?? '';
-  if (jsonSchema) { try { return JSON.parse(content); } catch { return content; } }
-  return content;
 }
 
 // A real inventory of the app, so target_files names things that exist instead

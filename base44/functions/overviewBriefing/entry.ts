@@ -9,27 +9,6 @@ import { callLLM } from './llmClient.generated.js';
 // The name is kept so existing call sites are untouched.
 async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
   return await callLLM({ prompt, system, model, temperature, maxTokens });
-}) {
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Every AI feature (DataBot, Ad Manager insights, Distribution insights, this briefing) depends on it.');
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  messages.push({ role: 'user', content: prompt });
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, temperature }),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    // Classify the common failures so the operator sees a cause, not a shrug.
-    if (res.status === 401) throw new Error('OPENAI_KEY_REJECTED: the OPENAI_API_KEY secret is set but OpenAI rejected it (revoked or wrong project).');
-    if (res.status === 429) throw new Error('OPENAI_QUOTA: OpenAI rate limit or billing quota exceeded.');
-    if (res.status === 404) throw new Error(`OPENAI_MODEL_MISSING: the model "${model}" is not available to this key. It may have been retired.`);
-    throw new Error(`OPENAI_ERROR ${res.status}: ${detail.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? '';
 }
 
 Deno.serve(async (req) => {
