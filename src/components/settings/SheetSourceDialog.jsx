@@ -601,6 +601,29 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
         {/* Step 3: which columns to read, and what the key ones mean */}
         {step === 'columns' && (
           <div className="space-y-5">
+            {/* Describe it, let the model wire it up */}
+            <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Wand2 className="w-4 h-4 text-primary" />
+                <div className="text-[13px] font-medium text-foreground">Configure with AI</div>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Describe what this sheet holds and the model fills in the fields below. It only proposes configuration, it never writes data, and every choice lands in a control you can change.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="e.g. AG1 feedback, Phone is the consumer, Qualified Flag means converted, Net Cost is what they paid us"
+                  className="bg-background text-[12px]"
+                />
+                <Button variant="outline" onClick={aiConfigure} disabled={aiBusy || !columns.length} className="gap-1.5 shrink-0">
+                  {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Configure
+                </Button>
+              </div>
+              {aiNote && <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">{aiNote}</p>}
+            </div>
+
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-[12px]">Columns to read</Label>
@@ -639,9 +662,78 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
                 <ColumnSelect label="Disposition column" value={cfg.disposition_column} onChange={(v) => setCfg((p) => ({ ...p, disposition_column: v }))} columns={columns} />
                 <ColumnSelect label="Converted column" value={cfg.converted_column} onChange={(v) => setCfg((p) => ({ ...p, converted_column: v }))} columns={columns} />
                 <ColumnSelect label="Returned column" value={cfg.returned_column} onChange={(v) => setCfg((p) => ({ ...p, returned_column: v }))} columns={columns} />
-                <ColumnSelect label="Revenue or payout column" value={cfg.revenue_column} onChange={(v) => setCfg((p) => ({ ...p, revenue_column: v }))} columns={columns} />
                 <ColumnSelect label="Return reason column" value={cfg.return_reason_column} onChange={(v) => setCfg((p) => ({ ...p, return_reason_column: v }))} columns={columns} />
                 <ColumnSelect label="Notes column" value={cfg.notes_column} onChange={(v) => setCfg((p) => ({ ...p, notes_column: v }))} columns={columns} />
+              </div>
+            )}
+
+            {/* Conversion value: where the money comes from and where it lands */}
+            {(form.purpose === 'buyer_feedback' || form.purpose === 'inbound_calls') && cfg.create_leads !== true && (
+              <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div className="text-[13px] font-medium text-foreground">Conversion value</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[12px]">Where it comes from</Label>
+                    <Select
+                      value={cfg.conversion_value_mode || 'column'}
+                      onValueChange={(v) => setCfg((p) => ({ ...p, conversion_value_mode: v }))}
+                    >
+                      <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="column">A column on the sheet</SelectItem>
+                        <SelectItem value="fixed">A flat amount per conversion</SelectItem>
+                        <SelectItem value="none">Do not record a value</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(cfg.conversion_value_mode || 'column') === 'column' ? (
+                    <ColumnSelect
+                      label="Value column"
+                      value={cfg.revenue_column}
+                      onChange={(v) => setCfg((p) => ({ ...p, revenue_column: v }))}
+                      columns={columns}
+                    />
+                  ) : (cfg.conversion_value_mode === 'fixed' && (
+                    <div>
+                      <Label className="text-[12px]">Amount per conversion</Label>
+                      <Input
+                        value={cfg.conversion_value_fixed || ''}
+                        onChange={(e) => setCfg((p) => ({ ...p, conversion_value_fixed: e.target.value }))}
+                        placeholder="e.g. 850"
+                        className="mt-1 bg-background font-mono text-[12px]"
+                      />
+                    </div>
+                  ))}
+                  {cfg.conversion_value_mode !== 'none' && (
+                    <div>
+                      <Label className="text-[12px]">Write it to</Label>
+                      <Select
+                        value={cfg.conversion_value_field || 'revenue'}
+                        onValueChange={(v) => setCfg((p) => ({ ...p, conversion_value_field: v }))}
+                      >
+                        <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="revenue">Revenue (what the lead sold for)</SelectItem>
+                          <SelectItem value="conv_value">Conversion value (what it was worth to the buyer)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                {cfg.conversion_value_mode !== 'none' && (
+                  <div className="flex items-center justify-between border-t border-border pt-3">
+                    <div className="min-w-0 pr-3">
+                      <div className="text-[12px] text-foreground">Only record a value on converted rows</div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        On: a row that did not convert leaves the money fields untouched. Off: every row with a value writes one.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={cfg.conversion_value_only_when_converted === true}
+                      onCheckedChange={(v) => setCfg((p) => ({ ...p, conversion_value_only_when_converted: v }))}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
