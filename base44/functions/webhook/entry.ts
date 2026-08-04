@@ -395,7 +395,14 @@ Deno.serve(async (req) => {
         clicks: num(shaped.clicks) ?? 0,
         impressions: num(shaped.impressions) ?? 0,
       });
-      await touchKeyRef();
+      // touchKey is declared below, after the match block, so the key counter
+      // is bumped inline here rather than reaching forward into it.
+      try {
+        await svc.entities.ApiKey.update(apiKey.id, {
+          last_used_at: new Date().toISOString(),
+          request_count: (Number(apiKey.request_count) || 0) + 1,
+        });
+      } catch { /* telemetry only */ }
       return reply(200, {
         ok: true, outcome: 'cost_recorded', date: isoDate, spend: spendNum,
         supplier: costSupplier || null,
