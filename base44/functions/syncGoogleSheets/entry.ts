@@ -406,21 +406,29 @@ Deno.serve(async (req) => {
     // dropdown instead of pasting a URL. Needs a Drive scope on the connector;
     // without it the caller falls back to pasting a link.
     if (body.list_spreadsheets) {
-      const { token } = await driveToken(base44);
+      const { token, via } = await driveToken(base44);
+      const search = String(body.search || '').trim().replace(/'/g, "\\'");
+      const q = "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false"
+        + (search ? ` and name contains '${search}'` : '');
       const url = 'https://www.googleapis.com/drive/v3/files'
-        + '?q=' + encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false")
-        + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=100';
+        + '?q=' + encodeURIComponent(q)
+        + '&fields=' + encodeURIComponent('files(id,name,modifiedTime,owners(emailAddress))')
+        + '&orderBy=' + encodeURIComponent('modifiedTime desc')
+        + '&pageSize=200'
+        // Sheets living in a shared drive are still the operator's sheets.
+        + '&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives';
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!resp.ok) {
         const txt = await resp.text();
         return Response.json({
           files: [],
+          via,
           scope_missing: resp.status === 403 || resp.status === 401,
           error: `Drive API HTTP ${resp.status}: ${txt.slice(0, 200)}`,
         });
       }
       const data = await resp.json();
-      return Response.json({ files: data.files || [] });
+      return Response.json({ files: data.files || [], via });
     }
 
     // Tab names for a chosen spreadsheet.
