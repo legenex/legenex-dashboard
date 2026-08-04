@@ -8,8 +8,10 @@ import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Sparkles, Check, ArrowLeft, FileSpreadsheet, Link2, List } from 'lucide-react';
+import { Loader2, Sparkles, Check, ArrowLeft, FileSpreadsheet, Link2, List, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { pickSpreadsheet as openGooglePicker } from '@/lib/googlePicker';
+import { useGooglePickerConfig } from '@/components/settings/GooglePickerSettings';
 import { CORE_LEAD_FIELDS, IGNORE } from '@/components/settings/leadSourceFields';
 import { SHEET_PURPOSES, MATCH_FIELDS, purposeMeta } from '@/components/settings/dataSourcePurposes';
 import MappingReviewTable from '@/components/settings/MappingReviewTable';
@@ -61,7 +63,11 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
   const [driveFiles, setDriveFiles] = useState(null); // null = still loading
   const [account, setAccount] = useState(null);
   const [byUrl, setByUrl] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [worksheets, setWorksheets] = useState([]);
+
+  const { data: pickerCfg } = useGooglePickerConfig();
+  const pickerReady = !!(pickerCfg?.client_id && pickerCfg?.api_key);
 
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list('-created_date', 200) });
   const { data: buyers = [] } = useQuery({ queryKey: ['buyers-for-sources'], queryFn: () => base44.entities.Buyer.list('company_name', 200) });
@@ -194,6 +200,24 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
     setForm((p) => ({ ...p, sheet_id: id, worksheet: '' }));
     setColumns([]); setWorksheets([]);
     await loadWorksheets(id);
+  };
+
+  // Google's own file browser, against the operator's live Google session.
+  const browseDrive = async () => {
+    setPicking(true);
+    try {
+      const file = await openGooglePicker({
+        clientId: pickerCfg.client_id, apiKey: pickerCfg.api_key, appId: pickerCfg.app_id,
+      });
+      if (file?.id) {
+        setForm((p) => ({ ...p, sheet_id: file.id, sheetInput: file.id, spreadsheet_name: file.name || '', worksheet: '' }));
+        setColumns([]); setWorksheets([]);
+        await loadWorksheets(file.id);
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Could not open the Google picker');
+    }
+    setPicking(false);
   };
 
   const pickWorksheet = async (tab) => {
