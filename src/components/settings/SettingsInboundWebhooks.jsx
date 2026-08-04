@@ -202,7 +202,7 @@ export default function SettingsInboundWebhooks() {
           <div className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">Inbound Webhooks</div>
         </div>
         <p className="text-[13px] text-muted-foreground leading-relaxed">
-          One endpoint takes lead outcomes from any platform that can POST JSON. Authentication is an API key on the URL, so there are no per-webhook tokens to rotate: use the master key, or a supplier key to pin every payload to that supplier. The supplier is otherwise read from <code className="font-mono text-[12px] text-foreground">sid</code> on the payload. Leave Event blank and the status is read from <code className="font-mono text-[12px] text-foreground">lead_status</code>. A lead that is not in the system is created; one that matches is updated.
+          One endpoint takes posts from any platform that can send JSON: buyer dispositions, inbound call payouts, disqualifications, daily cost, or a Google Sheets Apps Script pushing rows. Each route says what it is for and which key identifies the lead. Authentication is an API key on the URL, so there are no per-webhook tokens to rotate: use the master key, or a supplier key to pin every payload to that supplier. The supplier is otherwise read from <code className="font-mono text-[12px] text-foreground">sid</code> on the payload. Leave Event blank and the status is read from <code className="font-mono text-[12px] text-foreground">lead_status</code>. A lead that is not in the system is created; one that matches is updated.
         </p>
         <div className="flex items-center gap-2">
           <code className="text-[12px] text-primary bg-primary/10 px-2 py-0.5 rounded font-mono flex-1 break-all">{WEBHOOK_FN_URL}?key=…</code>
@@ -219,14 +219,14 @@ export default function SettingsInboundWebhooks() {
         <table className="w-full min-w-[860px] text-[13px]">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              {['Name', 'Event', 'API Key', 'Supplier', 'Enabled', 'Last Received', 'Receipts', 'Errors', 'Actions'].map((h) => (
+              {['Name', 'Purpose', 'Event', 'Match', 'API Key', 'Supplier', 'Enabled', 'Last Received', 'Receipts', 'Errors', 'Actions'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {routes.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No inbound webhooks yet</td></tr>
+              <tr><td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">No inbound webhooks yet</td></tr>
             )}
             {routes.map((r) => {
               const key = keyById[r.api_key_id];
@@ -234,9 +234,17 @@ export default function SettingsInboundWebhooks() {
               <tr key={r.id} className="hover:bg-accent/40 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{r.name || '-'}</td>
                 <td className="px-4 py-3 text-[12px]">
+                  <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    {purposeMeta(WEBHOOK_PURPOSES, r.purpose || 'lead_outcome').label}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-[12px]">
                   {r.event_type
                     ? <span className="text-muted-foreground">{r.event_type}</span>
                     : <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-primary">dynamic</span>}
+                </td>
+                <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono text-[11px]">
+                  {r.match_field ? `${r.match_field}${r.match_key ? ` (${r.match_key})` : ''}` : 'auto'}
                 </td>
                 <td className="px-4 py-3 text-[12px]">
                   {key
