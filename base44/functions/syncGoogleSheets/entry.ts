@@ -47,6 +47,19 @@ async function googleToken(base44) {
   return conn?.accessToken;
 }
 
+// Listing files is a Drive call, not a Sheets one, and Drive scopes are
+// restricted: the Sheets connector is not verified for them, so Google blocks
+// the consent screen. The separate Drive connector is tried first and the
+// Sheets token is only a fallback for the case where it does have Drive access.
+async function driveToken(base44) {
+  try {
+    const conn = await base44.asServiceRole.connectors.getConnection('googledrive');
+    if (conn?.accessToken) return { token: conn.accessToken, via: 'googledrive' };
+  } catch { /* Drive connector not connected, fall through */ }
+  const token = await googleToken(base44);
+  return { token, via: 'googlesheets' };
+}
+
 // Convert a 2D value grid (first row = headers) into an array of row objects.
 function gridToObjects(values) {
   if (!Array.isArray(values) || values.length < 2) return [];
@@ -375,23 +388,25 @@ Deno.serve(async (req) => {
         return Response.json({ connected: false, can_list: false, error: err.message });
       }
       let canList = false;
+      let listVia = null;
       try {
-        const token = await googleToken(base44);
+        const { token, via } = await driveToken(base44);
         const probe = await fetch(
           'https://www.googleapis.com/drive/v3/files?pageSize=1&fields=files(id)'
           + '&q=' + encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false"),
           { headers: { Authorization: `Bearer ${token}` } },
         );
         canList = probe.ok;
+        if (probe.ok) listVia = via;
       } catch { canList = false; }
-      return Response.json({ connected, account, can_list: canList });
+      return Response.json({ connected, account, can_list: canList, list_via: listVia });
     }
 
     // List the spreadsheets in the connected Drive so the operator picks from a
     // dropdown instead of pasting a URL. Needs a Drive scope on the connector;
     // without it the caller falls back to pasting a link.
     if (body.list_spreadsheets) {
-      const token = await googleToken(base44);
+      const { token } = await driveToken(base44);
       const url = 'https://www.googleapis.com/drive/v3/files'
         + '?q=' + encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false")
         + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=100';
