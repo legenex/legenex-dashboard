@@ -292,7 +292,7 @@ export default function SettingsInboundWebhooks() {
 
       {/* Create and edit */}
       <Dialog open={modalOpen} onOpenChange={(v) => { if (!v) { setModalOpen(false); setEditingId(null); } }}>
-        <DialogContent className="bg-popover border-border max-w-[520px]">
+        <DialogContent className="bg-popover border-border max-w-[560px] max-h-[86vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Webhook' : 'Create Webhook'}</DialogTitle>
           </DialogHeader>
@@ -300,6 +300,95 @@ export default function SettingsInboundWebhooks() {
             <div>
               <Label className="text-[12px]">Name *</Label>
               <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Inbounds Webhook" className="mt-1 bg-background" />
+            </div>
+            <div>
+              <Label className="text-[12px]">What is this webhook for *</Label>
+              <SearchableSelect
+                value={form.purpose}
+                onValueChange={(v) => setForm((p) => ({ ...p, purpose: v }))}
+                className="mt-1 bg-background"
+                options={WEBHOOK_PURPOSES.map((p) => ({ value: p.value, label: p.label }))}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {purposeMeta(WEBHOOK_PURPOSES, form.purpose).desc}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-[12px]">Match leads on</Label>
+                <SearchableSelect
+                  value={form.match_field}
+                  onValueChange={(v) => setForm((p) => ({ ...p, match_field: v }))}
+                  className="mt-1 bg-background"
+                  options={[{ value: AUTO_MATCH, label: 'Automatic (lead id, email, mobile)' }, ...MATCH_FIELDS]}
+                />
+              </div>
+              <div>
+                <Label className="text-[12px]">Payload key holding it</Label>
+                <Input
+                  value={form.match_key}
+                  onChange={(e) => setForm((p) => ({ ...p, match_key: e.target.value }))}
+                  placeholder="Blank uses the known aliases"
+                  className="mt-1 bg-background font-mono text-[12px]"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-[12px]">Date key</Label>
+              <Input
+                value={form.date_key}
+                onChange={(e) => setForm((p) => ({ ...p, date_key: e.target.value }))}
+                placeholder="Optional, e.g. Timestamp or spend_date"
+                className="mt-1 bg-background font-mono text-[12px]"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <Label className="text-[12px]">Payload key map</Label>
+                <Button
+                  size="sm" variant="ghost" className="h-7 text-[11px] gap-1"
+                  onClick={() => setForm((p) => ({ ...p, field_map: [...p.field_map, { key: '', field: '' }] }))}
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-2">
+                Only needed when the sender uses its own column names. Left is their key, right is our field, for example "Consumer Phone" to mobile or "Buyer ID" to buyer_id.
+              </p>
+              <div className="space-y-2">
+                {form.field_map.length === 0 && (
+                  <div className="text-[11px] text-muted-foreground rounded-md border border-border bg-card px-3 py-2">
+                    No overrides. The built-in aliases handle sid, email, mobile, lead_status, buyer_id, revenue and the rest.
+                  </div>
+                )}
+                {form.field_map.map((row, i) => (
+                  <div key={`map-${i}`} className="flex items-center gap-2">
+                    <Input
+                      value={row.key}
+                      onChange={(e) => setForm((p) => {
+                        const next = [...p.field_map]; next[i] = { ...next[i], key: e.target.value }; return { ...p, field_map: next };
+                      })}
+                      placeholder="Their payload key"
+                      className="bg-background font-mono text-[12px]"
+                    />
+                    <span className="text-muted-foreground text-[12px]">to</span>
+                    <Input
+                      value={row.field}
+                      onChange={(e) => setForm((p) => {
+                        const next = [...p.field_map]; next[i] = { ...next[i], field: e.target.value }; return { ...p, field_map: next };
+                      })}
+                      placeholder="our field"
+                      className="bg-background font-mono text-[12px]"
+                    />
+                    <Button
+                      size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-accent"
+                      onClick={() => setForm((p) => ({ ...p, field_map: p.field_map.filter((_, idx) => idx !== i) }))}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <Label className="text-[12px]">Event</Label>
