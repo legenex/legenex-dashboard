@@ -65,6 +65,9 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
   const [byUrl, setByUrl] = useState(false);
   const [picking, setPicking] = useState(false);
   const [worksheets, setWorksheets] = useState([]);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState('');
 
   const { data: pickerCfg } = useGooglePickerConfig();
   const pickerReady = !!(pickerCfg?.client_id && pickerCfg?.api_key);
