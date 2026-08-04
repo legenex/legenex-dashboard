@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Sparkles, Check, ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Sparkles, Check, ArrowLeft, FileSpreadsheet, Link2, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { CORE_LEAD_FIELDS, IGNORE } from '@/components/settings/leadSourceFields';
 import { SHEET_PURPOSES, MATCH_FIELDS, purposeMeta } from '@/components/settings/dataSourcePurposes';
@@ -21,20 +21,12 @@ function extractSheetId(input) {
   return m ? m[1] : String(input).trim();
 }
 
-const SCHEDULES = [
-  { value: '15m', label: 'Every 15 minutes' },
-  { value: '1h', label: 'Hourly' },
-  { value: '6h', label: 'Every 6 hours' },
-  { value: 'daily', label: 'Daily' },
-];
-
 const NONE = '__none__';
 
 const blankForm = {
   name: '', purpose: 'leads', sheetInput: '', sheet_id: '', spreadsheet_name: '', worksheet: '',
-  link_type: 'none', supplier_name: '', buyer_code: '', campaign_id: '',
-  sync_interval: '1h', dedupe_column: '', match_field: 'email', match_column: '',
-  date_column: '', enabled: true,
+  supplier_name: '', buyer_code: '', campaign_id: '',
+  dedupe_column: '', match_field: 'email', match_column: '', date_column: '', enabled: true,
 };
 
 // A labelled column picker that always offers "not set".
@@ -56,16 +48,19 @@ function ColumnSelect({ label, help, value, onChange, columns }) {
 
 export default function SheetSourceDialog({ open, onOpenChange, source, onSaved }) {
   const editing = !!source;
-  const [step, setStep] = useState('purpose'); // purpose | source | columns | mapping
+  const [step, setStep] = useState('purpose'); // purpose | sheet | columns | mapping
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [cfg, setCfg] = useState({});
   const [columns, setColumns] = useState([]);
   const [included, setIncluded] = useState([]);
   const [sample, setSample] = useState({});
+  const [rowCount, setRowCount] = useState(null);
   const [mapping, setMapping] = useState({});
-  const [driveFiles, setDriveFiles] = useState(null); // null = not loaded, [] = none or no scope
-  const [scopeMissing, setScopeMissing] = useState(false);
+  const [driveFiles, setDriveFiles] = useState(null); // null = still loading
+  const [account, setAccount] = useState(null);
+  const [byUrl, setByUrl] = useState(false);
   const [worksheets, setWorksheets] = useState([]);
 
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => base44.entities.Supplier.list('-created_date', 200) });
@@ -75,6 +70,8 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
 
   const meta = purposeMeta(SHEET_PURPOSES, form.purpose);
   const createsLeads = form.purpose === 'leads' || (form.purpose === 'inbound_calls' && cfg.create_leads === true);
+  const needsSupplier = form.purpose === 'leads' || form.purpose === 'cost';
+  const needsBuyer = form.purpose === 'buyer_feedback' || form.purpose === 'disqualified';
   const targetFields = [...CORE_LEAD_FIELDS, 'disposition', 'buyer_conversion', 'buyer_returned',
     ...customFields.map((f) => f.field_name).filter((n) => n && !CORE_LEAD_FIELDS.includes(n))];
 
@@ -85,9 +82,8 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
         name: source.name || '', purpose: source.purpose || 'leads',
         sheetInput: source.sheet_id || '', sheet_id: source.sheet_id || '',
         spreadsheet_name: source.spreadsheet_name || '', worksheet: source.worksheet || '',
-        link_type: source.link_type || 'none', supplier_name: source.supplier_name || '',
-        buyer_code: source.buyer_code || '', campaign_id: source.campaign_id || '',
-        sync_interval: source.sync_interval || '1h', dedupe_column: source.dedupe_column || '',
+        supplier_name: source.supplier_name || '', buyer_code: source.buyer_code || '',
+        campaign_id: source.campaign_id || '', dedupe_column: source.dedupe_column || '',
         match_field: source.match_field || 'email', match_column: source.match_column || '',
         date_column: source.date_column || '', enabled: source.enabled ?? true,
       });
@@ -100,79 +96,51 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
     } else {
       setForm(blankForm); setCfg({}); setMapping({}); setColumns([]); setIncluded([]); setSample({});
     }
-    setWorksheets([]);
+    setWorksheets([]); setRowCount(null); setByUrl(false);
     setStep('purpose');
   }, [open, source]);
 
-  // Load the operator's spreadsheets once, so the sheet is picked rather than pasted.
+  // Load the connected account and its spreadsheets once per open.
   useEffect(() => {
     if (!open || driveFiles !== null) return;
     (async () => {
       try {
+        const st = await base44.functions.invoke('syncGoogleSheets', { account_status: true });
+        setAccount(st.data || null);
+      } catch { setAccount(null); }
+      try {
         const res = await base44.functions.invoke('syncGoogleSheets', { list_spreadsheets: true });
-        setDriveFiles(res.data?.files || []);
-        setScopeMissing(!!res.data?.scope_missing);
+        const files = res.data?.files || [];
+        setDriveFiles(files);
+        if (!files.length) setByUrl(true);
       } catch {
-        setDriveFiles([]); setScopeMissing(true);
+        setDriveFiles([]); setByUrl(true);
       }
     })();
   }, [open, driveFiles]);
 
-  const loadWorksheets = async (sheetId) => {
-    if (!sheetId) return;
-    setBusy(true);
+  // Reading columns is not a button press: pick a tab and the columns arrive.
+  const readColumns = async (sheetId, worksheet) => {
+    if (!sheetId || !worksheet) return;
+    setReading(true);
     try {
-      const res = await base44.functions.invoke('syncGoogleSheets', { list_worksheets: true, sheet_id: sheetId });
-      if (res.data?.error) { toast.error(res.data.error); setBusy(false); return; }
-      const tabs = res.data?.worksheets || [];
-      setWorksheets(tabs);
-      setForm((p) => ({
-        ...p,
-        spreadsheet_name: res.data?.title || p.spreadsheet_name,
-        worksheet: p.worksheet && tabs.includes(p.worksheet) ? p.worksheet : (tabs[0] || 'Sheet1'),
-        name: p.name || res.data?.title || '',
-      }));
-    } catch {
-      toast.error('Could not open that spreadsheet, check it is shared with the connected Google account');
-    }
-    setBusy(false);
-  };
-
-  const pickSpreadsheet = async (fileId) => {
-    const file = (driveFiles || []).find((f) => f.id === fileId);
-    setForm((p) => ({ ...p, sheet_id: fileId, sheetInput: fileId, spreadsheet_name: file?.name || '' }));
-    await loadWorksheets(fileId);
-  };
-
-  const usePastedLink = async () => {
-    const id = extractSheetId(form.sheetInput);
-    if (!id) { toast.error('Paste a Google Sheets link or ID'); return; }
-    setForm((p) => ({ ...p, sheet_id: id }));
-    await loadWorksheets(id);
-  };
-
-  const loadColumns = async () => {
-    const sheetId = form.sheet_id || extractSheetId(form.sheetInput);
-    if (!sheetId) { toast.error('Pick a spreadsheet first'); return; }
-    setBusy(true);
-    try {
-      const res = await base44.functions.invoke('syncGoogleSheets', {
-        preview: true, sheet_id: sheetId, worksheet: form.worksheet,
-      });
-      if (res.data?.error) { toast.error(res.data.error); setBusy(false); return; }
+      const res = await base44.functions.invoke('syncGoogleSheets', { preview: true, sheet_id: sheetId, worksheet });
+      if (res.data?.error) { toast.error(res.data.error); setReading(false); return; }
       const cols = res.data?.columns || [];
-      if (!cols.length) { toast.error('No columns found in that tab'); setBusy(false); return; }
       setColumns(cols);
       setSample(res.data?.sample || {});
-      if (!included.length) setIncluded(cols);
+      setRowCount(res.data?.rowCount ?? null);
+      setIncluded((prev) => (prev.length ? prev.filter((c) => cols.includes(c)) : cols));
 
-      // Guess the obvious ones so the operator confirms rather than types.
+      // Guess the obvious ones so you confirm rather than type.
       const lower = (c) => String(c).toLowerCase();
       const find = (...needles) => cols.find((c) => needles.some((n) => lower(c).includes(n))) || '';
       setForm((p) => ({
         ...p,
-        match_column: p.match_column || find(p.match_field === 'mobile' ? 'phone' : p.match_field, 'phone', 'email'),
-        date_column: p.date_column || find('timestamp', 'date', 'time'),
+        match_column: p.match_column && cols.includes(p.match_column)
+          ? p.match_column
+          : find(p.match_field === 'mobile' ? 'phone' : p.match_field, 'phone', 'email'),
+        date_column: p.date_column && cols.includes(p.date_column) ? p.date_column : find('timestamp', 'date', 'time'),
       }));
       setCfg((p) => ({
         ...p,
@@ -183,19 +151,68 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
         notes_column: p.notes_column || find('note'),
         spend_column: p.spend_column || find('total cost', 'cost', 'spend'),
       }));
-      setStep('columns');
     } catch {
-      toast.error('Could not read the sheet, check sharing and the tab name');
+      toast.error('Could not read that tab, check the sheet is shared with the connected account');
+    }
+    setReading(false);
+  };
+
+  const loadWorksheets = async (sheetId) => {
+    if (!sheetId) return;
+    setBusy(true);
+    try {
+      const res = await base44.functions.invoke('syncGoogleSheets', { list_worksheets: true, sheet_id: sheetId });
+      if (res.data?.error) { toast.error(res.data.error); setBusy(false); return; }
+      const tabs = res.data?.worksheets || [];
+      setWorksheets(tabs);
+      const tab = form.worksheet && tabs.includes(form.worksheet) ? form.worksheet : (tabs[0] || 'Sheet1');
+      setForm((p) => ({
+        ...p,
+        spreadsheet_name: res.data?.title || p.spreadsheet_name,
+        worksheet: tab,
+        name: p.name || res.data?.title || '',
+      }));
+      setBusy(false);
+      await readColumns(sheetId, tab);
+      return;
+    } catch {
+      toast.error('Could not open that spreadsheet, check it is shared with the connected Google account');
     }
     setBusy(false);
   };
 
-  const goFromColumns = async () => {
+  const pickSpreadsheet = async (fileId) => {
+    const file = (driveFiles || []).find((f) => f.id === fileId);
+    setForm((p) => ({ ...p, sheet_id: fileId, sheetInput: fileId, spreadsheet_name: file?.name || '', worksheet: '' }));
+    setColumns([]); setWorksheets([]);
+    await loadWorksheets(fileId);
+  };
+
+  const usePastedLink = async () => {
+    const id = extractSheetId(form.sheetInput);
+    if (!id) { toast.error('Paste a Google Sheets link or ID'); return; }
+    setForm((p) => ({ ...p, sheet_id: id, worksheet: '' }));
+    setColumns([]); setWorksheets([]);
+    await loadWorksheets(id);
+  };
+
+  const pickWorksheet = async (tab) => {
+    setForm((p) => ({ ...p, worksheet: tab }));
+    setColumns([]);
+    await readColumns(form.sheet_id, tab);
+  };
+
+  const goFromSheet = async () => {
+    if (!form.sheet_id) { toast.error('Pick a spreadsheet'); return; }
+    if (!columns.length) { toast.error('Pick a tab so the columns can be read'); return; }
     if (meta.needsMatch && !form.match_column) { toast.error('Pick the column that identifies the lead'); return; }
+    setStep('columns');
+  };
+
+  const goFromColumns = async () => {
     if (form.purpose === 'cost' && !cfg.spend_column) { toast.error('Pick the column holding the spend amount'); return; }
     if (form.purpose === 'cost' && !form.date_column) { toast.error('Pick the column holding the date'); return; }
     if (createsLeads) {
-      // Auto-map the included columns before the review table is shown.
       if (Object.keys(mapping).length === 0) {
         setBusy(true);
         try {
@@ -222,8 +239,7 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Give this source a name'); return; }
-    if (form.purpose === 'cost' && !form.supplier_name) { toast.error('A cost sheet needs a supplier to attribute the spend to'); return; }
-    if (form.purpose === 'leads' && !form.supplier_name) { toast.error('A lead sheet needs a supplier to attribute leads to'); return; }
+    if (needsSupplier && !form.supplier_name) { toast.error('Pick the supplier this sheet is attributed to'); return; }
     setBusy(true);
     try {
       const payload = {
@@ -232,11 +248,14 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
         sheet_id: form.sheet_id || extractSheetId(form.sheetInput),
         spreadsheet_name: form.spreadsheet_name,
         worksheet: form.worksheet || 'Sheet1',
-        link_type: form.link_type,
-        supplier_name: form.link_type === 'supplier' ? form.supplier_name : (form.purpose === 'leads' || form.purpose === 'cost' ? form.supplier_name : ''),
-        buyer_code: form.link_type === 'buyer' ? form.buyer_code : '',
+        google_account: account?.account || '',
+        // Every sheet syncs continuously. The longer intervals stay in the
+        // schema for a sheet that should not be hammered, set from chat.
+        sync_interval: '1m',
+        supplier_name: needsSupplier ? form.supplier_name : (form.supplier_name || ''),
+        buyer_code: needsBuyer ? form.buyer_code : '',
+        link_type: needsBuyer ? 'buyer' : needsSupplier ? 'supplier' : 'none',
         campaign_id: form.campaign_id,
-        sync_interval: form.sync_interval,
         dedupe_column: form.dedupe_column,
         match_field: form.match_field,
         match_column: form.match_column,
@@ -308,21 +327,50 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button onClick={() => setStep('source')} disabled={!form.name.trim()}>Next</Button>
+              <Button onClick={() => setStep('sheet')} disabled={!form.name.trim()}>Next</Button>
             </DialogFooter>
           </div>
         )}
 
-        {/* Step 2: which spreadsheet, which tab, who it belongs to */}
-        {step === 'source' && (
+        {/* Step 2: which spreadsheet, which tab, and the mapping fields */}
+        {step === 'sheet' && (
           <div className="space-y-4">
+            {/* Connected account */}
+            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+              <div className="text-[12px] text-muted-foreground">
+                Google account:{' '}
+                <span className="text-foreground">{account?.account || (account?.connected ? 'connected' : 'not connected')}</span>
+              </div>
+              {driveFiles !== null && (
+                <button
+                  type="button"
+                  onClick={() => setByUrl((v) => !v)}
+                  className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  {byUrl ? <><List className="w-3 h-3" /> Pick from Drive</> : <><Link2 className="w-3 h-3" /> Paste a link instead</>}
+                </button>
+              )}
+            </div>
+
             <div>
               <Label className="text-[12px]">Spreadsheet *</Label>
               {driveFiles === null ? (
                 <div className="mt-1 text-[12px] text-muted-foreground inline-flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Reading your Google Drive
                 </div>
-              ) : driveFiles.length > 0 ? (
+              ) : byUrl || driveFiles.length === 0 ? (
+                <div className="mt-1 space-y-2">
+                  <div className="flex gap-2">
+                    <Input value={form.sheetInput} onChange={(e) => setForm((p) => ({ ...p, sheetInput: e.target.value }))} placeholder="https://docs.google.com/spreadsheets/d/..." className="bg-background font-mono text-[12px]" />
+                    <Button size="sm" variant="outline" onClick={usePastedLink} disabled={busy}>Use link</Button>
+                  </div>
+                  {driveFiles.length === 0 && account?.can_list === false && (
+                    <p className="text-[11px] text-muted-foreground">
+                      The connected account has not granted Drive listing yet, so the picker is empty. Reconnect it from the Google Sheets panel to browse your files here.
+                    </p>
+                  )}
+                </div>
+              ) : (
                 <SearchableSelect
                   value={form.sheet_id}
                   onValueChange={pickSpreadsheet}
@@ -330,103 +378,78 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
                   placeholder="Pick a spreadsheet"
                   options={driveFiles.map((f) => ({ value: f.id, label: f.name }))}
                 />
-              ) : (
-                <div className="mt-1 space-y-2">
-                  {scopeMissing && (
-                    <p className="text-[11px] text-muted-foreground">
-                      The connected Google account has spreadsheet access but not Drive listing access, so the picker is empty. Paste a link instead, or ask for the Drive scope to be added to the connector.
-                    </p>
-                  )}
-                  <div className="flex gap-2">
-                    <Input value={form.sheetInput} onChange={(e) => setForm((p) => ({ ...p, sheetInput: e.target.value }))} placeholder="https://docs.google.com/spreadsheets/d/..." className="bg-background font-mono text-[12px]" />
-                    <Button size="sm" variant="outline" onClick={usePastedLink} disabled={busy}>Use link</Button>
-                  </div>
-                </div>
-              )}
-              {form.spreadsheet_name && (
-                <p className="text-[11px] text-muted-foreground mt-1">Selected: {form.spreadsheet_name}</p>
               )}
             </div>
 
-            {worksheets.length > 0 && (
+            {(worksheets.length > 0 || busy) && (
               <div>
                 <Label className="text-[12px]">Tab *</Label>
-                <Select value={form.worksheet} onValueChange={(v) => setForm((p) => ({ ...p, worksheet: v }))}>
-                  <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder="Pick a tab" /></SelectTrigger>
+                <Select value={form.worksheet} onValueChange={pickWorksheet} disabled={busy}>
+                  <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue placeholder={busy ? 'Loading tabs' : 'Pick a tab'} /></SelectTrigger>
                   <SelectContent>{worksheets.map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-[12px]">This sheet belongs to</Label>
-                <Select value={form.link_type} onValueChange={(v) => setForm((p) => ({ ...p, link_type: v }))}>
-                  <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nobody in particular</SelectItem>
-                    <SelectItem value="buyer">A buyer</SelectItem>
-                    <SelectItem value="supplier">A supplier</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-[12px]">Sync schedule</Label>
-                <Select value={form.sync_interval} onValueChange={(v) => setForm((p) => ({ ...p, sync_interval: v }))}>
-                  <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>{SCHEDULES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {form.link_type === 'buyer' && (
-              <div>
-                <Label className="text-[12px]">Buyer</Label>
-                <SearchableSelect
-                  value={form.buyer_code}
-                  onValueChange={(v) => setForm((p) => ({ ...p, buyer_code: v }))}
-                  className="mt-1 bg-background"
-                  placeholder="Select buyer"
-                  options={buyers.filter((b) => b.buyer_code).map((b) => ({ value: b.buyer_code, label: `${b.company_name || b.name} (${b.buyer_code})` }))}
-                />
+            {reading && (
+              <div className="text-[12px] text-muted-foreground inline-flex items-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Reading columns
               </div>
             )}
 
-            {(form.link_type === 'supplier' || form.purpose === 'leads' || form.purpose === 'cost') && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-[12px]">Supplier {(form.purpose === 'leads' || form.purpose === 'cost') ? '*' : ''}</Label>
-                  <SearchableSelect
-                    value={form.supplier_name}
-                    onValueChange={(v) => setForm((p) => ({ ...p, supplier_name: v }))}
-                    className="mt-1 bg-background"
-                    placeholder="Select supplier"
-                    options={suppliers.map((s) => ({ value: s.name, label: s.name }))}
+            {/* Mapping fields, in place of the old belongs-to question */}
+            {columns.length > 0 && (
+              <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-[13px] font-medium text-foreground">Mapping fields</div>
+                  <div className="text-[11px] text-muted-foreground">{columns.length} columns, {rowCount ?? 0} rows</div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[12px]">{meta.needsMatch ? 'Match leads on *' : 'Match leads on'}</Label>
+                    <Select
+                      value={form.match_field}
+                      onValueChange={(v) => setForm((p) => ({ ...p, match_field: v }))}
+                    >
+                      <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>{MATCH_FIELDS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <ColumnSelect
+                    label={meta.needsMatch ? 'Column holding it *' : 'Column holding it'}
+                    value={form.match_column}
+                    onChange={(v) => setForm((p) => ({ ...p, match_column: v }))}
+                    columns={columns}
+                  />
+                  <ColumnSelect
+                    label={form.purpose === 'cost' ? 'Date column *' : 'Date column'}
+                    value={form.date_column}
+                    onChange={(v) => setForm((p) => ({ ...p, date_column: v }))}
+                    columns={columns}
+                  />
+                  <ColumnSelect
+                    label="De-dupe key column"
+                    value={form.dedupe_column}
+                    onChange={(v) => setForm((p) => ({ ...p, dedupe_column: v }))}
+                    columns={columns}
                   />
                 </div>
-                <div>
-                  <Label className="text-[12px]">Campaign</Label>
-                  <SearchableSelect
-                    value={form.campaign_id}
-                    onValueChange={(v) => setForm((p) => ({ ...p, campaign_id: v }))}
-                    className="mt-1 bg-background"
-                    placeholder="Optional"
-                    options={[{ value: '', label: 'None' }, ...campaigns.map((c) => ({ value: c.id, label: c.name }))]}
-                  />
-                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  The match column is how a row finds its lead. The de-dupe column stops the same row being processed twice; without one the whole row is hashed.
+                </p>
               </div>
             )}
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => setStep('purpose')} className="gap-1.5"><ArrowLeft className="w-3.5 h-3.5" /> Back</Button>
-              <Button onClick={loadColumns} disabled={busy || !(form.sheet_id || form.sheetInput)} className="gap-1.5">
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Read columns
+              <Button onClick={goFromSheet} disabled={busy || reading || !columns.length} className="gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Next, choose rows
               </Button>
             </DialogFooter>
           </div>
         )}
 
-        {/* Step 3: which columns, and what each key column means */}
+        {/* Step 3: which columns to read, and what the key ones mean */}
         {step === 'columns' && (
           <div className="space-y-5">
             <div>
@@ -441,12 +464,7 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                   {columns.map((c) => (
                     <label key={c} className="flex items-center gap-2 text-[12px] text-foreground cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={included.includes(c)}
-                        onChange={() => toggleColumn(c)}
-                        className="accent-primary"
-                      />
+                      <input type="checkbox" checked={included.includes(c)} onChange={() => toggleColumn(c)} className="accent-primary" />
                       <span className="truncate" title={c}>{c}</span>
                     </label>
                   ))}
@@ -454,32 +472,6 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">{included.length} of {columns.length} columns included.</p>
             </div>
-
-            {meta.needsMatch && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-[12px]">Match leads on *</Label>
-                  <Select value={form.match_field} onValueChange={(v) => setForm((p) => ({ ...p, match_field: v }))}>
-                    <SelectTrigger className="mt-1 bg-background text-[13px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>{MATCH_FIELDS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <ColumnSelect
-                  label="Column holding it *"
-                  value={form.match_column}
-                  onChange={(v) => setForm((p) => ({ ...p, match_column: v }))}
-                  columns={columns}
-                />
-              </div>
-            )}
-
-            <ColumnSelect
-              label={form.purpose === 'cost' ? 'Date column *' : 'Date column'}
-              help="Used for bucketing and for reporting in America/Regina."
-              value={form.date_column}
-              onChange={(v) => setForm((p) => ({ ...p, date_column: v }))}
-              columns={columns}
-            />
 
             {form.purpose === 'inbound_calls' && (
               <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
@@ -536,16 +528,50 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
               </div>
             )}
 
-            <ColumnSelect
-              label="De-dupe key column"
-              help="A unique column such as email or a row ID stops the same row being processed twice. Without one, the whole row is hashed."
-              value={form.dedupe_column}
-              onChange={(v) => setForm((p) => ({ ...p, dedupe_column: v }))}
-              columns={columns}
-            />
+            {/* Attribution, asked only where the purpose actually needs it */}
+            {(needsSupplier || needsBuyer) && (
+              <div className="grid grid-cols-2 gap-3">
+                {needsSupplier && (
+                  <div>
+                    <Label className="text-[12px]">Attribute to supplier *</Label>
+                    <SearchableSelect
+                      value={form.supplier_name}
+                      onValueChange={(v) => setForm((p) => ({ ...p, supplier_name: v }))}
+                      className="mt-1 bg-background"
+                      placeholder="Select supplier"
+                      options={suppliers.map((s) => ({ value: s.name, label: s.name }))}
+                    />
+                  </div>
+                )}
+                {needsBuyer && (
+                  <div>
+                    <Label className="text-[12px]">Buyer this feedback is from</Label>
+                    <SearchableSelect
+                      value={form.buyer_code}
+                      onValueChange={(v) => setForm((p) => ({ ...p, buyer_code: v }))}
+                      className="mt-1 bg-background"
+                      placeholder="Read from the lead if blank"
+                      options={buyers.filter((b) => b.buyer_code).map((b) => ({ value: b.buyer_code, label: `${b.company_name || b.name} (${b.buyer_code})` }))}
+                    />
+                  </div>
+                )}
+                {form.purpose === 'leads' && (
+                  <div>
+                    <Label className="text-[12px]">Campaign</Label>
+                    <SearchableSelect
+                      value={form.campaign_id}
+                      onValueChange={(v) => setForm((p) => ({ ...p, campaign_id: v }))}
+                      className="mt-1 bg-background"
+                      placeholder="Optional"
+                      options={[{ value: '', label: 'None' }, ...campaigns.map((c) => ({ value: c.id, label: c.name }))]}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setStep('source')} className="gap-1.5"><ArrowLeft className="w-3.5 h-3.5" /> Back</Button>
+              <Button variant="ghost" onClick={() => setStep('sheet')} className="gap-1.5"><ArrowLeft className="w-3.5 h-3.5" /> Back</Button>
               <Button onClick={goFromColumns} disabled={busy} className="gap-1.5">
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {createsLeads ? 'Next, map fields' : (editing ? 'Save source' : 'Connect sheet')}
