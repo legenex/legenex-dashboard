@@ -162,6 +162,42 @@ function truthy(val) {
   return s === 'yes' || s === 'true' || s === '1' || s === 'y' || s === 'converted' || s === 'returned';
 }
 
+// The conversion value a row carries: either a column on the sheet or a flat
+// amount that applies to every converting row. Returns null when the row should
+// not move any money field.
+function conversionValue(row, cfg, converted) {
+  if (cfg.conversion_value_only_when_converted === true && !converted) return null;
+  if (cfg.conversion_value_mode === 'fixed') {
+    const fixed = toNumber(cfg.conversion_value_fixed);
+    return fixed == null ? null : fixed;
+  }
+  if (cfg.conversion_value_mode === 'none') return null;
+  return cfg.revenue_column ? toNumber(row[cfg.revenue_column]) : null;
+}
+
+// Which lead field the conversion value lands on. revenue is what the lead sold
+// for; conv_value is what the buyer reported it was worth to them.
+function conversionField(cfg) {
+  return cfg.conversion_value_field === 'conv_value' ? 'conv_value' : 'revenue';
+}
+
+// Columns the operator mapped by hand, or that the AI configured, which have no
+// dedicated column on Lead. They merge into mapped_fields, the same JSON bag the
+// inbound webhook writes custom values into, rather than inventing new columns.
+function applyCustomFields(lead, row, cfg, patch) {
+  const customMap = parseJsonObject(cfg.custom_map);
+  const entries = Object.entries(customMap).filter(([col, field]) => col && field);
+  if (!entries.length) return;
+  let bag = {};
+  try { bag = JSON.parse(lead.mapped_fields || '{}') || {}; } catch { bag = {}; }
+  let changed = false;
+  for (const [col, field] of entries) {
+    if (row[col] === undefined || row[col] === '') continue;
+    if (bag[field] !== row[col]) { bag[field] = row[col]; changed = true; }
+  }
+  if (changed) patch.mapped_fields = JSON.stringify(bag);
+}
+
 // ---------------------------------------------------------------------------
 // Per-purpose row writers. Each returns 'written', 'skipped' or throws.
 // ---------------------------------------------------------------------------
