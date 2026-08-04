@@ -366,7 +366,7 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
                   </div>
                   {driveFiles.length === 0 && account?.can_list === false && (
                     <p className="text-[11px] text-muted-foreground">
-                      The connected account has not granted Drive listing yet, so the picker is empty. Reconnect it from the Google Sheets panel to browse your files here.
+                      Browsing your Drive needs a Google Drive connection, which is separate from the Sheets one. Until that is connected, paste the sheet link here. Everything after this step works identically either way.
                     </p>
                   )}
                 </div>
