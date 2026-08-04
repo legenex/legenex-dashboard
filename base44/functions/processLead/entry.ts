@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { normalizeEmail, toE164Us, titleCaseName } from './leadIdentity.generated.js';
 
 // Resolve phone_verified value from HLR result based on configured source
 function resolvePhoneVerified(hlrResult, source) {
@@ -1163,7 +1164,34 @@ function applyInboundAliases(leadPayload) {
   if (!leadPayload.supplier_brand && leadPayload.brand) leadPayload.supplier_brand = leadPayload.brand;
   if (!leadPayload.ad_label && leadPayload.utm_ad_label) leadPayload.ad_label = leadPayload.utm_ad_label;
 
-  return { firstName, lastName, mobile, email };
+  // Standardise identity before anything downstream reads it. Suppliers send
+  // the same person as Blackicedane@ / blackicedane@ and as +1 404 979 1133 /
+  // 4049791133, which previously produced two Lead records for one person.
+  // Canonical stored form: email lowercased, mobile E.164, names Title Case.
+  // The *_normalized keys are the match keys and are null when the value
+  // cannot be resolved, so junk never becomes a match key.
+  const emailNormalized = normalizeEmail(email);
+  const mobileNormalized = toE164Us(mobile);
+  const cleanEmail = emailNormalized || String(email || '').trim();
+  const cleanMobile = mobileNormalized || String(mobile || '').trim();
+  const cleanFirst = titleCaseName(firstName) || String(firstName || '').trim();
+  const cleanLast = titleCaseName(lastName) || String(lastName || '').trim();
+
+  // Write the standardised values back onto the payload so mapped_fields and
+  // every downstream mapping see the same canonical form as the columns.
+  if (cleanEmail) leadPayload.email = cleanEmail;
+  if (cleanMobile) leadPayload.mobile = cleanMobile;
+  if (cleanFirst) leadPayload.first_name = cleanFirst;
+  if (cleanLast) leadPayload.last_name = cleanLast;
+
+  return {
+    firstName: cleanFirst,
+    lastName: cleanLast,
+    mobile: cleanMobile,
+    email: cleanEmail,
+    emailNormalized,
+    mobileNormalized: mobileNormalized ? mobileNormalized.slice(2) : null,
+  };
 }
 
 // Patterns that indicate a LeadByte rejection is due to missing/invalid fields
@@ -1447,11 +1475,12 @@ Deno.serve(async (req) => {
     }
 
     // ── Normalize field aliases ──────────────────────────────────────────
-    const { firstName, lastName, mobile, email } = applyInboundAliases(leadPayload);
+    const { firstName, lastName, mobile, email, emailNormalized, mobileNormalized } = applyInboundAliases(leadPayload);
 
     await db.entities.Lead.update(leadId, {
       mapped_fields: JSON.stringify(leadPayload),
       first_name: firstName, last_name: lastName, mobile: mobile, email: email,
+      email_normalized: emailNormalized, mobile_normalized: mobileNormalized,
     });
 
     // ── AUTO-DETECT UNKNOWN INBOUND FIELDS ──────────────────────────────
