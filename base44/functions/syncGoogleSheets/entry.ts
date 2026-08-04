@@ -229,7 +229,7 @@ async function writeFeedbackRow(db, source, row, mapping, cfg, dryRun) {
 
   const converted = truthy(mappedValue(row, mapping, 'buyer_conversion') ?? (cfg.converted_column ? row[cfg.converted_column] : ''));
   const returned = truthy(mappedValue(row, mapping, 'buyer_returned') ?? (cfg.returned_column ? row[cfg.returned_column] : ''));
-  const revenue = toNumber(mappedValue(row, mapping, 'revenue') ?? (cfg.revenue_column ? row[cfg.revenue_column] : null));
+  const convValue = conversionValue(row, cfg, converted);
   const buyerCode = source.buyer_code || lead.buyer_id || '';
 
   if (dryRun) return 'written';
@@ -241,7 +241,7 @@ async function writeFeedbackRow(db, source, row, mapping, cfg, dryRun) {
     disposition: disposition.slice(0, 120),
     raw_disposition: disposition,
     outcome: converted ? 'converted' : returned ? 'returned' : 'contacted',
-    revenue_value: revenue == null ? undefined : revenue,
+    revenue_value: convValue == null ? undefined : convValue,
     notes: cfg.notes_column ? String(row[cfg.notes_column] || '').slice(0, 500) : undefined,
     source: `sheet:${source.name}`,
     match_confidence: matched_by === 'email' || matched_by === 'lead_id' || matched_by === 'id' ? 'high' : 'medium',
@@ -253,6 +253,8 @@ async function writeFeedbackRow(db, source, row, mapping, cfg, dryRun) {
   if (converted) leadPatch.buyer_conversion = true;
   if (returned) leadPatch.buyer_returned = true;
   if (returned && cfg.return_reason_column) leadPatch.buyer_return_reason = String(row[cfg.return_reason_column] || '').slice(0, 300);
+  if (convValue != null) leadPatch[conversionField(cfg)] = convValue;
+  applyCustomFields(lead, row, cfg, leadPatch);
   if (Object.keys(leadPatch).length) await db.entities.Lead.update(lead.id, leadPatch);
 
   return 'written';
@@ -284,6 +286,7 @@ async function writeDisqualifiedRow(db, source, row, mapping, cfg, dryRun) {
   // operator has explicitly asked this sheet to do so.
   const patch = { buyer_feedback: reason.slice(0, 200) };
   if (cfg.set_status === true) patch.final_status = 'Disqualified';
+  applyCustomFields(lead, row, cfg, patch);
   await db.entities.Lead.update(lead.id, patch);
   return 'written';
 }
