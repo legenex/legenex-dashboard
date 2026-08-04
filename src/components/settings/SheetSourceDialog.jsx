@@ -312,6 +312,107 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
     setIncluded((prev) => (prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]));
   };
 
+  // Custom columns are held as an ordered list while editing and serialised to a
+  // column to field object on save.
+  const customRows = Array.isArray(cfg._custom_rows) ? cfg._custom_rows : [];
+  const serialiseCustom = (rows) => JSON.stringify(rows.reduce((acc, r) => {
+    const col = String(r.column || '').trim();
+    const field = String(r.field || '').trim();
+    if (col && field) acc[col] = field;
+    return acc;
+  }, {}));
+  const setCustomRows = (rows) => setCfg((p) => ({ ...p, _custom_rows: rows, custom_map: serialiseCustom(rows) }));
+
+  // Describe the sheet in words and let the model do the wiring. It only ever
+  // proposes configuration, never writes data, and every value it picks lands in
+  // a visible control that can be overridden before saving.
+  const aiConfigure = async () => {
+    if (!aiPrompt.trim()) { toast.error('Describe what this sheet holds first'); return; }
+    setAiBusy(true); setAiNote('');
+    try {
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt: [
+          'You are configuring a Google Sheet data source for a lead generation platform.',
+          `The sheet purpose is "${form.purpose}", meaning: ${meta.desc}`,
+          `Sheet columns: ${JSON.stringify(columns)}`,
+          `First row of data: ${JSON.stringify(sample)}`,
+          `The operator describes the sheet as: ${aiPrompt.trim()}`,
+          '',
+          'Choose the column that fits each role. Use exact column names from the list, or an empty string when nothing fits.',
+          'match_column identifies which lead the row belongs to. match_field is how to match it: email, mobile, lead_id or id.',
+          'custom_fields maps any other meaningful column to a short snake_case field name, for values worth keeping that have no dedicated role.',
+          'Return JSON only.',
+        ].join('\n'),
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            match_field: { type: 'string' },
+            match_column: { type: 'string' },
+            date_column: { type: 'string' },
+            dedupe_column: { type: 'string' },
+            disposition_column: { type: 'string' },
+            converted_column: { type: 'string' },
+            returned_column: { type: 'string' },
+            return_reason_column: { type: 'string' },
+            notes_column: { type: 'string' },
+            revenue_column: { type: 'string' },
+            spend_column: { type: 'string' },
+            reason_column: { type: 'string' },
+            custom_fields: { type: 'object', additionalProperties: { type: 'string' } },
+            explanation: { type: 'string' },
+          },
+        },
+      });
+
+      const valid = (v) => (v && columns.includes(v) ? v : '');
+      const matchField = ['email', 'mobile', 'lead_id', 'id'].includes(res?.match_field) ? res.match_field : form.match_field;
+
+      setForm((p) => ({
+        ...p,
+        match_field: matchField,
+        match_column: valid(res?.match_column) || p.match_column,
+        date_column: valid(res?.date_column) || p.date_column,
+        dedupe_column: valid(res?.dedupe_column) || p.dedupe_column,
+      }));
+
+      const custom = res?.custom_fields && typeof res.custom_fields === 'object' ? res.custom_fields : {};
+      const rows = Object.entries(custom)
+        .filter(([col]) => columns.includes(col))
+        .map(([column, field]) => ({ column, field: String(field) }));
+
+      setCfg((p) => {
+        const next = {
+          ...p,
+          disposition_column: valid(res?.disposition_column) || p.disposition_column,
+          converted_column: valid(res?.converted_column) || p.converted_column,
+          returned_column: valid(res?.returned_column) || p.returned_column,
+          return_reason_column: valid(res?.return_reason_column) || p.return_reason_column,
+          notes_column: valid(res?.notes_column) || p.notes_column,
+          revenue_column: valid(res?.revenue_column) || p.revenue_column,
+          spend_column: valid(res?.spend_column) || p.spend_column,
+          reason_column: valid(res?.reason_column) || p.reason_column,
+        };
+        if (rows.length) { next._custom_rows = rows; next.custom_map = serialiseCustom(rows); }
+        return next;
+      });
+
+      // Columns the model gave a role to are the ones worth reading.
+      const touched = [
+        res?.match_column, res?.date_column, res?.dedupe_column, res?.disposition_column,
+        res?.converted_column, res?.returned_column, res?.return_reason_column,
+        res?.notes_column, res?.revenue_column, res?.spend_column, res?.reason_column,
+        ...rows.map((r) => r.column),
+      ].filter((c) => c && columns.includes(c));
+      if (touched.length) setIncluded((prev) => Array.from(new Set([...prev, ...touched])));
+
+      setAiNote(res?.explanation || 'Configured. Check each field below before saving.');
+      toast.success('Configured from your description');
+    } catch {
+      toast.error('Could not configure this sheet automatically');
+    }
+    setAiBusy(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover border-border max-w-[680px] max-h-[86vh] overflow-y-auto">
