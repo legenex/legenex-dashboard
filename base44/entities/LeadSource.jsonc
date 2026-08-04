@@ -46,13 +46,14 @@
     "sync_interval": {
       "type": "string",
       "enum": [
+        "1m",
         "15m",
         "1h",
         "6h",
         "daily"
       ],
-      "default": "1h",
-      "description": "How often the scheduled sync pulls rows (Google Sheets only)"
+      "default": "1m",
+      "description": "How often the scheduled sync pulls rows. New sheets are continuous (every scheduler tick). The longer intervals remain for sheets that should not be hammered."
     },
     "dedupe_column": {
       "type": "string",
