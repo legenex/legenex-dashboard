@@ -35,7 +35,6 @@ const TABLE_DEFS = {
 const GROUP_COLUMNS = [
   { key: 'leads', label: 'Leads', fmt: int },
   { key: 'sold', label: 'Sold', fmt: int },
-  { key: 'convRate', label: 'Conv %', fmt: pct },
   { key: 'revenue', label: 'Revenue', fmt: money },
   { key: 'cost', label: 'Cost', fmt: money },
   { key: 'cpl', label: 'CPL', fmt: money },
