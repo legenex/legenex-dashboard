@@ -332,8 +332,31 @@ Deno.serve(async (req) => {
         if (clean(mergedMapped[key]) === null) mergedMapped[key] = value;
       }
       patch.mapped_fields = JSON.stringify(mergedMapped);
+      // Backfill the match keys on the surviving record so the next postback
+      // for this person matches on the fast path.
+      if (!existing.email_normalized && emailKey) patch.email_normalized = emailKey;
+      if (!existing.mobile_normalized && mobileKey) patch.mobile_normalized = mobileKey;
+
       await svc.entities.Lead.update(existing.id, patch);
       resultStatus = patch.final_status || existing.final_status || null;
+
+      // Any other record for the same person is a duplicate of the survivor.
+      // Collapse rather than delete: the record stays auditable and reversible,
+      // and reporting excludes it via archived.
+      for (const dup of alsoMatched) {
+        try {
+          const dupMapped = parseMapped(dup.mapped_fields);
+          dupMapped.merged_into = existing.id;
+          dupMapped.merged_at = new Date().toISOString();
+          dupMapped.merged_reason = 'identity_match_leadbyte_webhook';
+          dupMapped.merged_prior_status = dup.final_status || null;
+          await svc.entities.Lead.update(dup.id, {
+            final_status: 'Duplicate',
+            archived: true,
+            mapped_fields: JSON.stringify(dupMapped),
+          });
+        } catch { /* a failed collapse must never fail the outcome write */ }
+      }
     } else {
       // No matching lead: CREATE it.
       //
@@ -403,8 +426,10 @@ Deno.serve(async (req) => {
         archived: false,
         first_name: contactFirst || undefined,
         last_name: contactLast || undefined,
-        email: contactEmail || undefined,
-        mobile: contactPhone || undefined,
+        email: emailKey || contactEmail || undefined,
+        mobile: mobileKey ? `+1${mobileKey}` : (contactPhone || undefined),
+        email_normalized: emailKey || undefined,
+        mobile_normalized: mobileKey || undefined,
         supplier_name: supplierName || undefined,
         // The whole canonical payload, plus lead_type and a provenance marker so
         // a lead that arrived this way is identifiable later.
