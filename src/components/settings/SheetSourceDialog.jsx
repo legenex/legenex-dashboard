@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Sparkles, Check, ArrowLeft, FileSpreadsheet, Link2, List, FolderOpen } from 'lucide-react';
+import { Loader2, Sparkles, Check, ArrowLeft, FileSpreadsheet, Link2, List, FolderOpen, Plus, X, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { pickSpreadsheet as openGooglePicker } from '@/lib/googlePicker';
 import { useGooglePickerConfig } from '@/components/settings/GooglePickerSettings';
@@ -313,9 +313,17 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover border-border max-w-[680px] max-h-[86vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileSpreadsheet className="w-4 h-4 text-primary" />
             {editing ? 'Edit' : 'Connect a'} Google Sheet
+            <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-primary">
+              {meta.label}
+            </span>
+            {form.spreadsheet_name && (
+              <span className="text-[12px] font-normal text-muted-foreground truncate max-w-[240px]">
+                {form.spreadsheet_name}{form.worksheet ? ` / ${form.worksheet}` : ''}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
