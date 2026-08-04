@@ -108,6 +108,18 @@
       "type": "string",
       "description": "Sheet column holding the match value"
     },
+    "match_field_2": {
+      "type": "string",
+      "description": "Fallback field to match on when the primary finds nothing, e.g. mobile first then email"
+    },
+    "match_column_2": {
+      "type": "string",
+      "description": "Sheet column holding the fallback match value"
+    },
+    "buyer_codes": {
+      "type": "string",
+      "description": "JSON array of buyer_code values this sheet covers. One buyer pins every row to it; several means the buyer is resolved per row from a buyer column, falling back to the lead's own buyer."
+    },
     "date_column": {
       "type": "string",
       "description": "Sheet column holding the row's event date, used for bucketing and for cost attribution"
