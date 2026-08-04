@@ -14,9 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
-  Mail, MessageCircle, HardDrive, FileSpreadsheet, Hash, CheckCircle2, Plug, Zap, ShieldAlert,
-  Send, Save, Megaphone, Music2, BarChart3, Facebook, Phone, PhoneCall, ShieldCheck,
-  CreditCard, Receipt, Webhook, Settings2, Landmark, Link2,
+  Mail, FileSpreadsheet, Hash, CheckCircle2, Plug, Zap, ShieldAlert,
+  Send, Save, Facebook, ShieldCheck,
+  CreditCard, Receipt, Settings2, Landmark, Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MetaConnectDialog from '@/components/settings/MetaConnectDialog';
