@@ -450,11 +450,13 @@ Deno.serve(async (req) => {
 
     // Scheduled runs respect each source's chosen interval.
     if (body.scheduled) {
-      const intervalMs = { '15m': 15 * 60000, '1h': 60 * 60000, '6h': 6 * 3600000, daily: 24 * 3600000 };
+      const intervalMs = { '1m': 0, '15m': 15 * 60000, '1h': 60 * 60000, '6h': 6 * 3600000, daily: 24 * 3600000 };
       const nowMs = Date.now();
       sources = sources.filter((s) => {
         if (!s.enabled) return false;
-        const due = intervalMs[s.sync_interval || '1h'] || 3600000;
+        // Continuous sheets run on every tick of the scheduler.
+        if ((s.sync_interval || '1m') === '1m') return true;
+        const due = intervalMs[s.sync_interval] || 3600000;
         if (!s.last_synced_at) return true;
         return nowMs - new Date(s.last_synced_at).getTime() >= due - 30000; // 30s slack
       });
