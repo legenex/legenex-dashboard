@@ -182,6 +182,7 @@ export function OperatorRoutes() {
             <Route path="/leads/disqualified" element={<LeadsView view="disqualified" />} />
             <Route path="/leads/rejected" element={<LeadsView view="rejected" />} />
             <Route path="/leads/queued" element={<LeadsView view="queued" />} />
+            <Route path="/leads/converted" element={<LeadsView view="converted" />} />
           </Route>
           <Route path="/leads/rejections" element={<Navigate to="/leads/rejected" replace />} />
           <Route path="/queue-recovery" element={<QueueRecovery />} />

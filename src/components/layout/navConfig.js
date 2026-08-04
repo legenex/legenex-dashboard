@@ -21,6 +21,7 @@ export const navGroups = [
       { label: 'Disqualified Leads', path: '/leads/disqualified', icon: Ban, permKey: 'leads_disqualified' },
       { label: 'Rejected Leads', path: '/leads/rejected', icon: Slash, permKey: 'leads_rejected' },
       { label: 'Queued Leads', path: '/leads/queued', icon: Clock, permKey: 'leads_queued' },
+      { label: 'Converted Leads', path: '/leads/converted', icon: Trophy, permKey: 'leads_converted' },
     ],
   },
   {
