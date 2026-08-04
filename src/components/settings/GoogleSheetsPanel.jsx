@@ -89,7 +89,7 @@ export default function GoogleSheetsPanel() {
               <div className="text-[13px] font-medium text-foreground">Google account</div>
               <div className="text-[11px] text-muted-foreground truncate">
                 {account?.connected
-                  ? `${account.account || 'connected'}${account.can_list ? '' : ' \u00b7 Drive listing not granted, the sheet picker will be empty'}`
+                  ? `${account.account || 'connected'}${account.can_list ? ' \u00b7 sheet picker available' : ' \u00b7 file browsing not granted, paste sheet links instead'}`
                   : 'Not connected. Connect it in Settings, Integrations, Google Sheets.'}
               </div>
             </div>
