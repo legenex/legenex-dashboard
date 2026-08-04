@@ -1,9 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { callLLM } from './llmClient.generated.js';
 
 // AI Analyst briefing for the Overview command center.
 // The frontend sends a pre-aggregated finance/lead summary (current + prior period);
 // we return a short plain-English briefing. Uses OpenAI (OPENAI_API_KEY secret).
-async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4 }) {
+// Delegates to the shared client: OpenAI first, automatic failover to
+// Anthropic (ANTHROPIC_API_KEY) if OpenAI is unavailable for any reason.
+// The name is kept so existing call sites are untouched.
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
+  return await callLLM({ prompt, system, model, temperature, maxTokens });
+}) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Every AI feature (DataBot, Ad Manager insights, Distribution insights, this briefing) depends on it.');
   const messages = [];

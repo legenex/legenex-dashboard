@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { callLLM } from './llmClient.generated.js';
 
 // AI-categorizes uncategorized BankTransaction records. The taxonomy is read
 // from the finance_settings IntegrationConfig so it stays in sync with the
@@ -16,7 +17,12 @@ const FALLBACK_CATEGORIES = [
   { key: 'revenue', label: 'Revenue', hint: 'money received from buyers / clients (positive amounts)' },
   { key: 'other', label: 'Other', hint: 'anything else' },
 ];
-async function callOpenAI({ prompt, model = 'gpt-4o-mini', temperature = 0.2, jsonSchema = null }) {
+// Delegates to the shared client: OpenAI first, automatic failover to
+// Anthropic (ANTHROPIC_API_KEY) if OpenAI is unavailable for any reason.
+// The name is kept so existing call sites are untouched.
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
+  return await callLLM({ prompt, system, model, temperature, maxTokens });
+}) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
   const payload: Record<string, unknown> = { model, messages: [{ role: 'user', content: prompt }], temperature };

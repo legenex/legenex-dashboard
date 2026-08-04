@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { callLLM } from './llmClient.generated.js';
 
 // Ad Manager AI Analyst. The frontend sends a pre-aggregated summary of the
 // current scope (platform, account or portfolio, reported vs verified metrics,
@@ -7,7 +8,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 //
 // This function is read-only. It never touches the lead pipeline, AdSpend rows,
 // or any entity. It only reads the JSON summary posted by the caller.
-async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.3 }) {
+// Delegates to the shared client: OpenAI first, automatic failover to
+// Anthropic (ANTHROPIC_API_KEY) if OpenAI is unavailable for any reason.
+// The name is kept so existing call sites are untouched.
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
+  return await callLLM({ prompt, system, model, temperature, maxTokens });
+}) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
   const messages = [];

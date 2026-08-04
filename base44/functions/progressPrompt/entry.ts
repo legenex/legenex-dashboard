@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { callLLM } from './llmClient.generated.js';
 import { verificationStateFor } from './readiness.js';
 
 // Prompt Studio generator.
@@ -47,7 +48,12 @@ const STANDING_CONSTRAINTS = [
   'Anything that cannot be verified from the working environment is labelled NEEDS-ENV, never closed by assumption.',
 ];
 
-async function callOpenAI({ prompt, system, model = 'gpt-4o', temperature = 0.2 }) {
+// Delegates to the shared client: OpenAI first, automatic failover to
+// Anthropic (ANTHROPIC_API_KEY) if OpenAI is unavailable for any reason.
+// The name is kept so existing call sites are untouched.
+async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.4, maxTokens } = {}) {
+  return await callLLM({ prompt, system, model, temperature, maxTokens });
+}) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
