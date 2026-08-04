@@ -624,30 +624,6 @@ export default function SheetSourceDialog({ open, onOpenChange, source, onSaved 
               {aiNote && <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">{aiNote}</p>}
             </div>
 
-            {/* AI configure: describe the sheet and let the model wire it up */}
-            <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <Wand2 className="w-4 h-4 text-primary" />
-                <div className="text-[13px] font-medium text-foreground">Configure with AI</div>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Describe this sheet in your own words and the columns below get filled in for you. It only proposes settings, it never writes data, and you can change anything afterwards.
-              </p>
-              <textarea
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                rows={2}
-                placeholder="e.g. Walker AG1 call report. Qualified Flag of Yes means the call converted, Partner Commission is what they pay us, match on Consumer Phone Primary."
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={aiConfigure} disabled={aiBusy} className="gap-1.5">
-                  {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Configure
-                </Button>
-                {aiNote && <span className="text-[11px] text-muted-foreground truncate">{aiNote}</span>}
-              </div>
-            </div>
-
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-[12px]">Columns to read</Label>
