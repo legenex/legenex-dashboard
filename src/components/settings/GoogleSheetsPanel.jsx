@@ -11,6 +11,7 @@ import { Plus, RefreshCw, Pencil, Trash2, Loader2, FileSpreadsheet, FlaskConical
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import SheetSourceDialog from '@/components/settings/SheetSourceDialog';
+import GooglePickerSettings, { GooglePickerStatus } from '@/components/settings/GooglePickerSettings';
 import { SHEET_PURPOSES, purposeMeta } from '@/components/settings/dataSourcePurposes';
 
 const ALL = '__all__';
@@ -21,6 +22,7 @@ export default function GoogleSheetsPanel() {
   const [busyId, setBusyId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [filter, setFilter] = useState(ALL);
+  const [pickerSetupOpen, setPickerSetupOpen] = useState(false);
 
   const { data: allSources = [] } = useQuery({
     queryKey: ['lead-sources'],
@@ -86,23 +88,22 @@ export default function GoogleSheetsPanel() {
               <FileSpreadsheet className="w-4 h-4 text-primary" />
             </div>
             <div className="min-w-0">
-              <div className="text-[13px] font-medium text-foreground">Google account</div>
+              <div className="text-[13px] font-medium text-foreground flex items-center gap-2">
+                Google account
+                <span className={`text-[11px] inline-flex items-center gap-1 font-medium ${account?.connected ? 'status-sold' : 'text-muted-foreground'}`}>
+                  {account?.connected ? <CheckCircle2 className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                  {account?.connected ? 'Reading enabled' : 'Not connected'}
+                </span>
+              </div>
               <div className="text-[11px] text-muted-foreground truncate">
                 {account?.connected
-                  ? `${account.account || 'connected'}${account.can_list ? ' \u00b7 sheet picker available' : ' \u00b7 file browsing not granted, paste sheet links instead'}`
+                  ? `${account.account || 'connected'} \u00b7 sheets are read server side with this account`
                   : 'Not connected. Connect it in Settings, Integrations, Google Sheets.'}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {account?.connected
-              ? (
-                <span className={`text-[11px] inline-flex items-center gap-1 font-medium ${account.can_list ? 'status-sold' : 'text-muted-foreground'}`}>
-                  {account.can_list ? <CheckCircle2 className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
-                  {account.can_list ? 'Connected' : 'Limited access'}
-                </span>
-              )
-              : <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Not connected</span>}
+            <GooglePickerStatus onConfigure={() => setPickerSetupOpen(true)} />
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => refetchAccount()} disabled={checkingAccount}>
               {checkingAccount ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Recheck
             </Button>
@@ -220,6 +221,8 @@ export default function GoogleSheetsPanel() {
         onOpenChange={(v) => setDialog((p) => ({ ...p, open: v }))}
         onSaved={refresh}
       />
+
+      <GooglePickerSettings open={pickerSetupOpen} onOpenChange={setPickerSetupOpen} />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
         <AlertDialogContent className="bg-popover border-border">
