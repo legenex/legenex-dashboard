@@ -12,6 +12,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 //   cost           rows are written as AdSpend against a supplier
 //
 // Modes:
+//   { account_status: true }                connected Google account and whether
+//                                           Drive listing is authorised
 //   { list_spreadsheets: true }             list sheets from Drive (needs Drive scope)
 //   { list_worksheets: true, sheet_id }     list tab names in a spreadsheet
 //   { preview: true, sheet_id, worksheet }  columns, a sample row and a row count
@@ -358,6 +360,32 @@ Deno.serve(async (req) => {
 
     let body = {};
     try { body = await req.json(); } catch { /* empty body means sync all */ }
+
+    // Who the connected Google account is, and whether Drive listing works.
+    // The panel shows this beside the sheets so a broken connection is visible
+    // where it matters, not buried in the Integrations tab.
+    if (body.account_status) {
+      let account = null;
+      let connected = false;
+      try {
+        const conn = await base44.asServiceRole.connectors.getConnection('googlesheets');
+        connected = !!conn?.accessToken;
+        account = conn?.connectedAccount || conn?.connected_account || conn?.account || conn?.email || null;
+      } catch (err) {
+        return Response.json({ connected: false, can_list: false, error: err.message });
+      }
+      let canList = false;
+      try {
+        const token = await googleToken(base44);
+        const probe = await fetch(
+          'https://www.googleapis.com/drive/v3/files?pageSize=1&fields=files(id)'
+          + '&q=' + encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and trashed=false"),
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        canList = probe.ok;
+      } catch { canList = false; }
+      return Response.json({ connected, account, can_list: canList });
+    }
 
     // List the spreadsheets in the connected Drive so the operator picks from a
     // dropdown instead of pasting a URL. Needs a Drive scope on the connector;
