@@ -7,7 +7,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, RefreshCw, Pencil, Trash2, Loader2, FileSpreadsheet, FlaskConical, ExternalLink } from 'lucide-react';
+import { Plus, RefreshCw, Pencil, Trash2, Loader2, FileSpreadsheet, FlaskConical, ExternalLink, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import SheetSourceDialog from '@/components/settings/SheetSourceDialog';
@@ -25,6 +25,13 @@ export default function GoogleSheetsPanel() {
   const { data: allSources = [] } = useQuery({
     queryKey: ['lead-sources'],
     queryFn: async () => (await base44.entities.LeadSource.list('-created_date', 200)) || [],
+  });
+
+  // The connected Google account, shown here rather than only in Integrations,
+  // because this is where an operator notices it is broken.
+  const { data: account, refetch: refetchAccount, isFetching: checkingAccount } = useQuery({
+    queryKey: ['google-sheets-account'],
+    queryFn: async () => (await base44.functions.invoke('syncGoogleSheets', { account_status: true })).data,
   });
 
   const sheets = useMemo(
@@ -71,9 +78,41 @@ export default function GoogleSheetsPanel() {
 
   return (
     <div className="space-y-4">
+      {/* Connected Google account */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium text-foreground">Google account</div>
+              <div className="text-[11px] text-muted-foreground truncate">
+                {account?.connected
+                  ? `${account.account || 'connected'}${account.can_list ? '' : ' \u00b7 Drive listing not granted, the sheet picker will be empty'}`
+                  : 'Not connected. Connect it in Settings, Integrations, Google Sheets.'}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {account?.connected
+              ? (
+                <span className={`text-[11px] inline-flex items-center gap-1 font-medium ${account.can_list ? 'status-sold' : 'text-muted-foreground'}`}>
+                  {account.can_list ? <CheckCircle2 className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                  {account.can_list ? 'Connected' : 'Limited access'}
+                </span>
+              )
+              : <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Not connected</span>}
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => refetchAccount()} disabled={checkingAccount}>
+              {checkingAccount ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Recheck
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-start justify-between gap-4">
         <p className="text-[13px] text-muted-foreground max-w-2xl">
-          Every spreadsheet this workspace reads, and what each one is for. A sheet's purpose decides where its rows are written, so a feedback sheet can never leak into the lead pipeline.
+          Every spreadsheet this workspace reads, and what each one is for. A sheet's purpose decides where its rows are written, so a feedback sheet can never leak into the lead pipeline. Connected sheets sync continuously.
         </p>
         <Button size="sm" onClick={() => setDialog({ open: true, source: null })} className="gap-1.5 shrink-0">
           <Plus className="w-4 h-4" /> Connect sheet
