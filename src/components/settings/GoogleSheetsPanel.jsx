@@ -97,7 +97,7 @@ export default function GoogleSheetsPanel() {
               </div>
               <div className="text-[11px] text-muted-foreground truncate">
                 {account?.connected
-                  ? `${account.account || 'connected'} \u00b7 sheets are read server side with this account`
+                  ? `${account.account || 'connected'} \u00b7 ${account.can_list ? 'sheets and Drive browsing both available' : 'sheets are read server side with this account'}`
                   : 'Not connected. Connect it in Settings, Integrations, Google Sheets.'}
               </div>
             </div>
