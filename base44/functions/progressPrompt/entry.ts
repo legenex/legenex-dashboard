@@ -49,7 +49,7 @@ const STANDING_CONSTRAINTS = [
 
 async function callOpenAI({ prompt, system, model = 'gpt-4o', temperature = 0.2 }) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -62,7 +62,13 @@ async function callOpenAI({ prompt, system, model = 'gpt-4o', temperature = 0.2 
       ],
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const detail = await res.text();
+    if (res.status === 401) throw new Error('OPENAI_KEY_REJECTED: OpenAI rejected the OPENAI_API_KEY secret (revoked, or wrong project).');
+    if (res.status === 429) throw new Error('OPENAI_QUOTA: OpenAI rate limit or billing quota exceeded.');
+    if (res.status === 404) throw new Error(`OPENAI_MODEL_MISSING: model "${model}" is not available to this key.`);
+    throw new Error(`OPENAI_ERROR ${res.status}: ${detail.slice(0, 300)}`);
+  }
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? '';
 }

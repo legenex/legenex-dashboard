@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 // Generates the "What's New" release highlights using OpenAI (OPENAI_API_KEY secret).
 async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature = 0.5, jsonSchema = null }) {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
+  if (!apiKey) throw new Error('OPENAI_KEY_MISSING: the OPENAI_API_KEY secret is not set on this app. Set it in the Base44 dashboard under Settings > Secrets. Every AI feature depends on it.');
   const messages = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
@@ -16,7 +16,13 @@ async function callOpenAI({ prompt, system, model = 'gpt-4o-mini', temperature =
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const detail = await res.text();
+    if (res.status === 401) throw new Error('OPENAI_KEY_REJECTED: OpenAI rejected the OPENAI_API_KEY secret (revoked, or wrong project).');
+    if (res.status === 429) throw new Error('OPENAI_QUOTA: OpenAI rate limit or billing quota exceeded.');
+    if (res.status === 404) throw new Error(`OPENAI_MODEL_MISSING: model "${model}" is not available to this key.`);
+    throw new Error(`OPENAI_ERROR ${res.status}: ${detail.slice(0, 300)}`);
+  }
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content ?? '';
   if (jsonSchema) { try { return JSON.parse(content); } catch { return null; } }
